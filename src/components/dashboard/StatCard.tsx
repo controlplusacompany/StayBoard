@@ -45,20 +45,20 @@ export default function StatCard({
         <div className={`absolute top-0 left-0 right-0 h-1 ${accentColor === 'blue' ? 'bg-accent' : accentColor === 'purple' ? 'bg-[#8B5CF6]' : accentColor === 'orange' ? 'bg-[#F97316]' : 'bg-[#22C55E]'}`} />
       )}
       
-      <span className="text-[10px] font-sans text-ink-muted uppercase font-bold tracking-[0.1em] leading-none mb-1">
+      <span className="text-[10px] font-sans text-ink-muted uppercase font-semibold tracking-[0.1em] leading-none mb-1">
         {label}
       </span>
 
       <div className={`
         text-ink-primary font-sans tracking-tighter leading-tight
-        ${isCurrency ? 'text-2xl md:text-3xl font-mono' : 'text-3xl md:text-4xl font-extrabold'}
+        ${isCurrency ? 'text-2xl md:text-3xl font-mono font-semibold' : 'text-3xl md:text-4xl font-semibold'}
       `}>
         {valueDisplay}
       </div>
 
       <div className="flex items-center gap-1.5 mt-1">
         {trend && (
-          <div className={`flex items-center text-[11px] font-bold px-1.5 py-0.5 rounded-full ${trend.type === 'up' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}`}>
+          <div className={`flex items-center text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${trend.type === 'up' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}`}>
             {trend.type === 'up' ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
             <span className="ml-0.5">{trend.value}</span>
           </div>

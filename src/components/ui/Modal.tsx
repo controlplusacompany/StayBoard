@@ -18,7 +18,16 @@ interface ModalProps {
   footer?: React.ReactNode;
   className?: string;
   showX?: boolean;
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
 }
+
+const sizeClasses = {
+  sm: 'max-w-[400px]',
+  md: 'max-w-[480px]',
+  lg: 'max-w-[720px]',
+  xl: 'max-w-[960px]',
+  full: 'max-w-full m-4 h-[calc(100vh-32px)]'
+};
 
 export default function Modal({
   isOpen,
@@ -27,7 +36,8 @@ export default function Modal({
   children,
   footer,
   className,
-  showX = true
+  showX = true,
+  size = 'md'
 }: ModalProps) {
   const [mounted, setMounted] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -70,7 +80,8 @@ export default function Modal({
       {/* Modal Content */}
       <div 
         className={cn(
-          "relative w-full max-w-[480px] bg-surface border border-border-subtle rounded-xl shadow-2xl flex flex-col transition-all duration-[220ms] ease-out",
+          "relative w-full bg-surface border border-border-subtle rounded-xl shadow-2xl flex flex-col transition-all duration-[220ms] ease-out",
+          sizeClasses[size],
           isOpen ? "translate-y-0 opacity-100 scale-100" : "translate-y-2 opacity-0 scale-[0.98]",
           className
         )}

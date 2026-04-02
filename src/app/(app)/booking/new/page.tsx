@@ -179,13 +179,13 @@ function BookingFlow() {
         </p>
 
         <div className="flex flex-col w-full max-w-xs gap-3">
-          <Link href={`/property/${room.property_id}`} className="btn-accent w-full py-3.5 rounded-xl font-bold flex items-center justify-center gap-2">
+          <Link href={`/property/${room.property_id}`} className="btn-accent w-full py-4 rounded-xl font-semibold flex items-center justify-center gap-2">
             <Home size={18} />
             Back to Property
           </Link>
           <button
             onClick={() => router.push('/dashboard')}
-            className="btn-secondary w-full py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 border border-border-subtle"
+            className="btn-secondary w-full py-4 rounded-xl font-semibold flex items-center justify-center gap-2 border border-border-subtle"
           >
             Go to Dashboard
           </button>
@@ -206,8 +206,8 @@ function BookingFlow() {
             <ArrowLeft size={24} />
           </button>
           <div className="flex flex-col">
-            <h1 className="text-2xl font-display text-ink-primary">New Booking</h1>
-            <p className="text-xs text-ink-muted">Quick onboarding for Room {room.room_number}</p>
+            <h1 className="text-3xl font-display text-ink-primary tracking-tight">New Booking</h1>
+            <p className="text-sm text-ink-secondary">Quick onboarding for Room {room.room_number}</p>
           </div>
         </div>
       </header>
@@ -219,8 +219,8 @@ function BookingFlow() {
           {/* SECTION 1: STAY & OCCUPANCY (NOW AT TOP) */}
           <section className="flex flex-col gap-6 animate-slide-up relative z-[40]" style={{ animationDelay: '0ms' }}>
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center text-accent font-bold text-sm">1</div>
-              <h2 className="text-lg font-display text-ink-primary">Stay & Occupancy</h2>
+              <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center text-accent font-semibold text-xs">1</div>
+              <h2 className="text-lg font-display text-ink-primary font-medium">Stay & Occupancy</h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -244,42 +244,44 @@ function BookingFlow() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="flex flex-col gap-2 p-4 bg-bg-sunken rounded-2xl border border-border-subtle">
-                <label className="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Adults</label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex flex-col gap-2 p-3 bg-bg-sunken rounded-xl border border-border-subtle">
+                <label className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider">Adults</label>
                 <div className="flex items-center justify-between">
-                  <button onClick={() => updateField('numAdults', Math.max(1, formData.numAdults - 1))} className="w-8 h-8 rounded-full bg-white shadow-sm border border-border-subtle flex items-center justify-center text-ink-primary">−</button>
-                  <span className="text-xl font-display font-bold">{formData.numAdults}</span>
-                  <button onClick={() => updateField('numAdults', formData.numAdults + 1)} className="w-8 h-8 rounded-full bg-white shadow-sm border border-border-subtle flex items-center justify-center text-ink-primary">+</button>
+                  <button onClick={() => updateField('numAdults', Math.max(1, formData.numAdults - 1))} className="w-7 h-7 rounded-full bg-white shadow-sm border border-border-subtle flex items-center justify-center text-ink-primary hover:bg-bg-sunken">−</button>
+                  <span className="text-lg font-display font-semibold">{formData.numAdults}</span>
+                  <button onClick={() => updateField('numAdults', formData.numAdults + 1)} className="w-7 h-7 rounded-full bg-white shadow-sm border border-border-subtle flex items-center justify-center text-ink-primary hover:bg-bg-sunken">+</button>
                 </div>
               </div>
-              <div className="flex flex-col gap-2 p-4 bg-bg-sunken rounded-2xl border border-border-subtle">
-                <label className="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Children (5-12y)</label>
+              <div className="flex flex-col gap-2 p-3 bg-bg-sunken rounded-xl border border-border-subtle">
+                <label className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider">Children (5-12y)</label>
                 <div className="flex items-center justify-between">
-                  <button onClick={() => updateField('numChildren', Math.max(0, formData.numChildren - 1))} className="w-8 h-8 rounded-full bg-white shadow-sm border border-border-subtle flex items-center justify-center text-ink-primary">−</button>
-                  <span className="text-xl font-display font-bold">{formData.numChildren}</span>
-                  <button onClick={() => updateField('numChildren', formData.numChildren + 1)} className="w-8 h-8 rounded-full bg-white shadow-sm border border-border-subtle flex items-center justify-center text-ink-primary">+</button>
+                  <button onClick={() => updateField('numChildren', Math.max(0, formData.numChildren - 1))} className="w-7 h-7 rounded-full bg-white shadow-sm border border-border-subtle flex items-center justify-center text-ink-primary hover:bg-bg-sunken">−</button>
+                  <span className="text-lg font-display font-semibold">{formData.numChildren}</span>
+                  <button onClick={() => updateField('numChildren', formData.numChildren + 1)} className="w-7 h-7 rounded-full bg-white shadow-sm border border-border-subtle flex items-center justify-center text-ink-primary hover:bg-bg-sunken">+</button>
                 </div>
               </div>
-              <div className="flex flex-col gap-2 p-4 bg-bg-sunken rounded-2xl border border-border-subtle">
+              <div className="flex flex-col gap-2 p-3 bg-bg-sunken rounded-xl border border-border-subtle">
                 <div className="flex justify-between items-center">
-                  <label className="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Infant (&lt;5y)</label>
-                  <span className="text-[9px] font-bold text-success uppercase">Free</span>
+                  <label className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider">Infant (&lt;5y)</label>
+                  <span className="text-[9px] font-semibold text-success uppercase">Free</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <button onClick={() => updateField('numInfants', Math.max(0, formData.numInfants - 1))} className="w-8 h-8 rounded-full bg-white shadow-sm border border-border-subtle flex items-center justify-center text-ink-primary">−</button>
-                  <span className="text-xl font-display font-bold">{formData.numInfants}</span>
-                  <button onClick={() => updateField('numInfants', formData.numInfants + 1)} className="w-8 h-8 rounded-full bg-white shadow-sm border border-border-subtle flex items-center justify-center text-ink-primary">+</button>
+                  <button onClick={() => updateField('numInfants', Math.max(0, formData.numInfants - 1))} className="w-7 h-7 rounded-full bg-white shadow-sm border border-border-subtle flex items-center justify-center text-ink-primary hover:bg-bg-sunken">−</button>
+                  <span className="text-lg font-display font-semibold">{formData.numInfants}</span>
+                  <button onClick={() => updateField('numInfants', formData.numInfants + 1)} className="w-7 h-7 rounded-full bg-white shadow-sm border border-border-subtle flex items-center justify-center text-ink-primary hover:bg-bg-sunken">+</button>
                 </div>
               </div>
             </div>
           </section>
 
+          <div className="h-px w-full bg-border-subtle opacity-50 my-2" />
+
           {/* SECTION 2: GUEST DETAILS */}
           <section className="flex flex-col gap-6 animate-slide-up relative z-[30]" style={{ animationDelay: '50ms' }}>
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center text-accent font-bold text-sm">2</div>
-              <h2 className="text-lg font-display text-ink-primary">Guest Details</h2>
+              <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center text-accent font-semibold text-xs">2</div>
+              <h2 className="text-lg font-display text-ink-primary font-medium">Guest Details</h2>
             </div>
             
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -291,7 +293,7 @@ function BookingFlow() {
                     </div>
                     <input
                       type="text"
-                      className="input pl-14 py-4 text-lg font-display border-accent/20 bg-accent/[0.02] focus:bg-white focus:border-accent focus:ring-4 focus:ring-accent/5 animate-in fade-in slide-in-from-top-1"
+                      className="input pl-14 py-4 text-base font-sans border-border-subtle focus:border-accent focus:ring-4 focus:ring-accent/5 transition-all"
                       placeholder="Jane Cooper / John Doe (Required)"
                       value={formData.guestName}
                       onChange={(e) => updateField('guestName', e.target.value)}
@@ -304,7 +306,7 @@ function BookingFlow() {
                   <div className="flex items-center gap-3 focus-within:border-accent focus-within:ring-4 focus-within:ring-accent/10 focus-within:bg-bg-surface transition-all bg-bg-sunken border-1.5 border-border-subtle rounded-xl overflow-hidden px-4 h-[50px]">
                     <div className="flex items-center gap-2 pr-3 border-r border-border-strong text-ink-muted">
                        <Smartphone size={14} />
-                       <span className="text-sm font-bold">+91</span>
+                       <span className="text-sm font-semibold">+91</span>
                     </div>
                     <input
                       type="tel"
@@ -318,16 +320,16 @@ function BookingFlow() {
 
                 <div className="field">
                   <label className="label">Nationality</label>
-                  <div className="flex gap-2 p-1 bg-bg-sunken rounded-xl border border-border-subtle w-full h-[50px]">
+                  <div className="flex gap-1 p-1 bg-bg-sunken rounded-lg border border-border-subtle w-full h-[50px]">
                     <button 
                       onClick={() => updateField('nationality', 'indian')}
-                      className={`flex-1 rounded-lg text-[11px] font-bold transition-all uppercase tracking-wider ${formData.nationality === 'indian' ? 'bg-white text-ink-primary shadow-sm border border-border-subtle/20' : 'text-ink-muted'}`}
+                      className={`flex-1 rounded-md text-[11px] font-semibold transition-all uppercase tracking-wider ${formData.nationality === 'indian' ? 'bg-white text-ink-primary shadow-sm' : 'text-ink-muted hover:text-ink-secondary'}`}
                     >
                       🇮🇳 Indian
                     </button>
                     <button 
                       onClick={() => updateField('nationality', 'international')}
-                      className={`flex-1 rounded-lg text-[11px] font-bold transition-all uppercase tracking-wider ${formData.nationality === 'international' ? 'bg-white text-ink-primary shadow-sm border border-border-subtle/20' : 'text-ink-muted'}`}
+                      className={`flex-1 rounded-md text-[11px] font-semibold transition-all uppercase tracking-wider ${formData.nationality === 'international' ? 'bg-white text-ink-primary shadow-sm' : 'text-ink-muted hover:text-ink-secondary'}`}
                     >
                       🌎 Intl
                     </button>
@@ -413,11 +415,13 @@ function BookingFlow() {
             </div>
           </section>
 
+          <div className="h-px w-full bg-border-subtle opacity-50 my-2" />
+
           {/* SECTION 3: IDENTITY VERIFICATION */}
           <section className="flex flex-col gap-6 animate-slide-up relative z-[20]" style={{ animationDelay: '100ms' }}>
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center text-accent font-bold text-sm">3</div>
-              <h2 className="text-lg font-display text-ink-primary">Identity Docs</h2>
+              <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center text-accent font-semibold text-xs">3</div>
+              <h2 className="text-lg font-display text-ink-primary font-medium">Identity Docs</h2>
             </div>
 
             {formData.nationality === 'indian' ? (
@@ -442,7 +446,7 @@ function BookingFlow() {
                     value={formData.idNumber}
                     onChange={(e) => updateField('idNumber', e.target.value)}
                   />
-                  <p className="text-[10px] text-ink-muted italic mt-1">PAN Card is not accepted as address proof.</p>
+                  <p className="text-[10px] text-ink-muted italic mt-1">PAN Card is not accepted proof.</p>
                 </div>
               </div>
             ) : (
@@ -476,18 +480,20 @@ function BookingFlow() {
                     onChange={(e) => updateField('arrivalDateIndia', e.target.value)}
                   />
                 </div>
-                <p className="text-[11px] text-accent font-bold md:col-span-2 lg:col-span-3 bg-accent/5 p-3 rounded-lg border border-accent/20">
+                <p className="text-[11px] text-accent font-semibold md:col-span-2 lg:col-span-3 bg-accent/5 p-3 rounded-lg border border-accent/20">
                   Form C submission is mandatory within 24 hours of arrival for international guests.
                 </p>
               </div>
             )}
           </section>
 
+          <div className="h-px w-full bg-border-subtle opacity-50 my-2" />
+
           {/* SECTION 4: ADVANCE & PAYMENT */}
           <section className="flex flex-col gap-6 animate-slide-up relative z-[10]" style={{ animationDelay: '150ms' }}>
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center text-accent font-bold text-sm">4</div>
-              <h2 className="text-lg font-display text-ink-primary">Advance & Payment</h2>
+              <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center text-accent font-semibold text-xs">4</div>
+              <h2 className="text-lg font-display text-ink-primary font-medium">Advance & Payment</h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -526,8 +532,8 @@ function BookingFlow() {
                     <button
                       key={mode}
                       onClick={() => updateField('paymentMethod', mode)}
-                      className={`py-3 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all ${formData.paymentMethod === mode
-                          ? 'bg-ink-primary text-white border-ink-primary'
+                      className={`py-3 rounded-lg text-[11px] font-semibold uppercase tracking-wider border transition-all ${formData.paymentMethod === mode
+                          ? 'bg-accent text-white border-accent shadow-sm'
                           : 'bg-white text-ink-secondary border-border-subtle hover:bg-bg-sunken'
                         }`}
                     >
@@ -550,8 +556,8 @@ function BookingFlow() {
                     <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4 shadow-sm" />
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-sm font-bold text-ink-primary select-none group-hover:text-accent transition-colors">Add 12% GST to total</span>
-                    <span className="text-[10px] text-ink-muted uppercase font-bold tracking-widest">Tax Invoice required</span>
+                    <span className="text-sm font-semibold text-ink-primary select-none group-hover:text-accent transition-colors">Add 12% GST to total</span>
+                    <span className="text-[10px] text-ink-muted uppercase font-semibold tracking-widest">Tax Invoice required</span>
                   </div>
                 </label>
               </div>
@@ -568,8 +574,8 @@ function BookingFlow() {
                 {room.room_number}
               </div>
               <div className="flex flex-col">
-                <span className="text-sm font-sans font-bold text-ink-primary uppercase tracking-wider">{room.room_type} ROOM</span>
-                <span className="text-xs text-ink-muted">Floor {room.floor} • {
+                <span className="text-xs font-sans font-semibold text-ink-muted uppercase tracking-wider">{room.room_type} ROOM</span>
+                <span className="text-sm text-ink-primary font-display font-medium">Floor {room.floor} • {
                   room.property_id === '010' ? 'The Peace' : 
                   room.property_id === '011' ? 'Starry Nights' : 'Starry BnB'
                 }</span>
@@ -582,9 +588,9 @@ function BookingFlow() {
                 <div className="flex items-center gap-2">
                    <span className="text-xs">{formData.nationality === 'indian' ? '🇮🇳' : '🌎'}</span>
                    <div className="flex flex-col items-end">
-                    <span className="text-ink-primary font-bold">{formData.guestName || "—"}</span>
+                    <span className="text-ink-primary font-semibold">{formData.guestName || "—"}</span>
                     {(formData.numAdults > 1 || formData.numChildren > 0) && (
-                      <span className="text-[10px] text-ink-muted">+{formData.numAdults + formData.numChildren - 1} Extra Person(s)</span>
+                      <span className="text-[10px] text-ink-muted">+{formData.numAdults + formData.numChildren - 1} extra guest(s)</span>
                     )}
                    </div>
                 </div>
@@ -593,7 +599,7 @@ function BookingFlow() {
                 <span className="text-ink-muted">Occupancy</span>
                 <div className="flex flex-col items-end">
                   <span className="text-ink-primary font-medium">{formData.numAdults} Ad, {formData.numChildren} Ch</span>
-                  {formData.numInfants > 0 && <span className="text-[10px] text-success font-bold">+{formData.numInfants} Infant(s)</span>}
+                  {formData.numInfants > 0 && <span className="text-[10px] text-success font-semibold">+{formData.numInfants} Infant(s)</span>}
                 </div>
               </div>
               <div className="flex justify-between items-center text-sm">
@@ -607,13 +613,13 @@ function BookingFlow() {
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-ink-muted">Total Amount</span>
                   <div className="flex flex-col items-end">
-                    <span className="font-mono font-bold text-ink-primary">{formatINR(totalAmount)}</span>
-                    {formData.includeTax && <span className="text-[9px] font-bold text-success uppercase">Inc. 12% GST</span>}
+                    <span className="font-mono font-semibold text-ink-primary">{formatINR(totalAmount)}</span>
+                    {formData.includeTax && <span className="text-[9px] font-semibold text-success uppercase">Inc. 12% GST</span>}
                   </div>
                 </div>
                 <div className="flex justify-between items-center pt-2 mt-1 border-t border-border-subtle/10">
-                  <span className="text-sm font-bold text-ink-primary">Balance Due</span>
-                  <span className="text-xl font-mono text-danger font-bold">{formatINR(balanceDue)}</span>
+                  <span className="text-sm font-semibold text-ink-primary">Balance Due</span>
+                  <span className="text-xl font-mono text-danger font-semibold">{formatINR(balanceDue)}</span>
                 </div>
               </div>
             </div>
@@ -621,13 +627,13 @@ function BookingFlow() {
             <button
               onClick={handleSubmit}
               disabled={!formData.guestName || !formData.guestPhone}
-              className={`w-full py-4 rounded-xl font-bold text-[16px] flex items-center justify-center gap-2 transition-all shadow-lg mt-2 ${!formData.guestName || !formData.guestPhone ? 'bg-ink-disabled text-ink-muted cursor-not-allowed shadow-none' : 'btn-accent shadow-accent/20 hover:-translate-y-0.5 active:translate-y-0'
+              className={`w-full py-4 rounded-xl font-semibold text-[15px] flex items-center justify-center gap-2 transition-all shadow-lg mt-2 ${!formData.guestName || !formData.guestPhone ? 'bg-ink-disabled text-ink-muted cursor-not-allowed shadow-none' : 'btn-accent shadow-accent/20 hover:-translate-y-0.5 active:translate-y-0'
                 }`}
             >
               <span>Complete Check-in</span>
               <ChevronRight size={18} />
             </button>
-            <p className="text-[10px] text-center text-ink-muted italic px-4">By completing, the room status will change to <span className="text-success font-bold uppercase">Occupied</span></p>
+            <p className="text-[10px] text-center text-ink-muted italic px-4">By completing, the room status will change to <span className="text-success font-semibold uppercase">Occupied</span></p>
           </div>
         </div>
       </div>

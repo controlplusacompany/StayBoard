@@ -12,25 +12,38 @@ import Link from 'next/link';
 import { getStoredRooms, getStoredBookings } from '@/lib/store';
 import { Room, Booking } from '@/types';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { parseISO } from 'date-fns';
+import { useNewBooking } from '@/components/booking/NewBookingProvider';
+import { parseISO, format } from 'date-fns';
 
 export default function DashboardPage() {
   const router = useRouter();
   const { toast } = useToast();
-  // Mock owner data
+  const { open: openNewBooking } = useNewBooking();
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
   const [isMounted, setIsMounted] = useState(false);
 
   React.useEffect(() => {
     setIsMounted(true);
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     if (typeof window !== 'undefined') {
       setUserRole(localStorage.getItem('stayboard_user_role') || 'owner');
+      setUserEmail(localStorage.getItem('stayboard_user_email'));
     }
+    return () => clearInterval(timer);
   }, []);
 
   const isReception = userRole === 'reception';
   const isOwnerRole = userRole === 'owner';
   const isSuperAdmin = userRole === 'superadmin';
+
+  const getGreeting = () => {
+    if (userEmail === 'dhagamonish00@gmail.com') return 'Welcome, Admin!';
+    if (userRole === 'reception') return 'Welcome, User!';
+    if (userRole === 'owner') return 'Welcome, Sudhir!';
+    return 'Welcome Back, User!';
+  };
 
   const owner = { 
     name: isReception ? 'Reception' : isSuperAdmin ? 'Monish' : isOwnerRole ? 'Operations Manager' : 'Rajesh', 
@@ -209,13 +222,35 @@ export default function DashboardPage() {
         
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-10">
           <div className="flex flex-col gap-3 w-full">
-            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/70">Welcome Back</span>
-            <h1 className="text-4xl md:text-5xl font-display tracking-tighter leading-[1.05]">
-              Everything is <br className="hidden sm:block" /> running smoothly.
+            <div className="flex flex-col gap-1">
+              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/70">
+                {format(currentTime, 'EEEE, dd MMM yyyy')}
+              </span>
+              <span className="text-[10px] font-medium tracking-widest text-white/50">
+                {format(currentTime, 'hh:mm:ss a')}
+              </span>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-display tracking-tight leading-[1.05]">
+              {getGreeting()}
             </h1>
-            <p className="text-base text-white/80 mt-2 max-w-lg font-medium">
-              Hello {owner.name}, you have {totalVacant} vacant rooms across {activePropertyName} today. {today}.
-            </p>
+            <div className="flex flex-wrap gap-x-8 gap-y-2 mt-4 text-white/90 text-sm font-medium">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-white/40" />
+                <span><span className="font-bold text-white tracking-widest">{totalVacant}</span> Vacant</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-white/40" />
+                <span><span className="font-bold text-white tracking-widest">{allRooms.filter(r => r.status === 'occupied').length}</span> Occupied</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-white/40" />
+                <span><span className="font-bold text-white tracking-widest">{allRooms.filter(r => r.status === 'arriving_today').length}</span> Check-ins</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-white/40" />
+                <span><span className="font-bold text-white tracking-widest">{allRooms.filter(r => r.status === 'checkout_today').length}</span> Check-outs</span>
+              </div>
+            </div>
           </div>
 
           <div className="flex flex-col gap-6 w-full md:w-auto md:items-end">
@@ -223,25 +258,27 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between sm:justify-start sm:gap-12 md:text-right">
                   <div className="flex flex-col gap-1">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">Occupancy</span>
-                    <span className="text-2xl sm:text-3xl font-mono font-bold tracking-tight">
+                    <span className="text-2xl sm:text-3xl font-mono font-semibold tracking-tight">
                       {Math.round((allRooms.filter(r => r.status === 'occupied').length / Math.max(1, allRooms.length)) * 100)}%
                     </span>
                   </div>
                   <div className="flex flex-col gap-1">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">Revenue</span>
-                    <span className="text-2xl sm:text-3xl font-mono font-bold tracking-tight">
+                    <span className="text-2xl sm:text-3xl font-mono font-semibold tracking-tight">
                       ₹{allRooms.filter(r => r.status === 'occupied').reduce((acc, curr) => acc + (curr.base_price || 0), 0)}
                     </span>
                   </div>
                 </div>
              )}
-              <button 
-                onClick={() => router.push('/booking/new')}
-                className="bg-white text-accent px-6 sm:px-8 py-4 rounded-full font-bold text-sm shadow-xl hover:scale-105 transition-all active:scale-95 flex items-center justify-center gap-2 group/btn whitespace-nowrap"
-              >
-                <Plus size={18} className="group-hover/btn:rotate-90 transition-transform" />
-                <span className="whitespace-nowrap">New Booking</span>
-              </button>
+              {propertyFilter && (
+                <button 
+                  onClick={() => openNewBooking()}
+                  className="bg-white text-accent px-6 sm:px-8 py-4 rounded-full font-bold text-sm shadow-xl hover:scale-105 transition-all active:scale-95 flex items-center justify-center gap-2 group/btn whitespace-nowrap"
+                >
+                  <Plus size={18} className="group-hover/btn:rotate-90 transition-transform" />
+                  <span className="whitespace-nowrap">New Booking</span>
+                </button>
+              )}
           </div>
         </div>
       </header>
@@ -301,7 +338,7 @@ export default function DashboardPage() {
                 <input 
                   type="text" 
                   placeholder={searchQuery ? "" : "Search properties..."} 
-                  className="input pl-10 h-10 text-sm"
+                  className="input pl-12 h-10 text-sm"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />

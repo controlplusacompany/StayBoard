@@ -8,13 +8,14 @@ import { formatDate } from '@/lib/formatting';
 interface RoomCardProps {
   room: Room;
   guestName?: string;
+  propertyName?: string;
   checkoutDate?: string;
   hasBalance?: boolean;
   futureBooking?: string;
   onClick: (roomId: string) => void;
 }
 
-export default function RoomCard({ room, guestName, checkoutDate, hasBalance, futureBooking, onClick }: RoomCardProps) {
+export default function RoomCard({ room, guestName, propertyName, checkoutDate, hasBalance, futureBooking, onClick }: RoomCardProps) {
   const getStatusClass = (status: RoomStatus) => {
     switch (status) {
       case 'vacant': return 'room-card--vacant';
@@ -38,9 +39,16 @@ export default function RoomCard({ room, guestName, checkoutDate, hasBalance, fu
     >
       <div className={`absolute top-0 left-0 right-0 h-1 bg-status-${room.status}-fg opacity-80`} />
       <div className="flex justify-between items-start">
-        <span className="room-card__number text-ink-primary font-display text-[22px]">
-          {room.room_number}
-        </span>
+        <div className="flex flex-col">
+          <span className="room-card__number text-ink-primary font-display text-[22px]">
+            {room.room_number}
+          </span>
+          {propertyName && (
+            <span className="text-[9px] font-bold text-accent font-sans uppercase tracking-[0.15em] -mt-1 opacity-70">
+              {propertyName}
+            </span>
+          )}
+        </div>
         <div className="flex flex-col items-end gap-1.5">
           <Badge type={room.status} label={getStatusLabel(room.status)} />
           {futureBooking && (

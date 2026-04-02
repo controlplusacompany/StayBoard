@@ -15,10 +15,14 @@ import { getStoredRooms, getBookingsList } from '@/lib/store';
 import { Room, Booking } from '@/types';
 import Badge from '@/components/ui/Badge';
 import RoomDrawer from '@/components/rooms/RoomDrawer';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useNewBooking } from '@/components/booking/NewBookingProvider';
 
 export default function CalendarPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const propertyId = searchParams.get('propertyId');
+  const { open: openNewBooking } = useNewBooking();
   const [isMounted, setIsMounted] = useState(false);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -41,10 +45,15 @@ export default function CalendarPage() {
 
   if (!isMounted) return <div className="p-20 text-center text-ink-muted">Loading calendar...</div>;
 
-  const filteredRooms = rooms.filter(r => 
-    r.room_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    r.room_type.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredRooms = rooms.filter(r => {
+    const matchesSearch = 
+      r.room_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      r.room_type.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesProperty = !propertyId || propertyId === 'all' || r.property_id === propertyId;
+    
+    return matchesSearch && matchesProperty;
+  });
 
   const getBookingForDate = (roomId: string, date: Date) => {
     return bookings.find(b => {
@@ -70,7 +79,7 @@ export default function CalendarPage() {
       {/* Header */}
       <header className="px-6 py-4 border-b border-border-subtle flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 bg-white z-20 shadow-sm">
         <div className="flex items-center gap-6">
-          <h1 className="text-xl font-display font-bold text-ink-primary whitespace-nowrap">Room Availability</h1>
+          <h1 className="text-xl font-display font-semibold text-ink-primary whitespace-nowrap tracking-tight">Room Availability</h1>
           
           <div className="flex items-center bg-bg-sunken rounded-lg p-1 border border-border-subtle">
             <button 
@@ -79,7 +88,7 @@ export default function CalendarPage() {
             >
               <ChevronLeft size={18} />
             </button>
-            <div className="px-4 text-sm font-bold text-ink-secondary min-w-[140px] text-center">
+            <div className="px-4 text-sm font-semibold text-ink-secondary min-w-[140px] text-center">
               {format(startDate, 'MMM yyyy')}
             </div>
             <button 
@@ -92,7 +101,7 @@ export default function CalendarPage() {
 
           <button 
             onClick={() => setStartDate(startOfDay(new Date()))}
-            className="text-xs font-bold text-accent hover:underline uppercase tracking-wider"
+            className="text-xs font-semibold text-accent hover:underline uppercase tracking-wider"
           >
             Today
           </button>
@@ -114,7 +123,7 @@ export default function CalendarPage() {
             <span className="text-sm">Filter</span>
           </button>
           <button 
-            onClick={() => router.push('/booking/new')}
+            onClick={() => openNewBooking()}
             className="btn btn-accent h-10 px-4 flex items-center gap-2"
           >
             <Plus size={16} />
@@ -130,8 +139,8 @@ export default function CalendarPage() {
             <tr>
               <th className="sticky left-0 z-40 bg-white border-b border-r border-border-subtle p-0 w-48 h-14">
                 <div className="flex flex-col justify-center items-start px-4 h-full">
-                  <span className="text-[10px] font-bold text-ink-muted uppercase tracking-widest leading-none mb-1">Room</span>
-                  <span className="text-xs text-ink-secondary">Total {rooms.length} Units</span>
+                  <span className="text-[10px] font-semibold text-ink-muted uppercase tracking-widest leading-none mb-1">Room</span>
+                  <span className="text-xs text-ink-secondary">Total {filteredRooms.length} Units</span>
                 </div>
               </th>
               {days.map((date, i) => {
@@ -148,10 +157,10 @@ export default function CalendarPage() {
                     `}
                   >
                     <div className="flex flex-col items-center justify-center h-full">
-                      <span className={`text-[10px] font-bold uppercase tracking-tighter ${isToday ? 'text-accent' : 'text-ink-muted'}`}>
+                      <span className={`text-[10px] font-semibold uppercase tracking-tighter ${isToday ? 'text-accent' : 'text-ink-muted'}`}>
                         {format(date, 'eee')}
                       </span>
-                      <span className={`text-sm font-bold mt-0.5 ${isToday ? 'text-accent' : 'text-ink-primary'}`}>
+                      <span className={`text-sm font-semibold mt-0.5 ${isToday ? 'text-accent' : 'text-ink-primary'}`}>
                         {format(date, 'd')}
                       </span>
                     </div>
@@ -173,7 +182,7 @@ export default function CalendarPage() {
                   }}>
                     <div className={`w-1.5 h-8 rounded-full ${room.room_type === 'dormitory' ? 'bg-orange-400' : 'bg-accent'}`} />
                     <div className="flex flex-col">
-                      <span className="text-sm font-bold text-ink-primary group-hover:text-accent transition-colors">Room {room.room_number}</span>
+                      <span className="text-sm font-semibold text-ink-primary group-hover:text-accent transition-colors">Room {room.room_number}</span>
                       <span className="text-[10px] text-ink-muted uppercase tracking-wider font-medium">{room.room_type}</span>
                     </div>
                   </div>
@@ -233,11 +242,11 @@ export default function CalendarPage() {
                             title={`${seg.booking.guest_name} • ${formatDate(seg.booking.check_in_date)} - ${formatDate(seg.booking.check_out_date)}`}
                           >
                             <div className="flex items-center justify-between">
-                              <span className="text-[10px] font-bold leading-none truncate whitespace-nowrap">
+                              <span className="text-[10px] font-semibold leading-none truncate whitespace-nowrap">
                                 {seg.booking.guest_name}
                               </span>
                               {seg.duration > 1 && (
-                                <span className="text-[8px] font-bold opacity-70 uppercase whitespace-nowrap bg-white/10 px-1.5 py-0.5 rounded ml-2">
+                                <span className="text-[8px] font-semibold opacity-70 uppercase whitespace-nowrap bg-white/10 px-1.5 py-0.5 rounded ml-2">
                                   {seg.duration} Nights
                                 </span>
                               )}
@@ -295,12 +304,12 @@ export default function CalendarPage() {
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded ring-1 ring-accent" />
-            <span className="text-xs font-medium text-accent uppercase tracking-wider font-bold">Today</span>
+            <span className="text-xs font-semibold text-accent uppercase tracking-wider">Today</span>
           </div>
         </div>
         
         <div className="text-[11px] text-ink-muted">
-           <span className="font-bold text-ink-secondary">PRO TIP:</span> Click any vacant slot to create a new booking on that date.
+           <span className="font-semibold text-ink-secondary">PRO TIP:</span> Click any vacant slot to create a new booking on that date.
         </div>
       </footer>
 

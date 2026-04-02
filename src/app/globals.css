@@ -3,6 +3,35 @@
 @tailwind utilities;
 
 
+html {
+  scroll-behavior: smooth;
+}
+
+/* ── Custom Scrollbar ── */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-sunken);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 20px;
+  border: 2px solid var(--bg-sunken);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-dark);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) var(--bg-sunken);
+}
 
 :root {
   /* ── Backgrounds ── */
@@ -148,6 +177,8 @@
     font-family: var(--font-mono);
   }
 }
+
+@layer components {
 
 /* ── Global Layouts ── */
 .page {
@@ -624,4 +655,4 @@
 .input:not(:placeholder-shown)::placeholder {
   opacity: 0;
   visibility: hidden;
-}
+}} 

@@ -49,6 +49,37 @@ export default function InvoicesPage() {
     setBookings(getStoredBookings({}));
   }, []);
 
+  const handleDownloadInvoice = (invoice: Invoice) => {
+    toast(`Preparing ${invoice.invoice_number} download...`, "success");
+    
+    // Create simple receipt content
+    const booking = bookings[invoice.booking_id];
+    const content = `
+      STAYBOARD - INVOICE
+      -------------------
+      Invoice: ${invoice.invoice_number}
+      Guest: ${booking?.guest_name || 'Guest'}
+      Date: ${format(new Date(invoice.created_at), 'dd MMM yyyy')}
+      Total: ₹${invoice.amount_total}
+      Paid: ₹${invoice.amount_paid}
+      Balance: ₹${invoice.amount_total - invoice.amount_paid}
+      Status: ${invoice.status.toUpperCase()}
+    `.trim();
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${invoice.invoice_number}.txt`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    setTimeout(() => {
+      toast(`${invoice.invoice_number} downloaded successfully!`, "success");
+    }, 1000);
+  };
+
   const handleRecordPayment = () => {
     if (!selectedInvoice) return;
     
@@ -100,7 +131,7 @@ export default function InvoicesPage() {
     <div className="p-6 md:p-10 flex flex-col gap-8 animate-slide-up bg-bg-canvas min-h-full">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl md:text-4xl font-display text-ink-primary tracking-tight font-extrabold">Invoices & Payments</h1>
+          <h1 className="text-3xl md:text-4xl font-display text-ink-primary tracking-tight font-semibold">Invoices & Payments</h1>
           <p className="text-ink-secondary">Manage billing and track revenue</p>
         </div>
       </header>
@@ -112,7 +143,7 @@ export default function InvoicesPage() {
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
             <input 
               type="text" 
-              className="input pl-10" 
+              className="input pl-12" 
               placeholder={searchQuery ? "" : "Search invoice or guest..."} 
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
@@ -139,11 +170,11 @@ export default function InvoicesPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-border-subtle bg-bg-sunken/50">
-                <th className="py-4 px-6 text-xs font-bold text-ink-muted uppercase tracking-wider">Invoice / Guest</th>
-                <th className="py-4 px-6 text-xs font-bold text-ink-muted uppercase tracking-wider">Date</th>
-                <th className="py-4 px-6 text-xs font-bold text-ink-muted uppercase tracking-wider">Amount</th>
-                <th className="py-4 px-6 text-xs font-bold text-ink-muted uppercase tracking-wider">Status</th>
-                <th className="py-4 px-6 text-xs font-bold text-ink-muted uppercase tracking-wider text-right">Actions</th>
+                <th className="py-4 px-6 text-xs font-semibold text-ink-muted uppercase tracking-wider">Invoice / Guest</th>
+                <th className="py-4 px-6 text-xs font-semibold text-ink-muted uppercase tracking-wider">Date</th>
+                <th className="py-4 px-6 text-xs font-semibold text-ink-muted uppercase tracking-wider">Amount</th>
+                <th className="py-4 px-6 text-xs font-semibold text-ink-muted uppercase tracking-wider">Status</th>
+                <th className="py-4 px-6 text-xs font-semibold text-ink-muted uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -155,7 +186,7 @@ export default function InvoicesPage() {
                   <tr key={invoice.id} className="border-b border-border-subtle/50 hover:bg-bg-sunken/30 transition-colors group">
                     <td className="py-4 px-6">
                       <div className="flex flex-col">
-                        <span className="font-mono font-bold text-ink-primary">{invoice.invoice_number}</span>
+                        <span className="font-mono font-semibold text-ink-primary">{invoice.invoice_number}</span>
                         <span className="text-sm text-ink-secondary">{booking?.guest_name || 'Unknown Guest'}</span>
                       </div>
                     </td>
@@ -167,7 +198,7 @@ export default function InvoicesPage() {
                     </td>
                     <td className="py-4 px-6">
                       <div className="flex flex-col">
-                        <span className="text-sm font-mono font-bold text-ink-primary">₹{invoice.amount_total}</span>
+                        <span className="text-sm font-mono font-semibold text-ink-primary">₹{invoice.amount_total}</span>
                         {balance > 0 ? (
                            <span className="text-[11px] font-mono text-warning font-semibold">Balance: ₹{balance}</span>
                         ) : (
@@ -185,7 +216,7 @@ export default function InvoicesPage() {
                       <div className="flex items-center justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                         {balance > 0 && invoice.status !== 'void' && (
                           <button 
-                            className="bg-accent/10 hover:bg-accent hover:text-white text-accent px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
+                            className="bg-accent/10 hover:bg-accent hover:text-white text-accent px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
                             onClick={() => {
                               setSelectedInvoice(invoice);
                               setPaymentAmount(balance.toString());
@@ -195,7 +226,11 @@ export default function InvoicesPage() {
                             Add Payment
                           </button>
                         )}
-                        <button className="p-2 text-ink-muted hover:text-ink-primary hover:bg-bg-sunken rounded-lg transition-colors" title="Download Print PDF">
+                        <button 
+                          className="p-2 text-ink-muted hover:text-ink-primary hover:bg-bg-sunken rounded-lg transition-colors" 
+                          title="Download Print PDF"
+                          onClick={() => handleDownloadInvoice(invoice)}
+                        >
                           <Download size={16} />
                         </button>
                       </div>
@@ -226,8 +261,8 @@ export default function InvoicesPage() {
         title="Record Payment"
         footer={
           <div className="flex gap-3 w-full">
-            <button className="btn btn-ghost flex-1 font-bold" onClick={() => setShowPaymentModal(false)}>Cancel</button>
-            <button className="btn btn-accent flex-1 font-bold" onClick={handleRecordPayment}>Confirm Payment</button>
+            <button className="btn btn-ghost flex-1 font-semibold" onClick={() => setShowPaymentModal(false)}>Cancel</button>
+            <button className="btn btn-accent flex-1 font-semibold" onClick={handleRecordPayment}>Confirm Payment</button>
           </div>
         }
       >
@@ -235,12 +270,12 @@ export default function InvoicesPage() {
           <div className="flex flex-col gap-6">
             <div className="bg-bg-sunken p-4 rounded-xl border border-border-subtle flex justify-between items-center">
               <div className="flex flex-col">
-                <span className="text-xs text-ink-muted font-bold uppercase tracking-wider">Invoice Number</span>
-                <span className="font-mono font-bold text-ink-primary">{selectedInvoice.invoice_number}</span>
+                <span className="text-xs text-ink-muted font-semibold uppercase tracking-wider">Invoice Number</span>
+                <span className="font-mono font-semibold text-ink-primary">{selectedInvoice.invoice_number}</span>
               </div>
               <div className="flex flex-col text-right">
-                <span className="text-xs text-ink-muted font-bold uppercase tracking-wider">Remaining Balance</span>
-                <span className="font-mono font-bold text-warning text-lg">₹{selectedInvoice.amount_total - selectedInvoice.amount_paid}</span>
+                <span className="text-xs text-ink-muted font-semibold uppercase tracking-wider">Remaining Balance</span>
+                <span className="font-mono font-semibold text-warning text-lg">₹{selectedInvoice.amount_total - selectedInvoice.amount_paid}</span>
               </div>
             </div>
 

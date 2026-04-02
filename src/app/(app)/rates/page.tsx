@@ -26,8 +26,18 @@ export default function RatesPage() {
   const { toast } = useToast();
   const [rules, setRules] = useState<RateRule[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setUserRole(localStorage.getItem('stayboard_user_role'));
+      setUserEmail(localStorage.getItem('stayboard_user_email'));
+    }
+    refreshRules();
+  }, []);
   
-  // New Rule Form State
+  const canManageRates = userEmail === 'dhagamonish00@gmail.com' || (userRole !== 'owner' && userRole !== 'reception' && userRole !== null && userRole !== 'staff');
   const [ruleName, setRuleName] = useState('');
   const [roomType, setRoomType] = useState<RateRule['room_type']>('all');
   const [startDate, setStartDate] = useState('');
@@ -85,47 +95,51 @@ export default function RatesPage() {
     <div className="p-6 md:p-10 flex flex-col gap-8 animate-slide-up bg-bg-canvas min-h-full">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl md:text-4xl font-display text-ink-primary tracking-tight font-extrabold">Rates & Inventory</h1>
+          <h1 className="text-3xl md:text-4xl font-display text-ink-primary tracking-tight">Rates & Inventory</h1>
           <p className="text-base text-ink-secondary">Manage dynamic pricing and seasonal adjustments.</p>
         </div>
         
-        <button 
-          onClick={() => setShowAddModal(true)}
-          className="btn btn-accent shadow-md flex items-center justify-center gap-2 h-12 px-6 w-full sm:w-auto font-bold"
-        >
-          <Plus size={18} />
-          <span>Create Pricing Rule</span>
-        </button>
+        {canManageRates && (
+          <button 
+            onClick={() => setShowAddModal(true)}
+            className="btn btn-accent shadow-md flex items-center justify-center gap-2 h-12 px-6 w-full sm:w-auto font-semibold"
+          >
+            <Plus size={18} />
+            <span>Create Pricing Rule</span>
+          </button>
+        )}
       </header>
 
       {/* Base Rates Display */}
       <section className="flex flex-col gap-4">
-        <h2 className="text-lg sm:text-xl font-bold text-ink-primary font-display">Standard Base Rates</h2>
+        <h2 className="text-lg sm:text-xl font-semibold text-ink-primary font-display">Standard Base Rates</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white border border-border-subtle p-5 rounded-xl shadow-sm flex flex-col gap-2">
-            <span className="text-xs uppercase font-bold text-ink-muted tracking-wider">Default Single</span>
-            <span className="text-2xl font-mono font-bold text-ink-primary">₹1,500<span className="text-sm font-sans text-ink-muted font-normal">/nt</span></span>
+            <span className="text-[10px] uppercase font-semibold text-ink-muted tracking-wide">Default Single</span>
+            <span className="text-2xl font-mono font-semibold text-ink-primary">₹1,500<span className="text-sm font-sans text-ink-muted font-normal">/nt</span></span>
           </div>
           <div className="bg-white border border-border-subtle p-5 rounded-xl shadow-sm flex flex-col gap-2">
-            <span className="text-xs uppercase font-bold text-ink-muted tracking-wider">Default Double</span>
-            <span className="text-2xl font-mono font-bold text-ink-primary">₹2,800<span className="text-sm font-sans text-ink-muted font-normal">/nt</span></span>
+            <span className="text-[10px] uppercase font-semibold text-ink-muted tracking-wide">Default Double</span>
+            <span className="text-2xl font-mono font-semibold text-ink-primary">₹2,800<span className="text-sm font-sans text-ink-muted font-normal">/nt</span></span>
           </div>
           <div className="bg-white border border-border-subtle p-5 rounded-xl shadow-sm flex flex-col gap-2">
-            <span className="text-xs uppercase font-bold text-ink-muted tracking-wider">Default Dorm</span>
-            <span className="text-2xl font-mono font-bold text-ink-primary">₹800<span className="text-sm font-sans text-ink-muted font-normal">/bed</span></span>
+            <span className="text-[10px] uppercase font-semibold text-ink-muted tracking-wide">Default Dorm</span>
+            <span className="text-2xl font-mono font-semibold text-ink-primary">₹800<span className="text-sm font-sans text-ink-muted font-normal">/bed</span></span>
           </div>
-          <div className="bg-white border border-border-subtle p-5 rounded-xl shadow-sm flex flex-col justify-center items-center gap-2 border-dashed group cursor-pointer hover:border-accent hover:bg-accent/5 transition-colors">
-            <Plus size={24} className="text-ink-muted group-hover:text-accent transition-colors" />
-            <span className="text-sm font-bold text-ink-secondary group-hover:text-accent transition-colors">Add Room Type Rate</span>
-          </div>
+          {canManageRates && (
+            <div className="bg-white border border-border-subtle p-5 rounded-xl shadow-sm flex flex-col justify-center items-center gap-2 border-dashed group cursor-pointer hover:border-accent hover:bg-accent/5 transition-colors">
+              <Plus size={24} className="text-ink-muted group-hover:text-accent transition-colors" />
+              <span className="text-sm font-semibold text-ink-secondary group-hover:text-accent transition-colors">Add Room Type Rate</span>
+            </div>
+          )}
         </div>
       </section>
 
       {/* Active Rules List */}
       <section className="flex flex-col gap-4 mt-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-ink-primary font-display">Dynamic Pricing Rules</h2>
-          <span className="text-sm font-bold text-accent bg-accent/10 px-3 py-1 rounded-full">{rules.length} Active Rules</span>
+          <h2 className="text-xl font-semibold text-ink-primary font-display">Dynamic Pricing Rules</h2>
+          <span className="text-xs font-semibold text-accent bg-accent/10 px-3 py-1 rounded-full uppercase tracking-wider">{rules.length} Active Rules</span>
         </div>
 
         {rules.length > 0 ? (
@@ -134,15 +148,17 @@ export default function RatesPage() {
               <div key={rule.id} className="bg-white border border-border-subtle rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col gap-4 group">
                 <div className="flex justify-between items-start">
                   <div className="flex flex-col gap-1">
-                    <h3 className="font-bold text-ink-primary">{rule.name}</h3>
+                    <h3 className="font-semibold text-ink-primary">{rule.name}</h3>
                     <Badge type={rule.is_active ? 'success' : 'neutral'} label={rule.is_active ? 'Active' : 'Draft'} />
                   </div>
-                  <button 
-                    onClick={() => handleDeleteRule(rule.id)}
-                    className="p-2 text-ink-muted hover:text-danger hover:bg-danger/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  {canManageRates && (
+                    <button 
+                      onClick={() => handleDeleteRule(rule.id)}
+                      className="p-2 text-ink-muted hover:text-danger hover:bg-danger/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
                 </div>
                 
                 <div className="flex items-center gap-3 bg-bg-sunken p-3 rounded-lg border border-border-subtle mt-2">
@@ -163,11 +179,7 @@ export default function RatesPage() {
                     <span className="font-mono">{format(new Date(rule.start_date), 'dd MMM')} - {format(new Date(rule.end_date), 'dd MMM yyyy')}</span>
                   </div>
                   <div className="flex items-center justify-between gap-2 mt-2">
-                    <div className="flex items-center gap-2 text-[10px] uppercase font-bold text-ink-muted">
-                      <span className="bg-bg-sunken px-2 py-0.5 rounded border border-border-subtle">{rule.plan.replace('_', ' ')}</span>
-                      {rule.include_tax && <span className="bg-green-50 text-green-600 px-2 py-0.5 rounded border border-green-100">+Tax</span>}
-                    </div>
-                    <span className="text-[10px] text-ink-muted font-bold tracking-wider capitalize">{rule.room_type} rooms</span>
+                    <span className="text-[10px] text-ink-muted font-semibold tracking-wider uppercase">{rule.room_type} rooms</span>
                   </div>
                 </div>
               </div>
@@ -178,14 +190,16 @@ export default function RatesPage() {
              <div className="w-16 h-16 bg-bg-sunken rounded-full flex items-center justify-center text-ink-muted mb-2">
                 <Percent size={28} />
              </div>
-             <h3 className="font-bold text-ink-primary text-lg">No dynamic rules configured</h3>
+             <h3 className="font-semibold text-ink-primary text-lg">No dynamic rules configured</h3>
              <p className="text-ink-secondary max-w-sm">Create pricing rules to automatically adjust rates during weekends, holidays, or seasonal events.</p>
-             <button 
-                onClick={() => setShowAddModal(true)}
-                className="btn border border-border-strong text-ink-primary mt-4 font-bold hover:bg-bg-sunken"
-              >
-                Create First Rule
-             </button>
+             {canManageRates && (
+               <button 
+                  onClick={() => setShowAddModal(true)}
+                  className="btn border border-border-strong text-ink-primary mt-4 font-semibold hover:bg-bg-sunken"
+                >
+                  Create First Rule
+               </button>
+             )}
           </div>
         )}
       </section>
@@ -197,8 +211,8 @@ export default function RatesPage() {
         title="Create Pricing Rule"
         footer={
           <div className="flex gap-3 w-full">
-            <button className="btn btn-ghost flex-1 font-bold" onClick={() => setShowAddModal(false)}>Cancel</button>
-            <button className="btn btn-accent flex-1 font-bold" onClick={handleCreateRule}>Save Rule</button>
+            <button className="btn btn-ghost flex-1 font-semibold" onClick={() => setShowAddModal(false)}>Cancel</button>
+            <button className="btn btn-accent flex-1 font-semibold" onClick={handleCreateRule}>Save Rule</button>
           </div>
         }
       >
@@ -252,13 +266,13 @@ export default function RatesPage() {
                 <label className="label">Adjustment Type</label>
                 <div className="flex bg-bg-sunken p-1 rounded-lg border border-border-subtle">
                   <button 
-                    className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors ${adjustmentType === 'percentage' ? 'bg-white shadow-sm text-ink-primary' : 'text-ink-muted hover:text-ink-primary'}`}
+                    className={`flex-1 py-2 text-sm font-semibold rounded-md transition-colors ${adjustmentType === 'percentage' ? 'bg-white shadow-sm text-ink-primary' : 'text-ink-muted hover:text-ink-primary'}`}
                     onClick={() => setAdjustmentType('percentage')}
                   >
                     Percentage (%)
                   </button>
                   <button 
-                    className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors ${adjustmentType === 'fixed' ? 'bg-white shadow-sm text-ink-primary' : 'text-ink-muted hover:text-ink-primary'}`}
+                    className={`flex-1 py-2 text-sm font-semibold rounded-md transition-colors ${adjustmentType === 'fixed' ? 'bg-white shadow-sm text-ink-primary' : 'text-ink-muted hover:text-ink-primary'}`}
                     onClick={() => setAdjustmentType('fixed')}
                   >
                     Fixed Amount (₹)

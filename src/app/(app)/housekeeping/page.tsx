@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { 
   Sparkles, 
   Plus, 
@@ -57,7 +58,9 @@ export default function HousekeepingPage() {
   const { toast } = useToast();
   const [tasks, setTasks] = useState<HousekeepingTask[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [filterProperty, setFilterProperty] = useState<string>('all');
+  const searchParams = useSearchParams();
+  const globalPropertyId = searchParams.get('propertyId') || 'all';
+  const filterProperty = globalPropertyId;
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'tasks' | 'rooms'>('tasks');
 
@@ -161,8 +164,13 @@ export default function HousekeepingPage() {
         
         <div className="flex justify-between items-start">
           <div className="flex flex-col">
-            <h4 className="font-display text-lg text-ink-primary">Room {room?.room_number || '??'}</h4>
-            <span className="text-[10px] font-bold text-ink-muted uppercase tracking-wider">{task.task_type.replace('_', ' ')}</span>
+            <h4 className="font-display text-lg text-ink-primary leading-tight">Room {room?.room_number || '??'}</h4>
+            {filterProperty === 'all' && (
+              <span className="text-[9px] font-bold text-accent font-sans uppercase tracking-[0.1em] -mt-0.5 opacity-80 decoration-accent/50 underline-offset-2">
+                {PROPERTIES.find(p => p.id === task.property_id)?.name}
+              </span>
+            )}
+            <span className="text-[10px] font-bold text-ink-muted uppercase tracking-wider mt-1">{task.task_type.replace('_', ' ')}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className={`w-2 h-2 rounded-full ${task.priority === 'urgent' ? 'bg-danger animate-pulse' : task.priority === 'high' ? 'bg-warning' : 'bg-ink-muted/20'}`} />
@@ -228,27 +236,9 @@ export default function HousekeepingPage() {
         )}
       </header>
 
-      {/* Filters & Tabs */}
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4 border-b border-border-subtle pb-4">
-        <div className="flex items-center p-1 bg-bg-sunken rounded-xl border border-border-subtle overflow-x-auto w-full md:w-auto">
-          <button 
-            onClick={() => setFilterProperty('all')}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${filterProperty === 'all' ? 'bg-white text-ink-primary shadow-sm' : 'text-ink-muted hover:text-ink-secondary'}`}
-          >
-            All Properties
-          </button>
-          {PROPERTIES.map(p => (
-            <button 
-              key={p.id}
-              onClick={() => setFilterProperty(p.id)}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${filterProperty === p.id ? 'bg-white text-ink-primary shadow-sm' : 'text-ink-muted hover:text-ink-secondary'}`}
-            >
-              {p.name}
-            </button>
-          ))}
-        </div>
 
-        <div className="flex md:hidden w-full items-center p-1 bg-bg-sunken rounded-xl border border-border-subtle">
+      <div className="flex flex-col md:flex-row justify-end items-center gap-4 mb-4 border-b border-border-subtle pb-4">
+        <div className="flex w-full md:w-auto items-center p-1 bg-bg-sunken rounded-xl border border-border-subtle">
           <button 
             onClick={() => setActiveTab('tasks')}
             className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'tasks' ? 'bg-white text-ink-primary shadow-sm' : 'text-ink-muted'}`}
@@ -317,16 +307,20 @@ export default function HousekeepingPage() {
           </div>
           
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {filteredRooms.map(room => (
-              <RoomCard 
-                key={room.id} 
-                room={room} 
-                onClick={() => {
-                  setNewTask({ ...newTask, room_id: room.id, property_id: room.property_id });
-                  setShowCreateModal(true);
-                }}
-              />
-            ))}
+            {filteredRooms.map(room => {
+              const propName = PROPERTIES.find(p => p.id === room.property_id)?.name;
+              return (
+                <RoomCard 
+                  key={room.id} 
+                  room={room} 
+                  propertyName={filterProperty === 'all' ? propName : undefined}
+                  onClick={() => {
+                    setNewTask({ ...newTask, room_id: room.id, property_id: room.property_id });
+                    setShowCreateModal(true);
+                  }}
+                />
+              );
+            })}
           </div>
         </div>
       </div>

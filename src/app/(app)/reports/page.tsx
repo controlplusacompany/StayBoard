@@ -16,6 +16,8 @@ import { format, subDays, isWithinInterval, isSameDay, parseISO } from 'date-fns
 import { useSearchParams } from 'next/navigation';
 import Badge from '@/components/ui/Badge';
 import Select from '@/components/ui/Select';
+import Modal from '@/components/ui/Modal';
+import { UserCircle2, ArrowRight, CreditCard, Clock } from 'lucide-react';
 
 export default function ReportsPage() {
   const [dateRange, setDateRange] = useState('30days');
@@ -29,6 +31,7 @@ export default function ReportsPage() {
   const searchParams = useSearchParams();
   const filter = searchParams.get('filter');
   const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
   useEffect(() => {
     // Basic computation for MVP showcase
@@ -69,15 +72,38 @@ export default function ReportsPage() {
   }, [dateRange, filter]);
 
   const handleExportCSV = () => {
-    // In a real app, this generates a CSV string and downloads it
-    alert("Exporting report as CSV...");
+    if (filteredBookings.length === 0) {
+      alert("No data to export");
+      return;
+    }
+
+    const headers = ["Guest Name", "Phone", "Check In", "Check Out", "Amount", "Status"];
+    const rows = filteredBookings.map(b => [
+      b.guest_name,
+      b.guest_phone,
+      b.check_in_date,
+      b.check_out_date,
+      b.total_amount,
+      b.status
+    ]);
+
+    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `stayboard_report_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
     <div className="p-6 md:p-10 flex flex-col gap-8 animate-slide-up bg-bg-canvas min-h-full">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl md:text-4xl font-display text-ink-primary tracking-tight font-extrabold">Performance Reports</h1>
+          <h1 className="text-3xl md:text-4xl font-display text-ink-primary tracking-tight font-bold">Performance Reports</h1>
           <p className="text-base text-ink-secondary">Analyze revenue, occupancy, and business metrics.</p>
         </div>
         
@@ -96,7 +122,7 @@ export default function ReportsPage() {
           />
           <button 
             onClick={handleExportCSV}
-            className="btn bg-white border border-border-strong text-ink-primary shadow-sm hover:bg-bg-sunken flex items-center justify-center gap-2 font-bold h-11 px-6"
+            className="btn bg-white border border-border-strong text-ink-primary shadow-sm hover:bg-bg-sunken flex items-center justify-center gap-2 font-semibold h-11 px-6"
           >
             <Download size={16} />
             <span className="hidden sm:inline">Export</span>
@@ -118,8 +144,8 @@ export default function ReportsPage() {
              </span>
           </div>
           <div className="flex flex-col gap-0.5">
-             <h3 className="text-[10px] uppercase font-bold tracking-wider text-ink-muted">Total Revenue</h3>
-             <span className="text-xl sm:text-2xl md:text-3xl font-mono font-bold text-ink-primary">₹{revenue.toLocaleString()}</span>
+             <h3 className="text-[10px] uppercase font-semibold tracking-wider text-ink-muted">Total Revenue</h3>
+             <span className="text-xl sm:text-2xl md:text-3xl font-mono font-semibold text-ink-primary">₹{revenue.toLocaleString()}</span>
           </div>
         </div>
 
@@ -134,8 +160,8 @@ export default function ReportsPage() {
              </span>
           </div>
           <div className="flex flex-col gap-1">
-             <h3 className="text-xs uppercase font-bold tracking-wider text-ink-muted">Occupancy Rate</h3>
-             <span className="text-3xl font-mono font-bold text-ink-primary">{occupancy.toFixed(1)}%</span>
+             <h3 className="text-xs uppercase font-semibold tracking-wider text-ink-muted">Occupancy Rate</h3>
+             <span className="text-3xl font-mono font-semibold text-ink-primary">{occupancy.toFixed(1)}%</span>
           </div>
         </div>
 
@@ -147,8 +173,8 @@ export default function ReportsPage() {
              </div>
           </div>
           <div className="flex flex-col gap-1">
-             <h3 className="text-xs uppercase font-bold tracking-wider text-ink-muted">Total Bookings</h3>
-             <span className="text-3xl font-mono font-bold text-ink-primary">{bookingsCount}</span>
+             <h3 className="text-xs uppercase font-semibold tracking-wider text-ink-muted">Total Bookings</h3>
+             <span className="text-3xl font-mono font-semibold text-ink-primary">{bookingsCount}</span>
           </div>
         </div>
 
@@ -160,8 +186,8 @@ export default function ReportsPage() {
              </div>
           </div>
           <div className="flex flex-col gap-1">
-             <h3 className="text-xs uppercase font-bold tracking-wider text-ink-muted">Average Daily Rate (ADR)</h3>
-             <span className="text-3xl font-mono font-bold text-ink-primary">₹{Math.round(adr).toLocaleString()}</span>
+             <h3 className="text-xs uppercase font-semibold tracking-wider text-ink-muted">Average Daily Rate (ADR)</h3>
+             <span className="text-3xl font-mono font-semibold text-ink-primary">₹{Math.round(adr).toLocaleString()}</span>
           </div>
         </div>
       </div>
@@ -256,17 +282,17 @@ export default function ReportsPage() {
       {/* Booking List Table */}
       <section className="flex flex-col gap-4 mt-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-ink-primary font-display capitalize">{filter ? filter.replace('_', ' ') : 'Recent'} Bookings</h2>
+          <h2 className="text-xl font-semibold text-ink-primary font-display capitalize tracking-tight">{filter ? filter.replace('_', ' ') : 'Recent'} Bookings</h2>
         </div>
         
         <div className="bg-white border border-border-subtle rounded-xl overflow-hidden shadow-sm">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-bg-sunken border-b border-border-subtle">
-                <th className="px-6 py-4 text-[10px] font-bold text-ink-muted uppercase tracking-widest">Guest</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-ink-muted uppercase tracking-widest">Stay Duration</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-ink-muted uppercase tracking-widest">Amount</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-ink-muted uppercase tracking-widest text-right">Action</th>
+                <th className="px-6 py-4 text-[10px] font-semibold text-ink-muted uppercase tracking-widest">Guest</th>
+                <th className="px-6 py-4 text-[10px] font-semibold text-ink-muted uppercase tracking-widest">Stay Duration</th>
+                <th className="px-6 py-4 text-[10px] font-semibold text-ink-muted uppercase tracking-widest">Amount</th>
+                <th className="px-6 py-4 text-[10px] font-semibold text-ink-muted uppercase tracking-widest text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
@@ -274,7 +300,7 @@ export default function ReportsPage() {
                 <tr key={b.id} className="hover:bg-bg-sunken/40 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
-                      <span className="font-bold text-ink-primary">{b.guest_name}</span>
+                      <span className="font-semibold text-ink-primary">{b.guest_name}</span>
                       <span className="text-xs text-ink-muted font-mono">{b.guest_phone}</span>
                     </div>
                   </td>
@@ -284,11 +310,16 @@ export default function ReportsPage() {
                       <span className="text-[10px] font-bold text-accent uppercase tracking-tighter">Room {b.room_id.split('-').pop()}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 font-mono font-bold text-ink-primary">
+                  <td className="px-6 py-4 font-mono font-semibold text-ink-primary">
                     ₹{b.total_amount.toLocaleString()}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button className="text-[10px] font-bold text-accent uppercase tracking-widest hover:underline">View Details</button>
+                    <button 
+                      onClick={() => setSelectedBooking(b)}
+                      className="text-[10px] font-semibold text-accent uppercase tracking-widest hover:underline"
+                    >
+                      View Details
+                    </button>
                   </td>
                 </tr>
               )) : (
@@ -300,6 +331,63 @@ export default function ReportsPage() {
           </table>
         </div>
       </section>
+
+      {/* Booking Details Modal */}
+      <Modal
+        isOpen={!!selectedBooking}
+        onClose={() => setSelectedBooking(null)}
+        title="Booking Overview"
+      >
+        {selectedBooking && (
+          <div className="flex flex-col gap-6">
+             <div className="p-4 bg-bg-sunken rounded-xl flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-ink-muted shadow-sm">
+                   <UserCircle2 size={24} />
+                </div>
+                <div className="flex flex-col">
+                   <h3 className="text-lg font-semibold text-ink-primary leading-none capitalize">{selectedBooking.guest_name}</h3>
+                   <span className="text-xs text-ink-muted mt-1 font-mono">{selectedBooking.guest_phone}</span>
+                </div>
+                <div className="ml-auto">
+                   <Badge type={selectedBooking.status} label={selectedBooking.status.replace('_', ' ')} />
+                </div>
+             </div>
+
+             <div className="grid grid-cols-2 gap-4">
+                <div className="border border-border-subtle rounded-lg p-4 flex flex-col gap-1.5">
+                   <span className="text-[10px] uppercase font-semibold text-ink-muted tracking-widest flex items-center gap-1.5">
+                      <Calendar size={12} /> Stay Periods
+                   </span>
+                   <div className="flex flex-col">
+                      <span className="text-sm font-semibold text-ink-primary">
+                        {format(parseISO(selectedBooking.check_in_date), 'dd MMM')} - {format(parseISO(selectedBooking.check_out_date), 'dd MMM')}
+                      </span>
+                      <span className="text-[10px] font-mono text-ink-muted">2026 Season</span>
+                   </div>
+                </div>
+                <div className="border border-border-subtle rounded-lg p-4 flex flex-col gap-1.5">
+                   <span className="text-[10px] uppercase font-semibold text-ink-muted tracking-widest flex items-center gap-1.5">
+                      <CreditCard size={12} /> Total Amount
+                   </span>
+                   <span className="text-xl font-mono font-semibold text-success">
+                      ₹{selectedBooking.total_amount.toLocaleString()}
+                   </span>
+                </div>
+             </div>
+
+             <div className="bg-accent/5 border border-accent/10 rounded-xl p-4 flex items-center justify-between">
+                <div className="flex flex-col gap-0.5">
+                   <span className="text-xs font-semibold text-accent uppercase tracking-widest">Property ID</span>
+                   <span className="font-mono text-sm text-ink-primary">{selectedBooking.property_id}</span>
+                </div>
+                <div className="flex flex-col gap-0.5 text-right">
+                   <span className="text-xs font-semibold text-accent uppercase tracking-widest">Room Reference</span>
+                   <span className="font-mono text-sm text-ink-primary">{selectedBooking.room_id}</span>
+                </div>
+             </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

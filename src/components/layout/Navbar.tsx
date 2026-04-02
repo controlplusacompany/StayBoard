@@ -7,12 +7,14 @@ import { Bell, ChevronDown, Check, Building2, Layout, Home, Plus, Settings, LogO
 import Badge from '../ui/Badge';
 import Modal from '../ui/Modal';
 import { useToast } from '../ui/Toast';
+import { useNewBooking } from '../booking/NewBookingProvider';
 
 export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
+  const { open: openNewBooking } = useNewBooking();
   
   const [userRole, setUserRole] = React.useState<string | null>(null);
   const [userEmail, setUserEmail] = React.useState<string | null>(null);
@@ -172,7 +174,7 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                 <button 
                   onClick={() => {
                     closeAll();
-                    router.push('/booking/new');
+                    openNewBooking();
                   }}
                   className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-accent hover:bg-accent/5 transition-colors"
                 >

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { 
   Layout, 
   Sparkles, 
@@ -28,8 +28,11 @@ const NAV_ITEMS = [
 
 const RECEPTION_NAV_ITEMS = ['Dashboard', 'Availability', 'Housekeeping', 'Rates', 'Guests'];
 
+
 export default function Sidebar({ isMobileOpen, onCloseMobile }: { isMobileOpen?: boolean; onCloseMobile?: () => void }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const propertyId = searchParams.get('propertyId');
   const [userRole, setUserRole] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -62,10 +65,13 @@ export default function Sidebar({ isMobileOpen, onCloseMobile }: { isMobileOpen?
           const isActive = pathname === item.href || (item.href === '/dashboard' && pathname.startsWith('/property/'));
           const Icon = item.icon;
           
+          // Append propertyId if present
+          const href = propertyId ? `${item.href}?propertyId=${propertyId}` : item.href;
+          
           return (
             <Link
               key={item.href}
-              href={item.href}
+              href={href}
               onClick={onCloseMobile}
               className={`
                 flex items-center gap-3 h-11 px-4 rounded-xl transition-all duration-200 group/nav

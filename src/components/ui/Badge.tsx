@@ -5,9 +5,10 @@ import React from 'react';
 interface BadgeProps {
   type: string;
   label: string;
+  className?: string;
 }
 
-export default function Badge({ type, label }: BadgeProps) {
+export default function Badge({ type, label, className = '' }: BadgeProps) {
   const getBadgeClass = (status: string) => {
     switch (status.toLowerCase()) {
       case 'vacant': return 'bg-status-vacant-bg text-status-vacant-fg';
@@ -30,7 +31,7 @@ export default function Badge({ type, label }: BadgeProps) {
   };
 
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.75 rounded-full font-sans font-semibold text-[10px] tracking-[0.04em] uppercase whitespace-nowrap ${getBadgeClass(type)}`}>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.75 rounded-full font-sans font-medium text-[10px] tracking-[0.04em] uppercase whitespace-nowrap ${getBadgeClass(type)} ${className}`}>
       <span className="w-1.25 h-1.25 rounded-full bg-current flex-shrink-0" />
       {label}
     </span>

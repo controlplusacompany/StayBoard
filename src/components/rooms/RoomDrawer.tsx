@@ -173,13 +173,6 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
         return (
           <div className="flex flex-col gap-3">
             <button 
-              onClick={() => router.push(`/booking/new?room=${room.room_number}&property=${room.property_id}`)}
-              className="btn btn-accent btn--lg btn--full flex items-center justify-center gap-2"
-            >
-              <Plus size={18} />
-              <span>Quick Book Room</span>
-            </button>
-            <button 
               onClick={() => setModalOpen('maintenance')}
               className="btn btn-ghost btn--full flex items-center justify-center gap-2"
             >
@@ -234,15 +227,15 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
             <div className="grid grid-cols-3 gap-2">
               <button onClick={() => setModalOpen('extend')} className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-border-subtle bg-white hover:bg-bg-sunken transition-all">
                 <History size={16} className="text-ink-muted" />
-                <span className="text-[9px] font-bold uppercase tracking-wider text-ink-secondary">Extend</span>
+                <span className="text-[9px] font-semibold uppercase tracking-wider text-ink-secondary">Extend</span>
               </button>
               <button onClick={() => setIsEditing(true)} className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-border-subtle bg-white hover:bg-bg-sunken transition-all">
                 <Layout size={16} className="text-ink-muted" />
-                <span className="text-[9px] font-bold uppercase tracking-wider text-ink-secondary">Edit</span>
+                <span className="text-[9px] font-semibold uppercase tracking-wider text-ink-secondary">Edit</span>
               </button>
               <button onClick={() => setModalOpen('maintenance')} className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-border-subtle bg-white hover:bg-bg-sunken transition-all">
                 <Wrench size={16} className="text-ink-muted" />
-                <span className="text-[9px] font-bold uppercase tracking-wider text-ink-secondary">Repair</span>
+                <span className="text-[9px] font-semibold uppercase tracking-wider text-ink-secondary">Repair</span>
               </button>
             </div>
           </div>
@@ -311,7 +304,7 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
             <div className="flex flex-col gap-1">
               <div className="flex items-baseline gap-2">
                  <h2 className="text-[32px] font-display text-ink-primary leading-tight">Room {room.room_number}</h2>
-                 <span className="text-[10px] font-bold text-ink-muted uppercase tracking-[0.1em]">{room.room_type}</span>
+                 <span className="text-[10px] font-semibold text-ink-muted uppercase tracking-[0.1em]">{room.room_type}</span>
               </div>
               <div className="flex items-center gap-3">
                 <Badge type={room.status} label={room.status.replace('_', ' ')} />
@@ -468,14 +461,14 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
                     <button 
                       onClick={() => setIsEditing(false)} 
                       disabled={isSaving}
-                      className="flex-1 h-11 rounded-xl bg-bg-sunken text-ink-secondary text-xs font-bold uppercase tracking-wider hover:bg-border-subtle transition-all"
+                      className="flex-1 h-11 rounded-xl bg-bg-sunken text-ink-secondary text-xs font-semibold uppercase tracking-wider hover:bg-border-subtle transition-all"
                     >
                       Cancel
                     </button>
                     <button 
                       onClick={handleSaveBooking}
                       disabled={isSaving}
-                      className="flex-[2] h-11 rounded-xl bg-accent text-white text-xs font-bold uppercase tracking-wider shadow-lg shadow-accent/20 flex items-center justify-center gap-2 hover:translate-y-[-1px] active:scale-[0.98] transition-all disabled:opacity-50"
+                      className="flex-[2] h-11 rounded-xl bg-accent text-white text-xs font-semibold uppercase tracking-wider shadow-lg shadow-accent/20 flex items-center justify-center gap-2 hover:translate-y-[-1px] active:scale-[0.98] transition-all disabled:opacity-50"
                     >
                       {isSaving ? (
                         <RefreshCw size={14} className="animate-spin" />
@@ -744,16 +737,16 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
           <div className="bg-bg-sunken/50 rounded-2xl p-5 border border-border-subtle flex flex-col gap-4">
              <div className="flex justify-between items-center text-xs font-medium text-ink-muted">
                 <span>Room Charges Total</span>
-                <span className="font-sans font-bold text-ink-primary">{formatINR(room.booking?.total_amount || 0)}</span>
+                <span className="font-sans font-semibold text-ink-primary">{formatINR(room.booking?.total_amount || 0)}</span>
              </div>
              <div className="flex justify-between items-center text-xs font-medium text-ink-muted">
                 <span>Previously Paid</span>
-                <span className="font-sans font-bold text-success">-{formatINR(room.booking?.amount_paid || 0)}</span>
+                <span className="font-sans font-semibold text-success">-{formatINR(room.booking?.amount_paid || 0)}</span>
              </div>
              <div className="h-[1px] bg-border-subtle/40 border-dashed border-t" />
              <div className="flex justify-between items-center">
-                <span className="text-sm font-bold text-ink-primary">Outstanding Balance</span>
-                <span className="text-lg font-sans font-extrabold text-danger tabular-nums">
+                <span className="text-sm font-semibold text-ink-primary">Outstanding Balance</span>
+                <span className="text-lg font-sans font-bold text-danger tabular-nums">
                   {formatINR(Math.max(0, (room.booking?.total_amount || 0) - (room.booking?.amount_paid || 0)))}
                 </span>
              </div>
@@ -763,12 +756,12 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
           <div className="flex flex-col gap-5">
              <div className="grid grid-cols-2 gap-4">
                 <div className="field">
-                  <label className="text-[10px] font-bold text-ink-muted uppercase tracking-widest block mb-2 ml-1">Apply Discount</label>
+                  <label className="text-[10px] font-semibold text-ink-muted uppercase tracking-widest block mb-2 ml-1">Apply Discount</label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-ink-muted">₹</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-ink-muted">₹</span>
                     <input 
                       type="text"
-                      className="w-full bg-white border border-border-subtle rounded-xl pl-8 pr-4 py-3 text-sm font-sans font-bold text-ink-primary focus:border-accent transition-all"
+                      className="w-full bg-white border border-border-subtle rounded-xl pl-8 pr-4 py-3 text-sm font-sans font-semibold text-ink-primary focus:border-accent transition-all"
                       value={checkoutDiscount === 0 ? '' : checkoutDiscount}
                       onChange={(e) => {
                         const val = e.target.value.replace(/[^0-9]/g, '');
@@ -779,12 +772,12 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
                   </div>
                 </div>
                 <div className="field">
-                  <label className="text-[10px] font-bold text-ink-muted uppercase tracking-widest block mb-2 ml-1">Collecting Now</label>
+                  <label className="text-[10px] font-semibold text-ink-muted uppercase tracking-widest block mb-2 ml-1">Collecting Now</label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-ink-muted">₹</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-ink-muted">₹</span>
                     <input 
                       type="text"
-                      className="w-full bg-white border border-border-subtle rounded-xl pl-8 pr-4 py-3 text-sm font-sans font-bold text-success focus:border-accent transition-all animate-pulse-subtle"
+                      className="w-full bg-white border border-border-subtle rounded-xl pl-8 pr-4 py-3 text-sm font-sans font-semibold text-success focus:border-accent transition-all animate-pulse-subtle"
                       value={checkoutPayAmount === 0 ? '' : checkoutPayAmount}
                       onChange={(e) => {
                         const val = e.target.value.replace(/[^0-9]/g, '');
