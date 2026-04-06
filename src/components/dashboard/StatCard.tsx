@@ -42,10 +42,15 @@ export default function StatCard({
       relative overflow-hidden
     `}>
       {accentColor && (
-        <div className={`absolute top-0 left-0 right-0 h-1 ${accentColor === 'blue' ? 'bg-accent' : accentColor === 'purple' ? 'bg-[#8B5CF6]' : accentColor === 'orange' ? 'bg-[#F97316]' : 'bg-[#22C55E]'}`} />
+        <div className={`absolute top-0 left-0 right-0 h-1 ${
+          accentColor === 'blue' ? 'bg-status-occupied-fg' : 
+          accentColor === 'purple' ? 'bg-status-arriving-fg' : 
+          accentColor === 'orange' ? 'bg-status-checkout-fg' : 
+          'bg-status-vacant-fg'
+        }`} />
       )}
       
-      <span className="text-[10px] font-sans text-ink-muted uppercase font-semibold tracking-[0.1em] leading-none mb-1">
+      <span className="text-[10px] font-sans text-ink-muted uppercase font-medium tracking-[0.1em] leading-none mb-1">
         {label}
       </span>
 

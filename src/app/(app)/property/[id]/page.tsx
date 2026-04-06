@@ -13,7 +13,7 @@ import Modal from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 
 import { getStoredRooms, getStoredBookings, getBookingsForRoom } from '@/lib/store';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isWithinInterval, isSameDay } from 'date-fns';
 
 export default function PropertyDetailPage({ params }: { params: { id: string } }) {
   const searchParams = useSearchParams();
@@ -160,24 +160,24 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
 
   return (
     <>
-      <div className={`transition-all duration-350 ease-out ${isDrawerOpen ? 'drawer-scale-content drawer-scale-content--active' : 'drawer-scale-content'}`}>
-        <div className="max-w-[1280px] mx-auto p-6 md:p-8 flex flex-col gap-8">
+      <div className={`transition-all duration-350 ease-out h-full overflow-hidden ${isDrawerOpen ? 'drawer-scale-content drawer-scale-content--active' : 'drawer-scale-content'}`}>
+        <div className="max-w-[1600px] mx-auto p-4 md:p-6 flex flex-col h-full gap-4">
 
           {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-[13px] font-sans text-ink-muted">
+          <nav className="flex items-center gap-2 text-[12px] font-sans text-ink-muted">
             <Link href="/dashboard" className="hover:text-accent transition-colors">Dashboard</Link>
             <ChevronRight size={14} />
             <span className="text-ink-secondary font-medium">{property.name}</span>
           </nav>
 
           {/* Header */}
-          <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
-            <div className="flex flex-col gap-2">
+          <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+            <div className="flex flex-col gap-1">
               <div className="flex items-center gap-3">
-                <h1 className="text-[28px] md:text-3xl font-display text-ink-primary">{property.name}</h1>
+                <h1 className="text-[24px] md:text-2xl font-display text-ink-primary font-medium">{property.name}</h1>
                 <Badge type={property.type} label={property.type} />
               </div>
-              <div className="flex items-center gap-2 text-sm text-ink-muted">
+              <div className="flex items-center gap-2 text-xs text-ink-muted">
                 <span>{property.city}</span>
                 <span>•</span>
                 <span>{property.total_rooms} rooms total</span>
@@ -200,14 +200,14 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
           </header>
 
           {/* Filter Bar */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-y border-border-subtle py-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-y border-border-subtle py-3">
             <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`
-                    flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap
+                    flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap
                     ${activeTab === tab.id
                       ? 'bg-ink-primary text-white shadow-md'
                       : 'bg-transparent text-ink-secondary border border-border-subtle hover:bg-bg-sunken'}
@@ -228,7 +228,7 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
                 placeholder={searchQuery ? "" : "Search room or guest..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="input pl-10 pr-10"
+                className="input input--sm pl-10 pr-10"
               />
               {searchQuery && (
                 <button 
@@ -242,7 +242,7 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
           </div>
 
           {/* Room Layout - Grouped by Floor if it's The Peace */}
-          <div className="flex flex-col gap-10">
+          <div className="flex-1 overflow-y-auto no-scrollbar flex flex-col gap-6 py-2">
             {Object.keys(
               filteredRooms.reduce((acc, r) => {
                 const f = r.floor || 1;
@@ -256,28 +256,39 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
               if (floorRooms.length === 0) return null;
 
               return (
-                <div key={floor} className="flex flex-col gap-5">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-bg-sunken px-3 py-1 rounded-md border border-border-subtle flex items-center gap-2">
-                       <Layers size={14} className="text-ink-muted" />
-                       <h2 className="text-[11px] font-bold text-ink-secondary uppercase tracking-[0.1em]">Floor {floor}</h2>
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-bg-sunken px-2 py-1 rounded-md border border-border-subtle flex items-center gap-2">
+                         <Layers size={12} className="text-ink-muted" />
+                         <h2 className="text-[10px] font-medium text-ink-secondary uppercase tracking-[0.15em]">Floor {floor}</h2>
+                      </div>
+                      <div className="h-px flex-1 bg-gradient-to-r from-border-subtle to-transparent" />
                     </div>
-                    <div className="h-px flex-1 bg-gradient-to-r from-border-subtle to-transparent" />
-                  </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                     {floorRooms.map((room, idx) => {
                       const bookings = getBookingsForRoom(room.id);
+                      const now = new Date();
+                      
                       const currentBooking = bookings.find(b => {
-                        const now = new Date();
                         const start = parseISO(b.check_in_date);
                         const end = parseISO(b.check_out_date);
+                        // Room is occupied if we are between check-in and check-out
                         return (now >= start && now < end);
                       });
 
+                      const arrivalToday = bookings.find(b => isSameDay(parseISO(b.check_in_date), now));
+                      const checkoutToday = bookings.find(b => isSameDay(parseISO(b.check_out_date), now));
+
                       const nextBooking = bookings
-                        .filter(b => parseISO(b.check_in_date) > new Date())
+                        .filter(b => parseISO(b.check_in_date) > now)
                         .sort((a, b) => parseISO(a.check_in_date).getTime() - parseISO(b.check_in_date).getTime())[0];
+                        
+                      // Determine effective status for display
+                      let displayStatus: RoomStatus = room.status;
+                      if (currentBooking) displayStatus = 'occupied';
+                      else if (arrivalToday) displayStatus = 'arriving_today';
+                      else if (checkoutToday) displayStatus = 'checkout_today';
 
                       return (
                         <div
@@ -286,13 +297,12 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
                           style={{ animationDelay: `${idx * 40}ms` }}
                         >
                           <RoomCard
-                            room={{
-                              ...room,
-                              status: (currentBooking ? 'occupied' : (room.status === 'occupied' ? 'vacant' : room.status)) as RoomStatus
-                            }}
-                            guestName={currentBooking?.guest_name}
-                            checkoutDate={currentBooking?.check_out_date}
-                            hasBalance={(currentBooking?.total_amount || 0) > (currentBooking?.amount_paid || 0)}
+                            room={room}
+                            status={displayStatus}
+                            currentBooking={currentBooking}
+                            arrivalToday={arrivalToday}
+                            checkoutToday={checkoutToday}
+                            hasBalance={((currentBooking || arrivalToday || checkoutToday)?.total_amount || 0) > ((currentBooking || arrivalToday || checkoutToday)?.amount_paid || 0)}
                             futureBooking={nextBooking ? `Next: ${format(parseISO(nextBooking.check_in_date), 'd MMM')}` : undefined}
                             onClick={handleRoomClick}
                           />
@@ -305,18 +315,20 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
             })}
           </div>
 
-          {/* Color Legend */}
-          <footer className="mt-8 pt-6 border-t border-border-subtle flex flex-wrap gap-x-8 gap-y-3 justify-center">
-            {['occupied', 'arriving', 'checkout', 'cleaning', 'maintenance'].map((s) => (
-              <div key={s} className="flex items-center gap-2 text-[11px] text-ink-muted uppercase tracking-wider">
-                <div className={`w-2.5 h-2.5 rounded-full bg-status-${s}-fg`} />
-                {s}
+          <footer className="mt-auto py-6 border-t border-border-subtle flex flex-wrap gap-x-8 gap-y-3 justify-center items-center bg-bg-surface/50 rounded-b-3xl">
+            {[
+              { id: 'occupied', label: 'Occupied', color: 'bg-status-occupied-fg' },
+              { id: 'arriving_today', label: 'Arriving Today', color: 'bg-status-arriving-fg' },
+              { id: 'checkout_today', label: 'Checking Out', color: 'bg-status-checkout-fg' },
+              { id: 'cleaning', label: 'Cleaning', color: 'bg-status-cleaning-fg' },
+              { id: 'maintenance', label: 'Maintenance', color: 'bg-status-maintenance-fg' },
+              { id: 'vacant', label: 'Vacant', color: 'bg-status-vacant-fg' },
+            ].map((item) => (
+              <div key={item.id} className="flex items-center gap-2 text-[10px] text-ink-muted uppercase tracking-[0.2em] font-medium">
+                <div className={`w-3 h-3 rounded-full ${item.color} shadow-sm border border-black/5`} />
+                <span>{item.label}</span>
               </div>
             ))}
-            <div className="flex items-center gap-2 text-[11px] text-ink-muted uppercase tracking-wider">
-              <div className="w-2.5 h-2.5 rounded-full border border-status-vacant-border bg-status-vacant-bg" />
-              Vacant
-            </div>
           </footer>
         </div>
       </div>
@@ -328,15 +340,15 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
         title="Add New Room"
         footer={
           <>
-            <button className="btn btn-ghost" onClick={() => setIsAddRoomOpen(false)}>Cancel</button>
-            <button className="btn btn-accent px-8" onClick={handleAddRoom}>Add Room</button>
+            <button className="btn btn-secondary px-8 shadow-sm" onClick={() => setIsAddRoomOpen(false)}>Cancel</button>
+            <button className="btn btn-accent px-10 shadow-lg shadow-accent/20" onClick={handleAddRoom}>Add Room</button>
           </>
         }
       >
         <div className="flex flex-col gap-5">
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-ink-muted uppercase tracking-wider">Room Number*</label>
+              <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">Room Number*</label>
               <input type="text" placeholder={newRoom.number ? "" : "105"} className="input" value={newRoom.number} onChange={e => setNewRoom({...newRoom, number: e.target.value})} />
             </div>
             <Select 
@@ -355,20 +367,20 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
 
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-ink-muted uppercase tracking-wider">Floor</label>
+              <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">Floor</label>
               <div className="relative">
                 <Layers size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
                 <input type="number" placeholder={newRoom.floor ? "" : "1"} className="input pl-10" value={newRoom.floor} onChange={e => setNewRoom({...newRoom, floor: e.target.value})} />
               </div>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-ink-muted uppercase tracking-wider">Max Occupancy</label>
+              <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">Max Occupancy</label>
               <input type="number" placeholder={newRoom.occupancy ? "" : "2"} className="input" value={newRoom.occupancy} onChange={e => setNewRoom({...newRoom, occupancy: e.target.value})} />
             </div>
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-ink-muted uppercase tracking-wider">Price per Night*</label>
+            <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">Price per Night*</label>
             <div className="relative">
               <IndianRupee size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
               <input type="number" placeholder={newRoom.price ? "" : "1200"} className="input pl-10" value={newRoom.price} onChange={e => setNewRoom({...newRoom, price: e.target.value})} />
@@ -377,7 +389,7 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
 
           {isHostel && (
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-ink-muted uppercase tracking-wider">Bed Number (Dorms Only)</label>
+              <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">Bed Number (Dorms Only)</label>
               <div className="relative">
                 <Bed size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
                 <input type="text" placeholder={newRoom.bed ? "" : "A1"} className="input pl-10" value={newRoom.bed} onChange={e => setNewRoom({...newRoom, bed: e.target.value})} />

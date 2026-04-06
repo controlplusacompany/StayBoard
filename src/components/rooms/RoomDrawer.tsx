@@ -15,7 +15,7 @@ import Badge from '../ui/Badge';
 import Modal from '../ui/Modal';
 import { useToast } from '../ui/Toast';
 import { formatINR, formatDate } from '@/lib/formatting';
-import { updateRoomStatus, getBookingsForRoom, finalCheckout } from '@/lib/store';
+import { updateRoomStatus, getBookingsForRoom, finalCheckout, shiftRoom, getVacantRooms } from '@/lib/store';
 import { format, addDays, isSameDay, parseISO, eachDayOfInterval } from 'date-fns';
 
 interface RoomDrawerProps {
@@ -29,7 +29,7 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
   const { toast } = useToast();
   
   // Modal States
-  const [modalOpen, setModalOpen] = useState<'maintenance' | 'cancel' | 'checkout' | 'extend' | 'service' | null>(null);
+  const [modalOpen, setModalOpen] = useState<'maintenance' | 'cancel' | 'checkout' | 'extend' | 'service' | 'shift' | null>(null);
   const [maintenanceNote, setMaintenanceNote] = useState('');
   const [staffNote, setStaffNote] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -174,7 +174,7 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
           <div className="flex flex-col gap-3">
             <button 
               onClick={() => setModalOpen('maintenance')}
-              className="btn btn-ghost btn--full flex items-center justify-center gap-2"
+              className="btn btn-secondary btn--full flex items-center justify-center gap-2"
             >
               <Wrench size={18} />
               <span>Mark Out of Order</span>
@@ -205,7 +205,7 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
                 No-Show
               </button>
             </div>
-            <button onClick={() => setModalOpen('maintenance')} className="btn btn-ghost py-3 h-auto">Mark Maintenance</button>
+            <button onClick={() => setModalOpen('maintenance')} className="btn btn-secondary py-3 h-auto">Mark Maintenance</button>
           </div>
         );
       case 'occupied':
@@ -224,14 +224,18 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
               <span className="text-[15px]">Confirm Checkout</span>
             </button>
             
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-2">
               <button onClick={() => setModalOpen('extend')} className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-border-subtle bg-white hover:bg-bg-sunken transition-all">
                 <History size={16} className="text-ink-muted" />
-                <span className="text-[9px] font-semibold uppercase tracking-wider text-ink-secondary">Extend</span>
+                <span className="text-[9px] font-medium uppercase tracking-wider text-ink-secondary">Extend</span>
               </button>
               <button onClick={() => setIsEditing(true)} className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-border-subtle bg-white hover:bg-bg-sunken transition-all">
                 <Layout size={16} className="text-ink-muted" />
                 <span className="text-[9px] font-semibold uppercase tracking-wider text-ink-secondary">Edit</span>
+              </button>
+              <button onClick={() => setModalOpen('shift')} className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-border-subtle bg-white hover:bg-bg-sunken transition-all group/shift">
+                <RefreshCw size={16} className="text-ink-muted group-hover/shift:rotate-180 transition-all duration-500" />
+                <span className="text-[9px] font-semibold uppercase tracking-wider text-ink-secondary">Shift</span>
               </button>
               <button onClick={() => setModalOpen('maintenance')} className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-border-subtle bg-white hover:bg-bg-sunken transition-all">
                 <Wrench size={16} className="text-ink-muted" />
@@ -252,7 +256,7 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
             </button>
             <button 
               onClick={() => setModalOpen('maintenance')}
-              className="btn btn-ghost btn--full flex items-center justify-center gap-2"
+              className="btn btn-secondary btn--full flex items-center justify-center gap-2"
             >
               <Wrench size={18} />
               <span>Report Issue</span>
@@ -304,7 +308,7 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
             <div className="flex flex-col gap-1">
               <div className="flex items-baseline gap-2">
                  <h2 className="text-[32px] font-display text-ink-primary leading-tight">Room {room.room_number}</h2>
-                 <span className="text-[10px] font-semibold text-ink-muted uppercase tracking-[0.1em]">{room.room_type}</span>
+                 <span className="text-[10px] font-medium text-ink-muted uppercase tracking-[0.1em]">{room.room_type}</span>
               </div>
               <div className="flex items-center gap-3">
                 <Badge type={room.status} label={room.status.replace('_', ' ')} />
@@ -324,9 +328,9 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
           {room.booking ? (
             <section className="flex flex-col gap-4">
               <div className="flex justify-between items-center px-0.5">
-                <h3 className="text-[10px] font-bold text-ink-muted uppercase tracking-[0.12em]">Current Guest</h3>
+                <h3 className="text-[10px] font-medium text-ink-muted uppercase tracking-[0.12em]">Current Guest</h3>
                 {!isEditing && (
-                  <button onClick={() => setIsEditing(true)} className="text-[11px] text-accent hover:underline font-bold uppercase tracking-wider transition-all">Edit Details</button>
+                  <button onClick={() => setIsEditing(true)} className="text-[11px] text-accent hover:underline font-medium uppercase tracking-wider transition-all">Edit Details</button>
                 )}
               </div>
               
@@ -338,7 +342,7 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
                         <label className="text-[9px] font-bold text-ink-muted uppercase tracking-[0.15em] block mb-1.5 ml-0.5">Guest Full Name</label>
                         <input 
                           type="text" 
-                          className="w-full bg-bg-sunken border border-border-subtle rounded-xl px-4 py-3 text-lg font-sans font-semibold text-ink-primary focus:bg-white focus:border-accent focus:ring-4 focus:ring-accent/5 transition-all"
+                          className="w-full bg-bg-sunken border border-border-subtle rounded-xl px-4 py-3 text-lg font-sans font-medium text-ink-primary focus:bg-white focus:border-accent focus:ring-4 focus:ring-accent/5 transition-all"
                           placeholder="Enter guest name"
                           value={editData.guest_name}
                           onChange={(e) => setEditData({...editData, guest_name: e.target.value})}
@@ -391,8 +395,8 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
                           </div>
                           <div className="h-10 w-[1px] bg-border-subtle/50" />
                           <div className="flex flex-col items-end gap-0.5">
-                            <span className="text-[9px] text-ink-muted uppercase font-semibold tracking-widest text-right">Balance Due</span>
-                            <span className={`text-xl font-sans font-bold tabular-nums tracking-tight ${editData.total_amount - editData.amount_paid > 0 ? 'text-danger' : 'text-success'}`}>
+                            <span className="text-[9px] text-ink-muted uppercase font-medium tracking-widest text-right">Balance Due</span>
+                            <span className={`text-xl font-sans font-medium tabular-nums tracking-tight ${editData.total_amount - editData.amount_paid > 0 ? 'text-danger' : 'text-success'}`}>
                               {formatINR(editData.total_amount - editData.amount_paid)}
                             </span>
                           </div>
@@ -424,7 +428,7 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
                   <div className="flex flex-col gap-1.5">
                     <div className="flex items-center gap-1.5">
                       <Calendar size={12} className="text-ink-muted" />
-                      <span className="text-[9px] text-ink-muted uppercase font-bold tracking-widest">Check In</span>
+                      <span className="text-[9px] text-ink-muted uppercase font-medium tracking-widest">Check In</span>
                     </div>
                     {isEditing ? (
                       <input 
@@ -440,7 +444,7 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
                   <div className="flex flex-col gap-1.5">
                     <div className="flex items-center gap-1.5">
                       <Calendar size={12} className="text-ink-muted" />
-                      <span className="text-[9px] text-ink-muted uppercase font-bold tracking-widest">Check Out</span>
+                      <span className="text-[9px] text-ink-muted uppercase font-medium tracking-widest">Check Out</span>
                     </div>
                     {isEditing ? (
                       <input 
@@ -461,14 +465,14 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
                     <button 
                       onClick={() => setIsEditing(false)} 
                       disabled={isSaving}
-                      className="flex-1 h-11 rounded-xl bg-bg-sunken text-ink-secondary text-xs font-semibold uppercase tracking-wider hover:bg-border-subtle transition-all"
+                      className="flex-1 h-11 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] shadow-sm text-ink-secondary text-[11px] font-bold uppercase tracking-wider hover:bg-white hover:shadow-md transition-all"
                     >
                       Cancel
                     </button>
                     <button 
                       onClick={handleSaveBooking}
                       disabled={isSaving}
-                      className="flex-[2] h-11 rounded-xl bg-accent text-white text-xs font-semibold uppercase tracking-wider shadow-lg shadow-accent/20 flex items-center justify-center gap-2 hover:translate-y-[-1px] active:scale-[0.98] transition-all disabled:opacity-50"
+                      className="flex-[2] h-11 rounded-full bg-gradient-to-b from-[#87B9FF] to-[#0259DD] text-white text-[11px] font-bold uppercase tracking-wider shadow-lg shadow-accent/20 flex items-center justify-center gap-2 hover:translate-y-[-1px] active:scale-[0.98] transition-all disabled:opacity-50"
                     >
                       {isSaving ? (
                         <RefreshCw size={14} className="animate-spin" />
@@ -503,7 +507,7 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
 
           {/* Availability Timeline Section (Always Visible) */}
           <section className="flex flex-col gap-6">
-            <h3 className="text-[10px] font-semibold text-ink-muted uppercase tracking-[0.12em]">Availability</h3>
+            <h3 className="text-[10px] font-medium text-ink-muted uppercase tracking-[0.12em]">Availability</h3>
             
             <div className="flex flex-col gap-3">
               <div className="flex justify-between items-baseline">
@@ -683,8 +687,8 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
         title="Maintenance Note"
         footer={
           <>
-            <button className="btn btn-ghost" onClick={() => setModalOpen(null)}>Cancel</button>
-            <button className="btn btn-accent px-8" onClick={handleMaintenanceConfirm}>Mark Out-of-Order</button>
+            <button className="btn btn-secondary px-8" onClick={() => setModalOpen(null)}>Cancel</button>
+            <button className="btn btn-accent px-8 shadow-lg" onClick={handleMaintenanceConfirm}>Mark Out-of-Order</button>
           </>
         }
       >
@@ -717,11 +721,11 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
           <div className="flex flex-col w-full gap-3 mt-4">
             <button 
               onClick={handleCancelBooking}
-              className="btn btn-accent bg-danger border-danger hover:bg-danger/90 w-full"
+              className="btn btn-accent bg-danger border-danger hover:bg-danger/90 rounded-full w-full py-4 shadow-lg shadow-danger/20"
             >
               Confirm Cancellation
             </button>
-            <button className="btn btn-ghost w-full" onClick={() => setModalOpen(null)}>Go Back</button>
+            <button className="btn btn-secondary w-full py-4" onClick={() => setModalOpen(null)}>Go Back</button>
           </div>
         </div>
       </Modal>
@@ -794,7 +798,7 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
                    <span className="text-[9px] text-success font-bold uppercase tracking-widest">Final Settlement After Payment</span>
                    <span className="text-xs text-ink-muted font-medium">Balance to be cleared at checkout</span>
                 </div>
-                <span className={`text-xl font-sans font-black tabular-nums ${
+                <span className={`text-xl font-sans font-bold tabular-nums ${
                    ((room.booking?.total_amount || 0) - (room.booking?.amount_paid || 0) - checkoutDiscount - checkoutPayAmount) <= 0 
                    ? 'text-success' 
                    : 'text-danger'
@@ -918,6 +922,75 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
               </button>
             ))}
           </div>
+        </div>
+      </Modal>
+
+      {/* MODAL: Shift Room */}
+      <Modal
+        isOpen={modalOpen === 'shift'}
+        onClose={() => setModalOpen(null)}
+        title="Shift Guest to New Room"
+        className="max-w-[480px]"
+      >
+        <div className="flex flex-col gap-6 py-2">
+           <div className="flex flex-col gap-1">
+             <span className="text-[10px] font-bold text-ink-muted uppercase tracking-widest leading-none">Shifting From</span>
+             <h4 className="text-xl font-display text-ink-primary">Room {room.room_number} ({room.booking?.guest_name || 'Guest'})</h4>
+           </div>
+
+           <div className="flex flex-col gap-4">
+             <div className="flex justify-between items-center px-1">
+               <span className="text-[10px] font-bold text-ink-muted uppercase tracking-widest">Select Target Room</span>
+               <span className="text-[10px] text-accent font-bold uppercase">{getVacantRooms(room.property_id).length} Vacant Rooms</span>
+             </div>
+             
+             <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto pr-1">
+               {getVacantRooms(room.property_id).map(vRoom => (
+                 <button 
+                   key={vRoom.id}
+                   onClick={() => {
+                     if (room.booking) {
+                       shiftRoom(room.booking.id, room.id, vRoom.id);
+                       toast(`${room.booking.guest_name} shifted from ${room.room_number} to ${vRoom.room_number}`, "success");
+                       setModalOpen(null);
+                       onClose();
+                       // Global refresh to ensure state consistency
+                       setTimeout(() => window.location.reload(), 600);
+                     }
+                   }}
+                   className="flex items-center justify-between p-4 rounded-2xl border border-border-subtle bg-white hover:bg-bg-sunken hover:border-accent group transition-all"
+                 >
+                   <div className="flex items-center gap-4">
+                     <div className="w-10 h-10 rounded-xl bg-success/5 border border-success/10 flex items-center justify-center text-success font-bold font-sans">
+                       {vRoom.room_number}
+                     </div>
+                     <div className="flex flex-col text-left">
+                       <span className="text-sm font-bold text-ink-primary">{vRoom.room_type}</span>
+                        <span className="text-[10px] text-ink-muted font-medium">Floor {vRoom.floor} • Max {vRoom.max_occupancy} Guests</span>
+                     </div>
+                   </div>
+                   <div className="flex flex-col items-end gap-1">
+                      <span className="text-xs font-bold text-ink-primary">₹{vRoom.base_price}/nt</span>
+                      <ArrowRight size={14} className="text-ink-muted group-hover:text-accent group-hover:translate-x-1 transition-all" />
+                   </div>
+                 </button>
+               ))}
+               
+               {getVacantRooms(room.property_id).length === 0 && (
+                 <div className="p-8 border-2 border-dashed border-border-subtle rounded-2xl flex flex-col items-center justify-center text-center">
+                    <AlertTriangle size={24} className="text-ink-muted mb-2" />
+                    <p className="text-xs text-ink-muted font-medium uppercase tracking-tight">No vacant rooms available to shift</p>
+                 </div>
+               )}
+             </div>
+           </div>
+
+           <div className="p-4 bg-warning/5 border border-warning/10 rounded-2xl flex items-start gap-3">
+             <Info size={16} className="text-warning mt-0.5 flex-shrink-0" />
+             <p className="text-[11px] text-ink-secondary leading-relaxed font-medium">
+               Shifting a room will move all guest details and payments. The old room ({room.room_number}) will automatically be marked for cleaning.
+             </p>
+           </div>
         </div>
       </Modal>
     </>

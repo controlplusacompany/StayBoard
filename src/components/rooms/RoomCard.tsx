@@ -12,10 +12,32 @@ interface RoomCardProps {
   checkoutDate?: string;
   hasBalance?: boolean;
   futureBooking?: string;
+  status?: RoomStatus;
+  currentBooking?: any;
+  arrivalToday?: any;
+  checkoutToday?: any;
   onClick: (roomId: string) => void;
 }
 
-export default function RoomCard({ room, guestName, propertyName, checkoutDate, hasBalance, futureBooking, onClick }: RoomCardProps) {
+export default function RoomCard({ 
+  room, 
+  guestName, 
+  propertyName, 
+  checkoutDate, 
+  hasBalance, 
+  futureBooking, 
+  status, 
+  currentBooking,
+  arrivalToday,
+  checkoutToday,
+  onClick 
+}: RoomCardProps) {
+  // Use status prop if provided, otherwise fallback to room.status
+  const effectiveStatus = status || room.status;
+  
+  // Use currentBooking data if available
+  const displayGuest = guestName || currentBooking?.guest_name || arrivalToday?.guest_name;
+  const displayCheckout = checkoutDate || currentBooking?.check_out_date || arrivalToday?.check_out_date;
   const getStatusClass = (status: RoomStatus) => {
     switch (status) {
       case 'vacant': return 'room-card--vacant';
@@ -35,24 +57,24 @@ export default function RoomCard({ room, guestName, propertyName, checkoutDate, 
   return (
     <div 
       onClick={() => onClick(room.id)}
-      className={`room-card ${getStatusClass(room.status)} group overflow-hidden`}
+      className={`room-card ${getStatusClass(effectiveStatus)} group overflow-hidden`}
     >
-      <div className={`absolute top-0 left-0 right-0 h-1 bg-status-${room.status}-fg opacity-80`} />
+      {/* status bar removed as per request */}
       <div className="flex justify-between items-start">
         <div className="flex flex-col">
           <span className="room-card__number text-ink-primary font-display text-[22px]">
             {room.room_number}
           </span>
           {propertyName && (
-            <span className="text-[9px] font-bold text-accent font-sans uppercase tracking-[0.15em] -mt-1 opacity-70">
+            <span className="text-[9px] font-medium text-accent font-sans uppercase tracking-[0.15em] -mt-1 opacity-70">
               {propertyName}
             </span>
           )}
         </div>
         <div className="flex flex-col items-end gap-1.5">
-          <Badge type={room.status} label={getStatusLabel(room.status)} />
+          <Badge type={effectiveStatus} label={getStatusLabel(effectiveStatus)} />
           {futureBooking && (
-            <div className="flex items-center gap-1 bg-accent/10 px-1.5 py-0.5 rounded text-[9px] font-bold text-accent uppercase tracking-tight">
+            <div className="flex items-center gap-1 bg-accent/10 px-1.5 py-0.5 rounded text-[9px] font-medium text-accent uppercase tracking-tight">
               <span>{futureBooking}</span>
             </div>
           )}
@@ -60,27 +82,27 @@ export default function RoomCard({ room, guestName, propertyName, checkoutDate, 
       </div>
 
       <div className="mt-auto pt-2">
-        {room.status === 'vacant' ? (
+        {effectiveStatus === 'vacant' ? (
           <span className="text-xs text-ink-muted">₹{room.base_price} / night</span>
-        ) : guestName ? (
+        ) : displayGuest ? (
           <div className="flex flex-col gap-0.5 overflow-hidden">
-            <span className="room-card__guest text-[12px] font-sans font-semibold text-ink-primary truncate">
-              {guestName}
+            <span className="room-card__guest text-[12px] font-sans font-medium text-ink-primary truncate">
+              {displayGuest}
             </span>
             <span className="room-card__sub text-[11px] font-sans text-ink-muted">
-              {room.status === 'checkout_today' ? (
+              {effectiveStatus === 'checkout_today' ? (
                 <span className="text-danger-fg">Checkout today</span>
-              ) : room.status === 'arriving_today' ? (
+              ) : effectiveStatus === 'arriving_today' ? (
                 <span>Arriving today</span>
               ) : (
-                <span>Checkout {checkoutDate ? formatDate(checkoutDate) : '...'}</span>
+                <span>Checkout {displayCheckout ? formatDate(displayCheckout) : '...'}</span>
               )}
             </span>
           </div>
         ) : (
           <span className="text-xs text-ink-muted">
-            {room.status === 'cleaning' ? 'Being cleaned' : 
-             room.status === 'maintenance' ? 'Out of service' : ''}
+            {effectiveStatus === 'cleaning' ? 'Being cleaned' : 
+             effectiveStatus === 'maintenance' ? 'Out of service' : ''}
           </span>
         )}
       </div>

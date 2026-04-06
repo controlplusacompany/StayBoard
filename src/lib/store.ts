@@ -202,25 +202,29 @@ export const addBooking = (booking: Booking) => {
   localStorage.setItem(STORAGE_KEYS.BOOKINGS, JSON.stringify(updatedBookings));
 
   // Update room status only if booking is for TODAY or in progress
-  const today = new Date().toISOString().split('T')[0];
-  const start = new Date(booking.check_in_date).toISOString().split('T')[0];
-  if (start === today) {
+  // Using a more robust date comparison that ignores timezones
+  const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+  const bookingStartStr = booking.check_in_date.split('T')[0];
+  
+  if (bookingStartStr === todayStr && booking.room_id) {
     updateRoomStatus(booking.room_id, 'occupied');
   }
 
   // FEATURE 1: AUTO-CREATE TASKS
-  const checkoutTime = new Date(booking.check_out_date);
-  checkoutTime.setHours(11, 0, 0, 0);
+  if (booking.room_id) {
+    const checkoutTime = new Date(booking.check_out_date);
+    checkoutTime.setHours(11, 0, 0, 0);
 
-  addTask({
-    room_id: booking.room_id,
-    property_id: booking.property_id,
-    owner_id: booking.owner_id,
-    task_type: 'checkout_clean',
-    status: 'pending',
-    priority: 'normal',
-    due_by: checkoutTime.toISOString(),
-  });
+    addTask({
+      room_id: booking.room_id,
+      property_id: booking.property_id,
+      owner_id: booking.owner_id,
+      task_type: 'checkout_clean',
+      status: 'pending',
+      priority: 'normal',
+      due_by: checkoutTime.toISOString(),
+    });
+  }
 
   // FEATURE 2: AUTO-GENERATE INVOICE
   addInvoice({
@@ -293,7 +297,9 @@ export const checkOutGuest = (bookingId: string) => {
     localStorage.setItem(STORAGE_KEYS.BOOKINGS, JSON.stringify(updatedBookings));
 
     // 2. Mark room as cleaning
-    updateRoomStatus(booking.room_id, 'cleaning');
+    if (booking.room_id) {
+       updateRoomStatus(booking.room_id, 'cleaning');
+    }
 
     return updatedBookings;
   }
@@ -314,7 +320,9 @@ export const finalCheckout = (bookingId: string, payAmount: number, discountAmou
     localStorage.setItem(STORAGE_KEYS.BOOKINGS, JSON.stringify(updatedBookings));
     
     // Mark room as cleaning
-    updateRoomStatus(booking.room_id, 'cleaning');
+    if (booking.room_id) {
+      updateRoomStatus(booking.room_id, 'cleaning');
+    }
     return updatedBookings;
   }
   return bookings;
@@ -327,4 +335,94 @@ export const updateStaffNotes = (roomId: string, notes: string) => {
   );
   localStorage.setItem(STORAGE_KEYS.ROOMS, JSON.stringify(updatedRooms));
   return updatedRooms;
+};
+
+export const shiftRoom = (bookingId: string, oldRoomId: string, newRoomId: string) => {
+  const bookings = getStoredBookings();
+  const rooms = getStoredRooms([]);
+  const booking = bookings[bookingId];
+  if (!booking) return;
+
+  const newRoom = rooms.find(r => r.id === newRoomId);
+
+  // 1. Update Booking
+  const updatedBooking = { 
+    ...booking, 
+    room_id: newRoomId,
+    room_type: newRoom?.room_type || booking.room_type 
+  };
+  const updatedBookings = { ...bookings, [bookingId]: updatedBooking };
+  localStorage.setItem(STORAGE_KEYS.BOOKINGS, JSON.stringify(updatedBookings));
+
+  // 2. Update Old Room to cleaning
+  updateRoomStatus(oldRoomId, 'cleaning');
+  
+  // 3. Update New Room to occupied
+  updateRoomStatus(newRoomId, 'occupied');
+
+  // 4. Update Tasks (move pending tasks to new room)
+  const tasks = getStoredTasks();
+  const updatedTasks = tasks.map(task => 
+    task.room_id === oldRoomId && task.status === 'pending' ? { ...task, room_id: newRoomId } : task
+  );
+  localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(updatedTasks));
+
+  return updatedBookings;
+};
+
+export const getVacantRooms = (propertyId?: string): Room[] => {
+  const rooms = getStoredRooms([]);
+  const bookings = getBookingsList();
+  const now = new Date();
+  
+  return rooms.filter(room => {
+    // Basic status check
+    if (room.status !== 'vacant') return false;
+    
+    // Property check if provided
+    if (propertyId && room.property_id !== propertyId) return false;
+    
+    // Detailed booking check (no overlapping bookings for today)
+    const roomBookings = bookings.filter(b => b.room_id === room.id && b.status !== 'cancelled' && b.status !== 'no_show');
+    const hasConflict = roomBookings.some(b => {
+      const start = new Date(b.check_in_date);
+      const end = new Date(b.check_out_date);
+      return (now >= start && now < end);
+    });
+    
+    return !hasConflict;
+  });
+};
+
+export const getAvailableRoomTypeCount = (propertyId: string, roomType: string, startDate: string, endDate: string) => {
+  const rooms = getStoredRooms([]);
+  const propertyRooms = rooms.filter(r => r.property_id === propertyId && r.room_type === roomType);
+  const totalCount = propertyRooms.length;
+
+  const bookings = getBookingsList();
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  const activeBookings = bookings.filter(b => {
+    if (b.property_id !== propertyId) return false;
+    if (b.status === 'cancelled' || b.status === 'no_show' || b.status === 'checked_out') return false;
+
+    // Check if room type matches
+    let bType = b.room_type;
+    if (!bType && b.room_id) {
+       // if room type not explicitly on booking, get it from the associated room
+       bType = rooms.find(r => r.id === b.room_id)?.room_type;
+    }
+    
+    if (bType !== roomType) return false;
+
+    // Date overlap check
+    const bStart = new Date(b.check_in_date);
+    const bEnd = new Date(b.check_out_date);
+    
+    // Check if intervals overlap: max(start1, start2) < min(end1, end2)
+    return (start < bEnd && end > bStart);
+  });
+
+  return totalCount - activeBookings.length;
 };

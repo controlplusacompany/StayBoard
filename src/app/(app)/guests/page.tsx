@@ -145,19 +145,19 @@ export default function GuestsPage() {
     <div className="p-6 md:p-10 flex flex-col gap-8 animate-slide-up bg-bg-canvas min-h-full">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl md:text-4xl font-display text-ink-primary tracking-tight">Guest Directory</h1>
+          <h1 className="text-3xl md:text-4xl font-display text-ink-primary tracking-tight font-medium">Guest Directory</h1>
           <p className="text-ink-secondary">Manage relationships and viewing loyal customers.</p>
         </div>
         
         {/* Metric Summaries */}
         <div className="flex flex-wrap gap-4">
           <div className="bg-white border border-border-subtle rounded-xl p-4 flex flex-col gap-1 shadow-sm min-w-[120px]">
-            <span className="text-xs font-semibold text-ink-muted uppercase tracking-wider">Total Guests</span>
-            <span className="text-2xl font-mono font-semibold text-ink-primary">{guests.length}</span>
+            <span className="text-xs font-medium text-ink-muted uppercase tracking-wider">Total Guests</span>
+            <span className="text-2xl font-mono font-normal text-ink-primary">{guests.length}</span>
           </div>
           <div className="bg-white border text-accent border-accent/20 rounded-xl p-4 flex flex-col gap-1 shadow-sm min-w-[120px]">
-            <span className="text-xs font-semibold uppercase tracking-wider">VIP Guests</span>
-            <span className="text-2xl font-mono font-semibold flex items-center gap-2">
+            <span className="text-xs font-medium uppercase tracking-wider">VIP Guests</span>
+            <span className="text-2xl font-mono font-normal flex items-center gap-2">
               {guests.filter(g => g.is_vip).length}
               <Star size={16} fill="currentColor" />
             </span>
@@ -180,7 +180,7 @@ export default function GuestsPage() {
               />
             </div>
             <button 
-              className={`btn border shadow-none font-bold ${filterVip ? 'border-accent text-accent bg-accent/5' : 'border-border-strong text-ink-secondary hover:bg-bg-sunken hover:text-ink-primary'}`}
+              className={`btn border shadow-none font-semibold ${filterVip ? 'border-accent text-accent bg-accent/5' : 'border-border-strong text-ink-secondary hover:bg-bg-sunken hover:text-ink-primary'}`}
               onClick={() => setFilterVip(!filterVip)}
             >
               <Star size={16} className={filterVip ? 'fill-current' : ''} />
@@ -220,7 +220,7 @@ export default function GuestsPage() {
             <thead>
               <tr className="border-b border-border-subtle bg-bg-sunken/50">
                 <th 
-                  className="py-4 px-6 text-xs font-semibold text-ink-muted uppercase tracking-wider cursor-pointer hover:text-accent transition-colors"
+                  className="py-4 px-6 text-[10px] font-semibold text-ink-muted uppercase tracking-[0.1em] cursor-pointer hover:text-accent transition-colors"
                   onClick={() => handleSort('name')}
                 >
                   <div className="flex items-center gap-2 text-nowrap">
@@ -228,7 +228,7 @@ export default function GuestsPage() {
                   </div>
                 </th>
                 <th 
-                  className="py-4 px-6 text-xs font-semibold text-ink-muted uppercase tracking-wider cursor-pointer hover:text-accent transition-colors"
+                  className="py-4 px-6 text-[10px] font-semibold text-ink-muted uppercase tracking-[0.1em] cursor-pointer hover:text-accent transition-colors"
                   onClick={() => handleSort('phone')}
                 >
                   <div className="flex items-center gap-2 text-nowrap">
@@ -236,7 +236,7 @@ export default function GuestsPage() {
                   </div>
                 </th>
                 <th 
-                  className="py-4 px-6 text-xs font-semibold text-ink-muted uppercase tracking-wider cursor-pointer hover:text-accent transition-colors"
+                  className="py-4 px-6 text-[10px] font-semibold text-ink-muted uppercase tracking-[0.1em] cursor-pointer hover:text-accent transition-colors"
                   onClick={() => handleSort('id_number')}
                 >
                   <div className="flex items-center gap-2 text-nowrap">
@@ -244,7 +244,7 @@ export default function GuestsPage() {
                   </div>
                 </th>
                 <th 
-                  className="py-4 px-6 text-xs font-semibold text-ink-muted uppercase tracking-wider cursor-pointer hover:text-accent transition-colors"
+                  className="py-4 px-6 text-[10px] font-semibold text-ink-muted uppercase tracking-[0.1em] cursor-pointer hover:text-accent transition-colors"
                   onClick={() => handleSort('total_spent')}
                 >
                   <div className="flex items-center gap-2 text-nowrap">
@@ -252,7 +252,7 @@ export default function GuestsPage() {
                   </div>
                 </th>
                 <th 
-                  className="py-4 px-6 text-xs font-semibold text-ink-muted uppercase tracking-wider cursor-pointer hover:text-accent transition-colors"
+                  className="py-4 px-6 text-[10px] font-semibold text-ink-muted uppercase tracking-[0.1em] cursor-pointer hover:text-accent transition-colors"
                   onClick={() => handleSort('total_stays')}
                 >
                   <div className="flex items-center gap-2 text-nowrap text-center">
@@ -260,7 +260,7 @@ export default function GuestsPage() {
                   </div>
                 </th>
                 <th 
-                  className="py-4 px-6 text-xs font-semibold text-ink-muted uppercase tracking-wider cursor-pointer hover:text-accent transition-colors text-right"
+                  className="py-4 px-6 text-xs font-medium text-ink-muted uppercase tracking-wider cursor-pointer hover:text-accent transition-colors text-right"
                   onClick={() => handleSort('last_stay_date')}
                 >
                   <div className="flex items-center gap-2 justify-end text-nowrap">
@@ -334,11 +334,11 @@ export default function GuestsPage() {
                         <UserCircle2 size={16} />
                       </div>
                       <div className="flex flex-col">
-                        <span className="font-semibold text-ink-primary flex items-center gap-1.5">
+                        <span className="font-medium text-ink-primary flex items-center gap-1.5 antialiased">
                           {guest.name}
-                          {guest.is_vip && <Star size={12} className="fill-accent text-accent" />}
+                          {guest.is_vip && <Star size={11} className="fill-accent text-accent" />}
                         </span>
-                        <span className="text-[10px] uppercase font-semibold text-ink-muted tracking-wider">
+                        <span className="text-[10px] uppercase font-medium text-ink-muted tracking-wider">
                           {guest.is_vip ? 'VIP Guest' : 'Standard'}
                         </span>
                       </div>
@@ -349,11 +349,11 @@ export default function GuestsPage() {
                   </td>
                   <td className="py-4 px-6">
                     <div className="flex flex-col">
-                      <span className="text-sm font-medium text-ink-primary">{guest.id_number}</span>
-                      <span className="text-[10px] uppercase font-semibold text-ink-muted">{guest.id_type}</span>
+                      <span className="text-sm font-normal text-ink-primary">{guest.id_number}</span>
+                      <span className="text-[10px] uppercase font-medium text-ink-muted">{guest.id_type}</span>
                     </div>
                   </td>
-                  <td className="py-4 px-6 font-mono font-semibold text-success">
+                  <td className="py-4 px-6 font-mono font-medium text-success">
                     ₹{guest.total_spent.toLocaleString()}
                   </td>
                   <td className="py-4 px-6 text-center">
@@ -361,7 +361,7 @@ export default function GuestsPage() {
                   </td>
                   <td className="py-4 px-6 text-right">
                     <div className="flex flex-col items-end">
-                      <span className="text-sm font-semibold text-ink-primary">
+                      <span className="text-sm font-medium text-ink-primary">
                         {guest.last_stay_date ? format(new Date(guest.last_stay_date), 'dd MMM yyyy') : 'Never'}
                       </span>
                       <span className="text-[10px] font-mono text-ink-muted">
@@ -377,7 +377,7 @@ export default function GuestsPage() {
                   <td colSpan={6} className="py-20 text-center">
                     <div className="flex flex-col items-center justify-center gap-3 text-ink-muted">
                       <Users size={48} className="opacity-20" />
-                      <p className="font-bold">No guests found</p>
+                      <p className="font-semibold">No guests found</p>
                       <p className="text-sm">Try adjusting your filters or search query.</p>
                     </div>
                   </td>
@@ -415,28 +415,28 @@ export default function GuestsPage() {
             {/* Quick Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div className="border border-border-subtle rounded-lg p-3 flex flex-col gap-1">
-                <span className="text-[10px] uppercase font-semibold tracking-wider text-ink-muted flex items-center gap-1.5">
+                <span className="text-[10px] uppercase font-medium tracking-wider text-ink-muted flex items-center gap-1.5">
                   <Phone size={12} /> Contact
                 </span>
-                <span className="font-mono text-sm font-semibold text-ink-primary">{selectedGuest.phone}</span>
+                <span className="font-mono text-sm font-medium text-ink-primary">{selectedGuest.phone}</span>
               </div>
               <div className="border border-border-subtle rounded-lg p-3 flex flex-col gap-1">
-                <span className="text-[10px] uppercase font-bold tracking-wider text-ink-muted flex items-center gap-1.5">
+                <span className="text-[10px] uppercase font-medium tracking-wider text-ink-muted flex items-center gap-1.5">
                   <CreditCard size={12} /> Total Spent
                 </span>
-                <span className="font-mono text-sm font-bold text-success">₹{selectedGuest.total_spent.toLocaleString()}</span>
+                <span className="font-mono text-sm font-medium text-success">₹{selectedGuest.total_spent.toLocaleString()}</span>
               </div>
               <div className="border border-border-subtle rounded-lg p-3 flex flex-col gap-1">
-                <span className="text-[10px] uppercase font-bold tracking-wider text-ink-muted flex items-center gap-1.5">
+                <span className="text-[10px] uppercase font-medium tracking-wider text-ink-muted flex items-center gap-1.5">
                   <Calendar size={12} /> Total Stays
                 </span>
-                <span className="font-mono text-sm font-bold text-ink-primary">{selectedGuest.total_stays}</span>
+                <span className="font-mono text-sm font-medium text-ink-primary">{selectedGuest.total_stays}</span>
               </div>
               <div className="border border-border-subtle rounded-lg p-3 flex flex-col gap-1">
-                <span className="text-[10px] uppercase font-bold tracking-wider text-ink-muted flex items-center gap-1.5">
+                <span className="text-[10px] uppercase font-medium tracking-wider text-ink-muted flex items-center gap-1.5">
                   <ArrowRight size={12} /> Last Visit
                 </span>
-                <span className="text-sm font-bold text-ink-primary">
+                <span className="text-sm font-medium text-ink-primary">
                   {selectedGuest.last_stay_date ? format(new Date(selectedGuest.last_stay_date), 'dd MMM yyyy') : 'Never'}
                 </span>
               </div>
@@ -445,7 +445,7 @@ export default function GuestsPage() {
             {/* VIP Toggler */}
             <div className="bg-white border border-border-subtle p-4 rounded-xl flex items-center justify-between">
               <div className="flex flex-col gap-0.5">
-                <span className="font-semibold text-ink-primary text-sm line-clamp-1">VIP Status</span>
+                <span className="font-medium text-ink-primary text-sm line-clamp-1">VIP Status</span>
                 <span className="text-xs text-ink-muted">Highlight this guest for special treatment.</span>
               </div>
               <div 

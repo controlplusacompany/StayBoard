@@ -164,13 +164,13 @@ export default function HousekeepingPage() {
         
         <div className="flex justify-between items-start">
           <div className="flex flex-col">
-            <h4 className="font-display text-lg text-ink-primary leading-tight">Room {room?.room_number || '??'}</h4>
+            <h4 className="font-display text-lg text-ink-primary leading-tight font-medium">Room {room?.room_number || '??'}</h4>
             {filterProperty === 'all' && (
-              <span className="text-[9px] font-bold text-accent font-sans uppercase tracking-[0.1em] -mt-0.5 opacity-80 decoration-accent/50 underline-offset-2">
+              <span className="text-[9px] font-medium text-accent font-sans uppercase tracking-[0.1em] -mt-0.5 opacity-80 decoration-accent/50 underline-offset-2">
                 {PROPERTIES.find(p => p.id === task.property_id)?.name}
               </span>
             )}
-            <span className="text-[10px] font-bold text-ink-muted uppercase tracking-wider mt-1">{task.task_type.replace('_', ' ')}</span>
+            <span className="text-[10px] font-normal text-ink-muted uppercase tracking-wider mt-1">{task.task_type.replace('_', ' ')}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className={`w-2 h-2 rounded-full ${task.priority === 'urgent' ? 'bg-danger animate-pulse' : task.priority === 'high' ? 'bg-warning' : 'bg-ink-muted/20'}`} />
@@ -185,7 +185,7 @@ export default function HousekeepingPage() {
             <User size={14} className="text-ink-muted" />
             <span>{task.assigned_to || 'Unassigned'}</span>
           </div>
-          <div className={`flex items-center gap-2 text-xs ${isOverdue ? 'text-danger font-bold' : 'text-ink-muted'}`}>
+          <div className={`flex items-center gap-2 text-xs ${isOverdue ? 'text-danger font-medium' : 'text-ink-muted'}`}>
             <Clock size={14} />
             <span>Due by {format(new Date(task.due_by), 'h:mm a')}</span>
           </div>
@@ -195,7 +195,7 @@ export default function HousekeepingPage() {
           {task.status === 'pending' && (
             <button 
               onClick={() => handleStatusChange(task.id, 'in_progress')}
-              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-accent/5 text-accent text-[11px] font-bold uppercase tracking-wider hover:bg-accent hover:text-white transition-all"
+              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-accent/5 text-accent text-[11px] font-medium uppercase tracking-wider hover:bg-accent hover:text-white transition-all"
             >
               <PlayCircle size={14} />
               <span>Start</span>
@@ -204,7 +204,7 @@ export default function HousekeepingPage() {
           {task.status === 'in_progress' && (
             <button 
               onClick={() => handleStatusChange(task.id, 'done')}
-              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-success/5 text-success text-[11px] font-bold uppercase tracking-wider hover:bg-success hover:text-white transition-all"
+              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-success/5 text-success text-[11px] font-medium uppercase tracking-wider hover:bg-success hover:text-white transition-all"
             >
               <CheckCircle2 size={14} />
               <span>Done</span>
@@ -222,13 +222,13 @@ export default function HousekeepingPage() {
     <div className="p-6 md:p-10 flex flex-col gap-10 bg-bg-canvas min-h-full">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">
         <div className="flex flex-col gap-3">
-          <span className="text-[10px] font-bold text-accent uppercase tracking-[0.3em] font-sans">{format(new Date(), 'EEEE, dd MMM yyyy')}</span>
-          <h1 className="text-4xl md:text-5xl font-display text-ink-primary tracking-tighter font-extrabold text-balance">Housekeeping</h1>
+          <span className="text-[10px] font-medium text-accent uppercase tracking-[0.3em] font-sans">{format(new Date(), 'EEEE, dd MMM yyyy')}</span>
+          <h1 className="text-4xl md:text-5xl font-display text-ink-primary tracking-tighter font-medium text-balance">Housekeeping</h1>
         </div>
         {!isOwnerRole && (
           <button 
             onClick={() => setShowCreateModal(true)}
-            className="btn btn-accent px-6 py-4 rounded-full flex items-center justify-center gap-2 shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] w-full sm:w-auto font-bold"
+            className="btn btn-accent px-6 py-4 rounded-full flex items-center justify-center gap-2 shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] w-full sm:w-auto font-medium"
           >
             <Plus size={20} />
             <span>Create Task</span>
@@ -241,13 +241,13 @@ export default function HousekeepingPage() {
         <div className="flex w-full md:w-auto items-center p-1 bg-bg-sunken rounded-xl border border-border-subtle">
           <button 
             onClick={() => setActiveTab('tasks')}
-            className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'tasks' ? 'bg-white text-ink-primary shadow-sm' : 'text-ink-muted'}`}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'tasks' ? 'bg-white text-ink-primary shadow-sm' : 'text-ink-muted'}`}
           >
             Tasks
           </button>
           <button 
             onClick={() => setActiveTab('rooms')}
-            className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'rooms' ? 'bg-white text-ink-primary shadow-sm' : 'text-ink-muted'}`}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'rooms' ? 'bg-white text-ink-primary shadow-sm' : 'text-ink-muted'}`}
           >
             Rooms
           </button>
@@ -259,7 +259,7 @@ export default function HousekeepingPage() {
         <div className={`md:col-span-4 flex flex-col gap-10 ${activeTab === 'rooms' ? 'hidden md:flex' : 'flex'}`}>
           <div className="flex flex-col gap-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold text-ink-muted uppercase tracking-widest">In Progress — {inProgressTasks.length}</h3>
+              <h3 className="text-xs font-medium text-ink-muted uppercase tracking-widest">In Progress — {inProgressTasks.length}</h3>
             </div>
             <div className="flex flex-col gap-4">
               {inProgressTasks.map(renderTaskCard)}
@@ -271,7 +271,7 @@ export default function HousekeepingPage() {
 
           <div className="flex flex-col gap-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold text-ink-muted uppercase tracking-widest">Pending — {pendingTasks.length}</h3>
+              <h3 className="text-xs font-medium text-ink-muted uppercase tracking-widest">Pending — {pendingTasks.length}</h3>
             </div>
             <div className="flex flex-col gap-4">
               {pendingTasks.map(renderTaskCard)}
@@ -283,8 +283,8 @@ export default function HousekeepingPage() {
 
           <div className="flex flex-col gap-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold text-ink-muted uppercase tracking-widest">Completed — {completedTasks.length}</h3>
-              <button className="text-[10px] font-bold text-accent uppercase tracking-wider hover:underline">Clear all</button>
+              <h3 className="text-xs font-medium text-ink-muted uppercase tracking-widest">Completed — {completedTasks.length}</h3>
+              <button className="text-[10px] font-medium text-accent uppercase tracking-wider hover:underline">Clear all</button>
             </div>
             <div className="flex flex-col gap-4 opacity-70 grayscale-[0.3]">
               {completedTasks.map(renderTaskCard)}
@@ -295,13 +295,19 @@ export default function HousekeepingPage() {
         {/* Right Column: Room Status Grid */}
         <div className={`md:col-span-8 flex flex-col gap-6 ${activeTab === 'tasks' ? 'hidden md:flex' : 'flex'}`}>
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold text-ink-muted uppercase tracking-widest">Room Inventory</h3>
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] flex items-center gap-1.5 font-bold text-ink-secondary uppercase">
-                <div className="w-2 h-2 rounded-full bg-status-cleaning-fg" /> Cleaning
+            <h3 className="text-xs font-medium text-ink-muted uppercase tracking-widest">Room Inventory</h3>
+            <div className="flex items-center gap-6">
+              <span className="text-[10px] flex items-center gap-2 font-medium text-ink-muted uppercase tracking-widest leading-none">
+                <div className="w-2.5 h-2.5 rounded-full bg-status-cleaning-fg shadow-sm" /> 
+                Cleaning
               </span>
-              <span className="text-[10px] flex items-center gap-1.5 font-bold text-ink-secondary uppercase">
-                <div className="w-2 h-2 rounded-full bg-status-maintenance-fg" /> Maintenance
+              <span className="text-[10px] flex items-center gap-2 font-medium text-ink-muted uppercase tracking-widest leading-none">
+                <div className="w-2.5 h-2.5 rounded-full bg-status-maintenance-fg shadow-sm" /> 
+                Maintenance
+              </span>
+              <span className="text-[10px] flex items-center gap-2 font-medium text-ink-muted uppercase tracking-widest leading-none">
+                <div className="w-2.5 h-2.5 rounded-full bg-status-vacant-fg shadow-sm" /> 
+                Vacant
               </span>
             </div>
           </div>
@@ -332,8 +338,8 @@ export default function HousekeepingPage() {
         title="Create Cleaning Task"
         footer={
           <div className="flex gap-3 w-full">
-            <button className="btn btn-ghost flex-1 font-bold" onClick={() => setShowCreateModal(false)}>Cancel</button>
-            <button className="btn btn-accent flex-1 font-bold px-10" onClick={handleCreateTask}>Create Task</button>
+            <button className="btn btn-secondary flex-1 font-medium" onClick={() => setShowCreateModal(false)}>Cancel</button>
+            <button className="btn btn-accent flex-1 font-medium px-10" onClick={handleCreateTask}>Create Task</button>
           </div>
         }
       >

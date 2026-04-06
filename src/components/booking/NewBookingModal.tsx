@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Modal from '../ui/Modal';
-import { getStoredRooms } from '@/lib/store';
+import { getStoredRooms, getAvailableRoomTypeCount } from '@/lib/store';
 import { Room } from '@/types';
 import { Bed, Search, Home, ChevronRight, X } from 'lucide-react';
 
@@ -35,7 +35,17 @@ export default function NewBookingModal({ isOpen, onClose, propertyId }: NewBook
     const matchesProperty = selectedPropertyId === 'all' || r.property_id === selectedPropertyId;
     const matchesSearch = r.room_number.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           r.room_type.toLowerCase().includes(searchQuery.toLowerCase());
-    return isVacant && matchesProperty && matchesSearch;
+    
+    if (!isVacant || !matchesProperty || !matchesSearch) return false;
+
+    // INVENTORY PROTECTION: Check if this room type has actual available count for today.
+    // If all rooms of this type are committed (including unassigned online bookings), 
+    // hide this room from selections even if physically vacant.
+    const today = new Date().toISOString().split('T')[0];
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+    const availCount = getAvailableRoomTypeCount(r.property_id, r.room_type, today, tomorrow);
+    
+    return availCount > 0;
   });
 
   const handleRoomSelect = (room: Room) => {

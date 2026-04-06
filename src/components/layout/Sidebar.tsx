@@ -90,14 +90,14 @@ export default function Sidebar({ isMobileOpen, onCloseMobile }: { isMobileOpen?
 
       <div className="mt-auto px-4 py-4 border-t border-border-subtle bg-bg-sunken/30">
         <div className="flex items-center gap-3 px-2 py-3">
-          <div className="w-9 h-9 rounded-full bg-accent text-white flex items-center justify-center font-bold text-xs ring-2 ring-white shadow-sm">
+          <div className="w-9 h-9 rounded-full bg-accent text-white flex items-center justify-center font-medium text-xs ring-2 ring-white shadow-sm">
             {isReception ? 'R' : isOwner ? 'O' : 'MD'}
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-[13px] font-bold text-ink-primary truncate">
+            <span className="text-[13px] font-medium text-ink-primary truncate">
               {isReception ? 'Reception' : isOwner ? 'Property Owner' : 'Operations Manager'}
             </span>
-            <span className="text-[10px] text-ink-muted uppercase font-bold tracking-wider">
+            <span className="text-[10px] text-ink-muted uppercase font-medium tracking-wider">
               {userRole || 'MD'}
             </span>
           </div>

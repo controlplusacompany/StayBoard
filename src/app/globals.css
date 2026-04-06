@@ -53,30 +53,30 @@ html {
   --accent-dark: #0147B1;
   --accent-gradient: linear-gradient(180deg, #87B9FF 0%, #0259DD 100%);
 
-  /* ── Room Status Colors (Modernized Blue-Tinged Palette) ── */
-  --status-vacant-bg: #F0FDF4;
-  --status-vacant-fg: #166534;
-  --status-vacant-border: #DCFCE7;
+  /* ── Room Status Colors (High-Contrast for Clarity) ── */
+  --status-vacant-bg: #A7F3D0;
+  --status-vacant-fg: #047857; 
+  --status-vacant-border: #6EE7B7;
 
-  --status-occupied-bg: #EFF6FF;
-  --status-occupied-fg: #1E40AF;
-  --status-occupied-border: #DBEAFE;
+  --status-occupied-bg: #BFDBFE;
+  --status-occupied-fg: #1E40AF; 
+  --status-occupied-border: #93C5FD;
 
-  --status-cleaning-bg: #FFFBEB;
-  --status-cleaning-fg: #92400E;
-  --status-cleaning-border: #FEF3C7;
+  --status-cleaning-bg: #FDE047;
+  --status-cleaning-fg: #A16207; 
+  --status-cleaning-border: #FACC15;
 
-  --status-maintenance-bg: #FEF2F2;
-  --status-maintenance-fg: #991B1B;
-  --status-maintenance-border: #FEE2E2;
+  --status-maintenance-bg: #CBD5E1;
+  --status-maintenance-fg: #475569; 
+  --status-maintenance-border: #94A3B8;
 
-  --status-checkout-bg: #FFF7ED;
-  --status-checkout-fg: #9A3412;
-  --status-checkout-border: #FFEDD5;
+  --status-checkout-bg: #F0ABFC;
+  --status-checkout-fg: #9333EA; 
+  --status-checkout-border: #E879F9;
 
-  --status-arriving-bg: #F5F3FF;
-  --status-arriving-fg: #5B21B6;
-  --status-arriving-border: #EDE9FE;
+  --status-arriving-bg: #A5B4FC;
+  --status-arriving-fg: #4F46E5; 
+  --status-arriving-border: #818CF8;
 
   /* ── Semantic ── */
   --success: #059669;
@@ -432,7 +432,7 @@ html {
 
 .room-card__number {
   font-family: var(--font-display);
-  font-weight: 500; /* Less heavy */
+  font-weight: 500;
 }
 
 .room-card__guest {
@@ -569,7 +569,7 @@ html {
   border-radius: var(--radius-full);
   font-family: var(--font-sans);
   font-size: 14px;
-  font-weight: 600; /* Reduced from 700 */
+  font-weight: 500;
   transition: all var(--dur-normal);
   cursor: pointer;
   border: none;
@@ -597,15 +597,29 @@ html {
   filter: brightness(1.05);
 }
 
+.btn-secondary {
+  background: #F8FAFC;
+  color: #475569;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.btn-secondary:hover {
+  background: #F1F5F9;
+  border-color: #CBD5E1;
+  color: #1E293B;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
 .btn-ghost {
   background: transparent;
   color: var(--ink-secondary);
-  border: 1.5px solid var(--border-subtle);
+  border: 1px solid transparent;
 }
 
 .btn-ghost:hover {
   background: var(--bg-sunken);
-  border-color: var(--border-strong);
+  border-color: var(--border-subtle);
 }
 
 .btn--full {

@@ -131,8 +131,8 @@ export default function InvoicesPage() {
     <div className="p-6 md:p-10 flex flex-col gap-8 animate-slide-up bg-bg-canvas min-h-full">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl md:text-4xl font-display text-ink-primary tracking-tight font-semibold">Invoices & Payments</h1>
-          <p className="text-ink-secondary">Manage billing and track revenue</p>
+          <h1 className="text-3xl md:text-4xl font-display text-ink-primary tracking-tight font-medium">Invoices & Payments</h1>
+          <p className="text-sm text-ink-secondary">Manage billing and track revenue</p>
         </div>
       </header>
 
@@ -170,11 +170,11 @@ export default function InvoicesPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-border-subtle bg-bg-sunken/50">
-                <th className="py-4 px-6 text-xs font-semibold text-ink-muted uppercase tracking-wider">Invoice / Guest</th>
-                <th className="py-4 px-6 text-xs font-semibold text-ink-muted uppercase tracking-wider">Date</th>
-                <th className="py-4 px-6 text-xs font-semibold text-ink-muted uppercase tracking-wider">Amount</th>
-                <th className="py-4 px-6 text-xs font-semibold text-ink-muted uppercase tracking-wider">Status</th>
-                <th className="py-4 px-6 text-xs font-semibold text-ink-muted uppercase tracking-wider text-right">Actions</th>
+                <th className="py-4 px-6 text-[10px] font-medium text-ink-muted uppercase tracking-[0.1em]">Invoice / Guest</th>
+                <th className="py-4 px-6 text-[10px] font-medium text-ink-muted uppercase tracking-[0.1em]">Date</th>
+                <th className="py-4 px-6 text-[10px] font-medium text-ink-muted uppercase tracking-[0.1em]">Amount</th>
+                <th className="py-4 px-6 text-[10px] font-medium text-ink-muted uppercase tracking-[0.1em]">Status</th>
+                <th className="py-4 px-6 text-[10px] font-medium text-ink-muted uppercase tracking-[0.1em] text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -186,8 +186,8 @@ export default function InvoicesPage() {
                   <tr key={invoice.id} className="border-b border-border-subtle/50 hover:bg-bg-sunken/30 transition-colors group">
                     <td className="py-4 px-6">
                       <div className="flex flex-col">
-                        <span className="font-mono font-semibold text-ink-primary">{invoice.invoice_number}</span>
-                        <span className="text-sm text-ink-secondary">{booking?.guest_name || 'Unknown Guest'}</span>
+                        <span className="font-mono font-medium text-ink-primary tracking-tight">{invoice.invoice_number}</span>
+                        <span className="text-[13px] text-ink-secondary font-normal">{booking?.guest_name || 'Unknown Guest'}</span>
                       </div>
                     </td>
                     <td className="py-4 px-6">
@@ -198,11 +198,11 @@ export default function InvoicesPage() {
                     </td>
                     <td className="py-4 px-6">
                       <div className="flex flex-col">
-                        <span className="text-sm font-mono font-semibold text-ink-primary">₹{invoice.amount_total}</span>
+                        <span className="text-sm font-mono font-medium text-ink-primary">₹{invoice.amount_total}</span>
                         {balance > 0 ? (
-                           <span className="text-[11px] font-mono text-warning font-semibold">Balance: ₹{balance}</span>
+                           <span className="text-[11px] font-mono text-warning font-medium">Balance: ₹{balance}</span>
                         ) : (
-                           <span className="text-[11px] font-mono text-success font-semibold">Paid in full</span>
+                           <span className="text-[11px] font-mono text-success font-medium">Paid in full</span>
                         )}
                       </div>
                     </td>
@@ -216,7 +216,7 @@ export default function InvoicesPage() {
                       <div className="flex items-center justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                         {balance > 0 && invoice.status !== 'void' && (
                           <button 
-                            className="bg-accent/10 hover:bg-accent hover:text-white text-accent px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                            className="bg-accent/10 hover:bg-accent hover:text-white text-accent px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
                             onClick={() => {
                               setSelectedInvoice(invoice);
                               setPaymentAmount(balance.toString());
@@ -261,8 +261,8 @@ export default function InvoicesPage() {
         title="Record Payment"
         footer={
           <div className="flex gap-3 w-full">
-            <button className="btn btn-ghost flex-1 font-semibold" onClick={() => setShowPaymentModal(false)}>Cancel</button>
-            <button className="btn btn-accent flex-1 font-semibold" onClick={handleRecordPayment}>Confirm Payment</button>
+            <button className="btn btn-ghost flex-1 font-medium" onClick={() => setShowPaymentModal(false)}>Cancel</button>
+            <button className="btn btn-accent flex-1 font-medium" onClick={handleRecordPayment}>Confirm Payment</button>
           </div>
         }
       >
@@ -270,12 +270,12 @@ export default function InvoicesPage() {
           <div className="flex flex-col gap-6">
             <div className="bg-bg-sunken p-4 rounded-xl border border-border-subtle flex justify-between items-center">
               <div className="flex flex-col">
-                <span className="text-xs text-ink-muted font-semibold uppercase tracking-wider">Invoice Number</span>
-                <span className="font-mono font-semibold text-ink-primary">{selectedInvoice.invoice_number}</span>
+                <span className="text-xs text-ink-muted font-medium uppercase tracking-wider">Invoice Number</span>
+                <span className="font-mono font-medium text-ink-primary">{selectedInvoice.invoice_number}</span>
               </div>
               <div className="flex flex-col text-right">
-                <span className="text-xs text-ink-muted font-semibold uppercase tracking-wider">Remaining Balance</span>
-                <span className="font-mono font-semibold text-warning text-lg">₹{selectedInvoice.amount_total - selectedInvoice.amount_paid}</span>
+                <span className="text-xs text-ink-muted font-medium uppercase tracking-wider">Remaining Balance</span>
+                <span className="font-mono font-medium text-warning text-lg">₹{selectedInvoice.amount_total - selectedInvoice.amount_paid}</span>
               </div>
             </div>
 

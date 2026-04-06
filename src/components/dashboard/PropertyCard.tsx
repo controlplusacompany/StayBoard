@@ -45,7 +45,7 @@ export default function PropertyCard({ property, summary }: PropertyCardProps) {
             {floors.map(floor => (
               <div key={floor} className="flex items-center gap-4">
                 <div className="flex flex-col min-w-[32px]">
-                   <span className="text-[10px] font-bold text-ink-muted/50 uppercase tracking-widest leading-none">F{floor}</span>
+                   <span className="text-[10px] font-semibold text-ink-muted/50 uppercase tracking-widest leading-none">F{floor}</span>
                 </div>
                 <div className="flex-1">
                    <MiniRoomGrid rooms={roomStatusList.filter(r => (r.floor || 1) === floor)} />

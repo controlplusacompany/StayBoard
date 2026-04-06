@@ -27,7 +27,7 @@ type IDType = 'aadhaar' | 'passport' | 'driving_license' | 'voter_id' | 'other';
 import { formatINR, formatDate } from '@/lib/formatting';
 import Badge from '@/components/ui/Badge';
 import { differenceInCalendarDays, addDays, format, areIntervalsOverlapping, parseISO } from 'date-fns';
-import { getStoredRooms, addBooking, getBookingsForRoom } from '@/lib/store';
+import { getStoredRooms, addBooking, getBookingsForRoom, getAvailableRoomTypeCount } from '@/lib/store';
 import { useToast } from '@/components/ui/Toast';
 
 
@@ -105,6 +105,17 @@ function BookingFlow() {
       return;
     }
 
+    // INVENTORY PROTECTION: Check if this room type has actual available count for the selected dates.
+    // This is a final check to prevent clashes with unassigned online bookings.
+    const from = formData.checkInDate;
+    const to = formData.checkOutDate;
+    const availCount = getAvailableRoomTypeCount(room.property_id, room.room_type, from, to);
+    
+    if (availCount <= 0) {
+      toast(`All ${room.room_type} rooms are already committed for these dates (including unassigned online bookings).`, "error");
+      return;
+    }
+
     // Conflict Check
     const existingBookings = getBookingsForRoom(room.id);
     const newInterval = { 
@@ -117,7 +128,7 @@ function BookingFlow() {
         start: parseISO(b.check_in_date), 
         end: parseISO(b.check_out_date) 
       };
-      return areIntervalsOverlapping(newInterval, bInterval, { inclusive: true });
+      return areIntervalsOverlapping(newInterval, bInterval);
     });
 
     if (conflict) {

@@ -73,6 +73,15 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   };
 
   const handleSignOut = () => {
+    // ── CLEAR AUTH COOKIES ──
+    document.cookie = "sb_auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; Priority=High";
+    document.cookie = "sb_user_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; Priority=High";
+    document.cookie = "sb_user_email=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; Priority=High";
+
+    // ── CLEAR STORAGE ──
+    localStorage.removeItem('stayboard_user_role');
+    localStorage.removeItem('stayboard_user_email');
+    
     router.push('/login');
     closeAll();
   };
@@ -106,7 +115,7 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
 
           {/* Logo */}
           <Link href="/dashboard" className="flex items-center gap-2 no-underline group" onClick={closeAll}>
-            <span className="font-display font-extrabold text-xl text-ink-primary tracking-tighter">StayBoard</span>
+            <span className="font-display font-bold text-xl text-ink-primary tracking-tighter">StayBoard</span>
             <span className="w-1.5 h-1.5 rounded-full bg-accent mt-1 animate-pulse" />
           </Link>
 
@@ -127,7 +136,7 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
           {isSwitcherOpen && (
             <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-border-subtle rounded-xl shadow-2xl overflow-hidden py-2 animate-in fade-in slide-in-from-top-2 duration-200 z-[100]">
               <div className="px-3 pb-2 mb-1 border-b border-border-subtle/50">
-                <p className="text-[10px] font-bold text-ink-muted uppercase tracking-widest pl-2">My Entities</p>
+                <p className="text-[10px] font-medium text-ink-muted uppercase tracking-widest pl-2">My Entities</p>
               </div>
 
               <Link 
@@ -176,7 +185,7 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                     closeAll();
                     openNewBooking();
                   }}
-                  className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-accent hover:bg-accent/5 transition-colors"
+                  className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium text-accent hover:bg-accent/5 transition-colors"
                 >
                   <Plus size={16} />
                   <span>New Booking</span>
@@ -199,14 +208,14 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
               className={`relative w-9 h-9 flex items-center justify-center rounded-md cursor-pointer hover:bg-bg-sunken transition-colors ${isNotifOpen ? 'bg-bg-sunken' : ''}`}
             >
               <Bell size={18} className="text-ink-secondary" />
-              <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 bg-danger text-white font-sans font-semibold text-[9px] leading-4 text-center rounded-full">3</span>
+              <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 bg-danger text-white font-sans font-medium text-[9px] leading-4 text-center rounded-full">3</span>
             </button>
 
             {isNotifOpen && (
               <div className="absolute top-full right-0 mt-2 w-80 bg-white border border-border-subtle rounded-xl shadow-2xl overflow-hidden py-2 animate-in fade-in slide-in-from-top-2 duration-200 z-[100]">
                 <div className="px-4 py-3 border-b border-border-subtle flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-ink-primary">Notifications</h3>
-                  <button className="text-[11px] font-bold text-accent hover:underline">Mark all read</button>
+                  <h3 className="text-sm font-medium text-ink-primary">Notifications</h3>
+                  <button className="text-[11px] font-medium text-accent hover:underline">Mark all read</button>
                 </div>
                 <div className="max-h-[320px] overflow-y-auto">
                   {[1, 2, 3].map(i => (
@@ -231,7 +240,7 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                 closeAll();
                 setIsUserMenuOpen(newState);
               }}
-              className={`w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center text-[12px] font-bold cursor-pointer transition-all ${isUserMenuOpen ? 'ring-2 ring-accent ring-offset-2' : ''}`}
+              className={`w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center text-[12px] font-medium cursor-pointer transition-all ${isUserMenuOpen ? 'ring-2 ring-accent ring-offset-2' : ''}`}
             >
               {userInitials}
             </div>
@@ -239,7 +248,7 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
             {isUserMenuOpen && (
               <div className="absolute top-full right-0 mt-2 w-48 bg-white border border-border-subtle rounded-xl shadow-2xl overflow-hidden py-1 animate-in fade-in slide-in-from-top-2 duration-200 z-[100]">
                 <div className="px-4 py-3 border-b border-border-subtle mb-1">
-                  <p className="text-xs font-bold text-ink-primary">
+                  <p className="text-xs font-medium text-ink-primary">
                     {isReception ? 'Reception' : isSuperAdmin ? 'Monish Dhaga' : isOwner ? 'Operations Manager' : 'Rajesh Khanna'}
                   </p>
                   <p className="text-[10px] text-ink-muted">
@@ -274,9 +283,9 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
         title="Add New Property"
         footer={
           <>
-            <button className="btn btn-ghost" onClick={() => setIsAddPropertyOpen(false)}>Cancel</button>
+            <button className="btn btn-secondary px-8" onClick={() => setIsAddPropertyOpen(false)}>Cancel</button>
             <button 
-              className="btn btn-accent px-8" 
+              className="btn btn-accent px-10 shadow-lg shadow-accent/20" 
               onClick={() => {
                 toast("Property added successfully", "success");
                 setIsAddPropertyOpen(false);

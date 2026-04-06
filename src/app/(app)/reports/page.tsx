@@ -139,7 +139,7 @@ export default function ReportsPage() {
              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-accent/10 flex items-center justify-center">
                <IndianRupee size={18} className="text-accent" />
              </div>
-             <span className="flex items-center gap-1 text-[11px] sm:text-xs font-bold text-success">
+             <span className="flex items-center gap-1 text-[11px] sm:text-xs font-medium text-success">
                <TrendingUp size={12} /> +12.5%
              </span>
           </div>
@@ -155,7 +155,7 @@ export default function ReportsPage() {
              <div className="w-10 h-10 rounded-full bg-bg-sunken flex items-center justify-center">
                <Building size={20} className="text-ink-secondary" />
              </div>
-             <span className="flex items-center gap-1 text-sm font-bold text-success">
+             <span className="flex items-center gap-1 text-sm font-medium text-success">
                <TrendingUp size={14} /> +4.2%
              </span>
           </div>
@@ -186,8 +186,8 @@ export default function ReportsPage() {
              </div>
           </div>
           <div className="flex flex-col gap-1">
-             <h3 className="text-xs uppercase font-semibold tracking-wider text-ink-muted">Average Daily Rate (ADR)</h3>
-             <span className="text-3xl font-mono font-semibold text-ink-primary">₹{Math.round(adr).toLocaleString()}</span>
+             <h3 className="text-xs uppercase font-medium tracking-wider text-ink-muted">Average Daily Rate (ADR)</h3>
+             <span className="text-3xl font-mono font-medium text-ink-primary">₹{Math.round(adr).toLocaleString()}</span>
           </div>
         </div>
       </div>
@@ -196,7 +196,7 @@ export default function ReportsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
          {/* Revenue Bar Chart (CSS Mock) */}
          <div className="lg:col-span-2 bg-white border border-border-subtle rounded-xl p-6 shadow-sm flex flex-col gap-6">
-            <h3 className="font-bold text-ink-primary text-lg">Revenue vs Last Period</h3>
+            <h3 className="font-semibold text-ink-primary text-lg">Revenue vs Last Period</h3>
             <div className="h-64 flex items-end justify-between gap-1 mt-auto border-b border-border-strong pb-4 relative overflow-x-auto no-scrollbar">
                {/* Y-axis labels mock */}
                <div className="absolute left-0 top-0 bottom-4 w-12 flex flex-col justify-between text-xs text-ink-muted font-mono border-r border-border-subtle">
@@ -232,7 +232,7 @@ export default function ReportsPage() {
                </div>
             </div>
             {/* X-axis labels */}
-            <div className="flex justify-between pl-14 text-xs font-bold text-ink-muted">
+            <div className="flex justify-between pl-14 text-xs font-medium text-ink-muted">
                <span>Mon</span>
                <span>Tue</span>
                <span>Wed</span>
@@ -251,25 +251,25 @@ export default function ReportsPage() {
                
                <div className="flex flex-col gap-3 w-full">
                   <div className="flex justify-between items-center text-sm">
-                     <div className="flex items-center gap-2 font-bold text-ink-primary">
+                     <div className="flex items-center gap-2 font-medium text-ink-primary">
                         <div className="w-3 h-3 rounded-full bg-[#2563EB]"></div> Direct
                      </div>
                      <span className="font-mono text-ink-muted">55%</span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
-                     <div className="flex items-center gap-2 font-bold text-ink-primary">
+                     <div className="flex items-center gap-2 font-medium text-ink-primary">
                         <div className="w-3 h-3 rounded-full bg-[#1D4ED8]"></div> Booking.com
                      </div>
                      <span className="font-mono text-ink-muted">25%</span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
-                     <div className="flex items-center gap-2 font-bold text-ink-primary">
+                     <div className="flex items-center gap-2 font-medium text-ink-primary">
                         <div className="w-3 h-3 rounded-full bg-[#94A3B8]"></div> MakeMyTrip
                      </div>
                      <span className="font-mono text-ink-muted">15%</span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
-                     <div className="flex items-center gap-2 font-bold text-ink-primary">
+                     <div className="flex items-center gap-2 font-medium text-ink-primary">
                         <div className="w-3 h-3 rounded-full bg-[#CBD5E1]"></div> Other
                      </div>
                      <span className="font-mono text-ink-muted">5%</span>
@@ -289,10 +289,10 @@ export default function ReportsPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-bg-sunken border-b border-border-subtle">
-                <th className="px-6 py-4 text-[10px] font-semibold text-ink-muted uppercase tracking-widest">Guest</th>
-                <th className="px-6 py-4 text-[10px] font-semibold text-ink-muted uppercase tracking-widest">Stay Duration</th>
-                <th className="px-6 py-4 text-[10px] font-semibold text-ink-muted uppercase tracking-widest">Amount</th>
-                <th className="px-6 py-4 text-[10px] font-semibold text-ink-muted uppercase tracking-widest text-right">Action</th>
+                <th className="px-6 py-4 text-[10px] font-medium text-ink-muted uppercase tracking-widest">Guest</th>
+                <th className="px-6 py-4 text-[10px] font-medium text-ink-muted uppercase tracking-widest">Stay Duration</th>
+                <th className="px-6 py-4 text-[10px] font-medium text-ink-muted uppercase tracking-widest">Amount</th>
+                <th className="px-6 py-4 text-[10px] font-medium text-ink-muted uppercase tracking-widest text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
@@ -300,17 +300,17 @@ export default function ReportsPage() {
                 <tr key={b.id} className="hover:bg-bg-sunken/40 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
-                      <span className="font-semibold text-ink-primary">{b.guest_name}</span>
+                      <span className="font-medium text-ink-primary">{b.guest_name}</span>
                       <span className="text-xs text-ink-muted font-mono">{b.guest_phone}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col text-sm">
                       <span className="text-ink-secondary">{format(parseISO(b.check_in_date), 'dd MMM')} - {format(parseISO(b.check_out_date), 'dd MMM')}</span>
-                      <span className="text-[10px] font-bold text-accent uppercase tracking-tighter">Room {b.room_id.split('-').pop()}</span>
+                      <span className="text-[10px] font-medium text-accent uppercase tracking-tighter">Room {b.room_id.split('-').pop()}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 font-mono font-semibold text-ink-primary">
+                  <td className="px-6 py-4 font-mono font-medium text-ink-primary">
                     ₹{b.total_amount.toLocaleString()}
                   </td>
                   <td className="px-6 py-4 text-right">

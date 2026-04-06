@@ -54,7 +54,8 @@ export interface Room {
 
 export interface Booking {
   id: string
-  room_id: string
+  room_id?: string // Optional now for unassigned online bookings
+  room_type?: string // To track type for unassigned bookings
   property_id: string
   owner_id: string
   guest_name: string
