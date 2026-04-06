@@ -12,7 +12,7 @@ import RoomDrawer from '@/components/rooms/RoomDrawer';
 import Modal from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 
-import { getStoredRooms, getStoredBookings, getBookingsForRoom } from '@/lib/store';
+import { getEnrichedRooms, getStoredBookings, getBookingsForRoom } from '@/lib/store';
 import { format, parseISO, isWithinInterval, isSameDay } from 'date-fns';
 
 export default function PropertyDetailPage({ params }: { params: { id: string } }) {
@@ -72,19 +72,22 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const refreshData = () => {
-    setRooms(getStoredRooms(defaultRooms));
+    setRooms(getEnrichedRooms(defaultRooms));
     setMockBookings(getStoredBookings(defaultBookings));
     setRefreshTrigger(prev => prev + 1);
   };
 
   useEffect(() => {
     refreshData();
+    window.addEventListener('storage', refreshData);
     
     // Handle highlight from Dashboard
     const highlight = searchParams.get('highlight');
     if (highlight === 'arrivals') setActiveTab('arriving_today');
     else if (highlight === 'checkouts') setActiveTab('checkout_today');
     else if (highlight === 'vacant') setActiveTab('vacant');
+
+    return () => window.removeEventListener('storage', refreshData);
   }, [searchParams]);
 
   const property = {
@@ -146,15 +149,19 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
 
   const selectedRoom = rooms.find(r => r.id === selectedRoomId);
   const selectedBookings = selectedRoom ? getBookingsForRoom(selectedRoom.id) : [];
+  
+  // Find active booking for today to show in the drawer
   const activeBooking = selectedBookings.find(b => {
     const now = new Date();
-    const start = parseISO(b.check_in_date);
-    const end = parseISO(b.check_out_date);
-    return (now >= start && now < end);
+    const offset = now.getTimezoneOffset() * 60000;
+    const localToday = new Date(now.getTime() - offset).toISOString().split('T')[0];
+    const bStart = b.check_in_date.split('T')[0];
+    const bEnd = b.check_out_date.split('T')[0];
+    return (localToday >= bStart && localToday < bEnd);
   });
+  
   const selectedRoomWithBooking = selectedRoom ? {
     ...selectedRoom,
-    status: (activeBooking ? 'occupied' : (selectedRoom.status === 'occupied' ? 'vacant' : selectedRoom.status)) as RoomStatus,
     booking: activeBooking
   } : null;
 

@@ -28,7 +28,7 @@ import {
   addTask, 
   updateTaskStatus, 
   reassignTask,
-  getStoredRooms 
+  getEnrichedRooms 
 } from '@/lib/store';
 import { 
   HousekeepingTask, 
@@ -71,8 +71,15 @@ export default function HousekeepingPage() {
     if (typeof window !== 'undefined') {
       setUserRole(localStorage.getItem('stayboard_user_role'));
     }
-    setTasks(getStoredTasks());
-    setRooms(getStoredRooms([]));
+    
+    const loadStore = () => {
+      setTasks(getStoredTasks());
+      setRooms(getEnrichedRooms([]));
+    };
+
+    loadStore();
+    window.addEventListener('storage', loadStore);
+    return () => window.removeEventListener('storage', loadStore);
   }, []);
 
   const isOwnerRole = userRole === 'owner';

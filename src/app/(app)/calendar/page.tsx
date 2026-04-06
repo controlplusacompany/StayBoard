@@ -11,7 +11,7 @@ import {
   MoreHorizontal
 } from 'lucide-react';
 import { format, addDays, startOfDay, isSameDay, parseISO, eachDayOfInterval } from 'date-fns';
-import { getStoredRooms, getBookingsList } from '@/lib/store';
+import { getEnrichedRooms, getBookingsList } from '@/lib/store';
 import { Room, Booking } from '@/types';
 import Badge from '@/components/ui/Badge';
 import RoomDrawer from '@/components/rooms/RoomDrawer';
@@ -39,8 +39,15 @@ export default function CalendarPage() {
 
   useEffect(() => {
     setIsMounted(true);
-    setRooms(getStoredRooms([]));
-    setBookings(getBookingsList());
+    
+    const loadCache = () => {
+      setRooms(getEnrichedRooms([]));
+      setBookings(getBookingsList());
+    };
+    
+    loadCache();
+    window.addEventListener('storage', loadCache);
+    return () => window.removeEventListener('storage', loadCache);
   }, []);
 
   if (!isMounted) return <div className="p-20 text-center text-ink-muted">Loading calendar...</div>;

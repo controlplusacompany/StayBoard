@@ -118,17 +118,16 @@ function BookingFlow() {
 
     // Conflict Check
     const existingBookings = getBookingsForRoom(room.id);
-    const newInterval = { 
-      start: parseISO(formData.checkInDate), 
-      end: parseISO(formData.checkOutDate) 
-    };
+    const newStartStr = formData.checkInDate;
+    const newEndStr = formData.checkOutDate;
 
     const conflict = existingBookings.find(b => {
-      const bInterval = { 
-        start: parseISO(b.check_in_date), 
-        end: parseISO(b.check_out_date) 
-      };
-      return areIntervalsOverlapping(newInterval, bInterval);
+      const bStartStr = b.check_in_date.split('T')[0];
+      const bEndStr = b.check_out_date.split('T')[0];
+      
+      // They overlap if max(start1, start2) < min(end1, end2)
+      // Since they are strings in YYYY-MM-DD, string comparison works perfectly.
+      return newStartStr < bEndStr && bStartStr < newEndStr;
     });
 
     if (conflict) {

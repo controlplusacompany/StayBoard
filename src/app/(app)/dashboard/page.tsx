@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import StatCard from '@/components/dashboard/StatCard';
 import PropertyCard from '@/components/dashboard/PropertyCard';
 import { Plus, Building2, MapPin, Bed, ExternalLink, Search, Home, GraduationCap, Warehouse, Coffee } from 'lucide-react';
@@ -9,7 +9,7 @@ import { Property, RoomStatus } from '@/types';
 import Modal from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import Link from 'next/link';
-import { getStoredRooms, getStoredBookings } from '@/lib/store';
+import { getEnrichedRooms, getStoredBookings } from '@/lib/store';
 import { Room, Booking } from '@/types';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useNewBooking } from '@/components/booking/NewBookingProvider';
@@ -88,8 +88,19 @@ export default function DashboardPage() {
     }
   });
 
-  const storedRooms = getStoredRooms(initialRooms);
-  
+  const [storedRooms, setStoredRooms] = useState<Room[]>(initialRooms);
+  const [storedBookings, setStoredBookings] = useState<Record<string, Booking>>({});
+
+  useEffect(() => {
+    const loadCache = () => {
+      setStoredRooms(getEnrichedRooms(initialRooms));
+      setStoredBookings(getStoredBookings());
+    };
+    loadCache();
+    window.addEventListener('storage', loadCache);
+    return () => window.removeEventListener('storage', loadCache);
+  }, []);
+
   const mergedRooms = [...storedRooms];
   propertyConfig.forEach(p => {
     if (!mergedRooms.some(r => r.property_id === p.id)) {
@@ -105,30 +116,13 @@ export default function DashboardPage() {
     ? mergedRooms.filter(r => r.property_id === propertyFilter)
     : mergedRooms;
 
-  const storedBookings = getStoredBookings();
-
   const getPropertySummary = (propertyId: string) => {
     const propertyRooms = allRooms.filter(r => r.property_id === propertyId);
     
-    const enrichedRooms = propertyRooms.map(r => {
-      const roomBookings = Object.values(storedBookings).filter(b => b.room_id === r.id);
-      const now = new Date();
-      const activeBooking = roomBookings.find(b => {
-        const start = parseISO(b.check_in_date);
-        const end = parseISO(b.check_out_date);
-        return (now >= start && now < end);
-      });
-      
-      return {
-        ...r,
-        currentStatus: activeBooking ? 'occupied' : (r.status === 'occupied' ? 'vacant' : r.status)
-      };
-    });
-
     return {
-      occupied: enrichedRooms.filter(r => r.currentStatus === 'occupied').length,
-      checkout_today: enrichedRooms.filter(r => r.currentStatus === 'checkout_today').length,
-      roomStatusList: enrichedRooms.map(r => ({ status: r.currentStatus, floor: r.floor }))
+      occupied: propertyRooms.filter(r => r.status === 'occupied').length,
+      checkout_today: propertyRooms.filter(r => r.status === 'checkout_today').length,
+      roomStatusList: propertyRooms.map(r => ({ status: r.status, floor: r.floor }))
     };
   };
 
@@ -199,6 +193,14 @@ export default function DashboardPage() {
               <div className="flex items-center gap-2 text-nowrap">
                 <div className="w-2 h-2 rounded-full bg-status-checkout-fg" />
                 <span><span className="font-semibold text-ink-primary">{allRooms.filter(r => r.status === 'checkout_today').length}</span> Checking Out</span>
+              </div>
+              <div className="flex items-center gap-2 text-nowrap">
+                <div className="w-2 h-2 rounded-full bg-status-cleaning-fg" />
+                <span><span className="font-semibold text-ink-primary">{allRooms.filter(r => r.status === 'cleaning').length}</span> Cleaning</span>
+              </div>
+              <div className="flex items-center gap-2 text-nowrap">
+                <div className="w-2 h-2 rounded-full bg-status-maintenance-fg" />
+                <span><span className="font-semibold text-ink-primary">{allRooms.filter(r => r.status === 'maintenance').length}</span> Maint.</span>
               </div>
             </div>
           </div>

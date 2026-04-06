@@ -42,6 +42,7 @@ export const updateRoomStatus = (roomId: string, status: RoomStatus) => {
     room.id === roomId ? { ...room, status, updated_at: new Date().toISOString() } : room
   );
   localStorage.setItem(STORAGE_KEYS.ROOMS, JSON.stringify(updatedRooms));
+  window.dispatchEvent(new Event('storage'));
   return updatedRooms;
 };
 
@@ -62,6 +63,56 @@ export const getBookingsList = (): Booking[] => {
 
 export const getBookingsForRoom = (roomId: string): Booking[] => {
   return getBookingsList().filter(b => b.room_id === roomId && b.status !== 'cancelled' && b.status !== 'no_show');
+};
+
+export const getEnrichedRooms = (defaultRooms: Room[] = []): Room[] => {
+  const rooms = getStoredRooms(defaultRooms);
+  const bookings = getBookingsList();
+  
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000;
+  const localToday = new Date(now.getTime() - offset).toISOString().split('T')[0];
+
+  return rooms.map(room => {
+    // Only enrichment logic applies if room is vacant or occupied.
+    // We preserve manual statuses like 'cleaning' or 'maintenance' unless 
+    // it's actively occupied right now (occupied overrides cleaning).
+    const roomBookings = bookings.filter(b => b.room_id === room.id && b.status !== 'cancelled' && b.status !== 'no_show' && b.status !== 'checked_out');
+
+    let newStatus = room.status;
+
+    // Check if there is an active booking today
+    const activeBooking = roomBookings.find(b => {
+      const bStartStr = b.check_in_date.split('T')[0];
+      const bEndStr = b.check_out_date.split('T')[0];
+      return bStartStr <= localToday && bEndStr > localToday;
+    });
+
+    // Check if arriving today
+    const arrivingToday = roomBookings.find(b => {
+      const bStartStr = b.check_in_date.split('T')[0];
+      return bStartStr === localToday;
+    });
+
+    // Check if checking out today (and not already checked out)
+    const checkoutToday = roomBookings.find(b => {
+      const bEndStr = b.check_out_date.split('T')[0];
+      return bEndStr === localToday;
+    });
+
+    if (activeBooking) {
+      newStatus = 'occupied';
+    } else if (arrivingToday) {
+      newStatus = 'arriving_today'; // overriding cleaning if arriving today and it's time? We'll prioritize arriving.
+    } else if (checkoutToday) {
+      newStatus = 'checkout_today';
+    } else if (room.status === 'occupied') {
+      // If store says occupied but no active booking, fix it
+      newStatus = 'vacant';
+    }
+
+    return { ...room, status: newStatus as RoomStatus };
+  });
 };
 
 export const getStoredTasks = (): HousekeepingTask[] => {
@@ -88,6 +139,7 @@ export const updateTaskStatus = (taskId: string, status: TaskStatus, startedAt?:
     task.id === taskId ? { ...task, status, started_at: startedAt || task.started_at, completed_at: completedAt || task.completed_at } : task
   );
   localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(updatedTasks));
+  window.dispatchEvent(new Event('storage'));
   return updatedTasks;
 };
 
@@ -203,10 +255,13 @@ export const addBooking = (booking: Booking) => {
 
   // Update room status only if booking is for TODAY or in progress
   // Using a more robust date comparison that ignores timezones
-  const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000;
+  const localTodayStr = new Date(now.getTime() - offset).toISOString().split('T')[0];
   const bookingStartStr = booking.check_in_date.split('T')[0];
+  const bookingEndStr = booking.check_out_date.split('T')[0];
   
-  if (bookingStartStr === todayStr && booking.room_id) {
+  if (bookingStartStr <= localTodayStr && bookingEndStr > localTodayStr && booking.room_id) {
     updateRoomStatus(booking.room_id, 'occupied');
   }
 
@@ -269,6 +324,7 @@ export const addBooking = (booking: Booking) => {
   }
   localStorage.setItem(STORAGE_KEYS.GUESTS, JSON.stringify(guests));
 
+  window.dispatchEvent(new Event('storage'));
   return updatedBookings;
 };
 
@@ -367,27 +423,31 @@ export const shiftRoom = (bookingId: string, oldRoomId: string, newRoomId: strin
   );
   localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(updatedTasks));
 
+  window.dispatchEvent(new Event('storage'));
   return updatedBookings;
 };
 
 export const getVacantRooms = (propertyId?: string): Room[] => {
   const rooms = getStoredRooms([]);
   const bookings = getBookingsList();
+  
   const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000;
+  const localTodayStr = new Date(now.getTime() - offset).toISOString().split('T')[0];
   
   return rooms.filter(room => {
     // Basic status check
-    if (room.status !== 'vacant') return false;
+    if (room.status === 'cleaning' || room.status === 'maintenance') return false;
     
     // Property check if provided
     if (propertyId && room.property_id !== propertyId) return false;
     
     // Detailed booking check (no overlapping bookings for today)
-    const roomBookings = bookings.filter(b => b.room_id === room.id && b.status !== 'cancelled' && b.status !== 'no_show');
+    const roomBookings = bookings.filter(b => b.room_id === room.id && b.status !== 'cancelled' && b.status !== 'no_show' && b.status !== 'checked_out');
     const hasConflict = roomBookings.some(b => {
-      const start = new Date(b.check_in_date);
-      const end = new Date(b.check_out_date);
-      return (now >= start && now < end);
+      const bStartStr = b.check_in_date.split('T')[0];
+      const bEndStr = b.check_out_date.split('T')[0];
+      return (localTodayStr >= bStartStr && localTodayStr < bEndStr);
     });
     
     return !hasConflict;
@@ -400,8 +460,8 @@ export const getAvailableRoomTypeCount = (propertyId: string, roomType: string, 
   const totalCount = propertyRooms.length;
 
   const bookings = getBookingsList();
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  const startStr = startDate.split('T')[0];
+  const endStr = endDate.split('T')[0];
 
   const activeBookings = bookings.filter(b => {
     if (b.property_id !== propertyId) return false;
@@ -417,11 +477,11 @@ export const getAvailableRoomTypeCount = (propertyId: string, roomType: string, 
     if (bType !== roomType) return false;
 
     // Date overlap check
-    const bStart = new Date(b.check_in_date);
-    const bEnd = new Date(b.check_out_date);
+    const bStartStr = b.check_in_date.split('T')[0];
+    const bEndStr = b.check_out_date.split('T')[0];
     
     // Check if intervals overlap: max(start1, start2) < min(end1, end2)
-    return (start < bEnd && end > bStart);
+    return (startStr < bEndStr && endStr > bStartStr);
   });
 
   return totalCount - activeBookings.length;

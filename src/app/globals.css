@@ -54,29 +54,29 @@ html {
   --accent-gradient: linear-gradient(180deg, #87B9FF 0%, #0259DD 100%);
 
   /* ── Room Status Colors (High-Contrast for Clarity) ── */
-  --status-vacant-bg: #A7F3D0;
-  --status-vacant-fg: #047857; 
-  --status-vacant-border: #6EE7B7;
+  --status-vacant-bg: #6EE7B7; /* emerald-300 */
+  --status-vacant-fg: #064E3B; /* emerald-900 */
+  --status-vacant-border: #34D399; /* emerald-400 */
 
-  --status-occupied-bg: #BFDBFE;
-  --status-occupied-fg: #1E40AF; 
-  --status-occupied-border: #93C5FD;
+  --status-occupied-bg: #93C5FD; /* blue-300 */
+  --status-occupied-fg: #1E3A8A; /* blue-900 */
+  --status-occupied-border: #60A5FA; /* blue-400 */
 
-  --status-cleaning-bg: #FDE047;
-  --status-cleaning-fg: #A16207; 
-  --status-cleaning-border: #FACC15;
+  --status-cleaning-bg: #FDE047; /* yellow-300 */
+  --status-cleaning-fg: #713F12; /* yellow-900 */
+  --status-cleaning-border: #FACC15; /* yellow-400 */
 
-  --status-maintenance-bg: #CBD5E1;
-  --status-maintenance-fg: #475569; 
-  --status-maintenance-border: #94A3B8;
+  --status-maintenance-bg: #9CA3AF; /* gray-400 */
+  --status-maintenance-fg: #111827; /* gray-900 */
+  --status-maintenance-border: #6B7280; /* gray-500 */
 
-  --status-checkout-bg: #F0ABFC;
-  --status-checkout-fg: #9333EA; 
-  --status-checkout-border: #E879F9;
+  --status-checkout-bg: #F9A8D4; /* pink-300 */
+  --status-checkout-fg: #831843; /* pink-900 */
+  --status-checkout-border: #F472B6; /* pink-400 */
 
-  --status-arriving-bg: #A5B4FC;
-  --status-arriving-fg: #4F46E5; 
-  --status-arriving-border: #818CF8;
+  --status-arriving-bg: #A78BFA; /* violet-400 */
+  --status-arriving-fg: #2E1065; /* violet-900 */
+  --status-arriving-border: #8B5CF6; /* violet-500 */
 
   /* ── Semantic ── */
   --success: #059669;
