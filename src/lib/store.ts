@@ -26,14 +26,29 @@ const STORAGE_KEYS = {
   RATES: 'stayboard_rates',
 };
 
-export const getStoredRooms = (defaultRooms: Room[]): Room[] => {
+export const getStoredRooms = (defaultRooms: Room[] = []): Room[] => {
   if (typeof window === 'undefined') return defaultRooms;
   const stored = localStorage.getItem(STORAGE_KEYS.ROOMS);
-  if (!stored) {
-    localStorage.setItem(STORAGE_KEYS.ROOMS, JSON.stringify(defaultRooms));
-    return defaultRooms;
+  let parsed: Room[] = stored ? JSON.parse(stored) : [];
+  
+  if (defaultRooms && defaultRooms.length > 0) {
+    const existingPropertyIds = new Set(parsed.map(r => r.property_id));
+    const incomingPropertyIds = new Set(defaultRooms.map(r => r.property_id));
+    
+    let needsUpdate = false;
+    incomingPropertyIds.forEach(pid => {
+      if (!existingPropertyIds.has(pid)) {
+        parsed = [...parsed, ...defaultRooms.filter(r => r.property_id === pid)];
+        needsUpdate = true;
+      }
+    });
+    
+    if (needsUpdate || !stored) {
+      localStorage.setItem(STORAGE_KEYS.ROOMS, JSON.stringify(parsed));
+    }
   }
-  return JSON.parse(stored);
+  
+  return parsed;
 };
 
 export const updateRoomStatus = (roomId: string, status: RoomStatus) => {
