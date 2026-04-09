@@ -16,20 +16,39 @@ export function middleware(request: NextRequest) {
                           pathname.startsWith('/channels') ||
                           pathname.startsWith('/settings');
 
-  // 2. Check for auth token (matches cookie set in login/page.tsx)
+  // 2. Check for auth cookies
   const authToken = request.cookies.get('sb_auth_token');
+  const userRole = request.cookies.get('sb_user_role')?.value;
+  const userProperty = request.cookies.get('sb_user_property')?.value;
 
   // 3. Redirect to login if accessing protected route without token
   if (isProtectedRoute && !authToken) {
-    const url = new URL('/login', request.url);
-    // Optional: add callback URL
-    // url.searchParams.set('callbackUrl', encodeURI(pathname));
-    return NextResponse.redirect(url);
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // 4. Redirect to dashboard if accessing login while already authenticated
-  if (pathname === '/login' && authToken) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+  // 4. Role-Based Access Control
+  if (authToken) {
+    // Prevent staff from accessing Screen 3 (Dashboard Overview)
+    if (userRole === 'reception' && pathname === '/dashboard') {
+      const targetProperty = userProperty || '010'; // Fallback
+      return NextResponse.redirect(new URL(`/property/${targetProperty}`, request.url));
+    }
+
+    // Prevent staff from accessing other properties
+    if (userRole === 'reception' && pathname.startsWith('/property/')) {
+        const id = pathname.split('/')[2];
+        if (id && userProperty && id !== userProperty) {
+            return NextResponse.redirect(new URL(`/property/${userProperty}`, request.url));
+        }
+    }
+
+    // Prevent authenticated users from visiting login
+    if (pathname === '/login') {
+        const target = (userRole === 'reception' && userProperty) 
+          ? `/property/${userProperty}` 
+          : '/dashboard';
+        return NextResponse.redirect(new URL(target, request.url));
+    }
   }
 
   return NextResponse.next();

@@ -20,19 +20,47 @@ export default function LoginPage() {
     // Simulate role-based auth and redirect
     setTimeout(() => {
       if (typeof window !== 'undefined') {
-        const targetEmail = email || (role === 'owner' ? 'owner@example.com' : role === 'superadmin' ? 'dhagamonish00@gmail.com' : 'reception@example.com');
+        let userRole = role;
+        let targetEmail = email;
+        let propertyId = '';
+
+        // Specific Staff Mappings
+        if (email === 'staff@starrynights.com') {
+          userRole = 'reception';
+          propertyId = '011';
+        } else if (email === 'staff@thepeace.com') {
+          userRole = 'reception';
+          propertyId = '010';
+        } else if (role === 'reception') {
+          // Default reception if no email match
+          propertyId = '010'; 
+          targetEmail = targetEmail || 'reception@example.com';
+        } else {
+          targetEmail = targetEmail || (role === 'owner' ? 'owner@example.com' : 'dhagamonish00@gmail.com');
+        }
         
         // ── SET AUTH COOKIES (for Middleware) ──
         const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toUTCString();
         document.cookie = `sb_auth_token=valid_prototype_token; path=/; expires=${expires}; Priority=High`;
-        document.cookie = `sb_user_role=${role}; path=/; expires=${expires}; Priority=High`;
+        document.cookie = `sb_user_role=${userRole}; path=/; expires=${expires}; Priority=High`;
         document.cookie = `sb_user_email=${targetEmail}; path=/; expires=${expires}; Priority=High`;
+        if (propertyId) {
+          document.cookie = `sb_user_property=${propertyId}; path=/; expires=${expires}; Priority=High`;
+        }
 
         // ── STORAGE FALLBACK ──
-        localStorage.setItem('stayboard_user_role', role);
+        localStorage.setItem('stayboard_user_role', userRole);
         localStorage.setItem('stayboard_user_email', targetEmail);
+        if (propertyId) {
+          localStorage.setItem('stayboard_user_property', propertyId);
+        }
         
-        window.location.href = '/dashboard';
+        // Redirect logic based on role
+        if (userRole === 'reception' && propertyId) {
+          window.location.href = `/property/${propertyId}`;
+        } else {
+          window.location.href = '/dashboard';
+        }
       }
     }, 1200);
   };

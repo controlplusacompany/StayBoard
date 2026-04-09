@@ -23,10 +23,10 @@ const NAV_ITEMS = [
   { label: 'Rates', href: '/rates', icon: Tag },
   { label: 'Guests', href: '/guests', icon: Users },
   { label: 'Reports', href: '/reports', icon: BarChart3 },
-  { label: 'Channels', href: '/channels', icon: Wifi },
+  { label: 'Channels', icon: Wifi },
 ];
 
-const RECEPTION_NAV_ITEMS = ['Dashboard', 'Availability', 'Housekeeping', 'Rates', 'Guests'];
+const RECEPTION_NAV_ITEMS = ['Dashboard', 'Availability', 'Housekeeping', 'Invoices', 'Guests'];
 
 
 export default function Sidebar({ isMobileOpen, onCloseMobile }: { isMobileOpen?: boolean; onCloseMobile?: () => void }) {
@@ -62,15 +62,22 @@ export default function Sidebar({ isMobileOpen, onCloseMobile }: { isMobileOpen?
       <aside className={`fixed left-0 top-[56px] bottom-0 w-64 border-r border-border-subtle bg-white z-[80] flex flex-col py-6 transition-transform duration-300 ease-out md:translate-x-0 ${isMobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}`}>
       <nav className="flex-1 flex flex-col gap-1 px-4">
         {filteredNavItems.map((item) => {
-          const isActive = pathname === item.href || (item.href === '/dashboard' && pathname.startsWith('/property/'));
+          const isActive = pathname === item.href || (item.label === 'Dashboard' && pathname.startsWith('/property/'));
           const Icon = item.icon;
           
-          // Append propertyId if present
-          const href = propertyId ? `${item.href}?propertyId=${propertyId}` : item.href;
+          let href = item.href || '/dashboard';
+          
+          // Re-route Dashboard for Reception
+          if (isReception && item.label === 'Dashboard') {
+            const userProp = typeof window !== 'undefined' ? localStorage.getItem('stayboard_user_property') : null;
+            href = userProp ? `/property/${userProp}` : '/dashboard';
+          } else if (propertyId) {
+            href = `${href}?propertyId=${propertyId}`;
+          }
           
           return (
             <Link
-              key={item.href}
+              key={item.label}
               href={href}
               onClick={onCloseMobile}
               className={`
