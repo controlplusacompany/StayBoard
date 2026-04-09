@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Check, Eye, EyeOff, ArrowRight, ChevronRight, Building2 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = React.useState(false);
@@ -13,56 +14,63 @@ export default function LoginPage() {
 
   const [role, setRole] = React.useState<'owner' | 'superadmin' | 'reception'>('owner');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
-    // Simulate role-based auth and redirect
-    setTimeout(() => {
-      if (typeof window !== 'undefined') {
-        let userRole = role;
-        let targetEmail = email;
-        let propertyId = '';
+    try {
+      // 1. Authenticate with Supabase
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
 
-        // Specific Staff Mappings
-        if (email === 'staff@starrynights.com') {
-          userRole = 'reception';
-          propertyId = '011';
-        } else if (email === 'staff@thepeace.com') {
-          userRole = 'reception';
-          propertyId = '010';
-        } else if (role === 'reception') {
-          // Default reception if no email match
-          propertyId = '010'; 
-          targetEmail = targetEmail || 'reception@example.com';
-        } else {
-          targetEmail = targetEmail || (role === 'owner' ? 'owner@example.com' : 'dhagamonish00@gmail.com');
-        }
-        
-        // ── SET AUTH COOKIES (for Middleware) ──
-        const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toUTCString();
-        document.cookie = `sb_auth_token=valid_prototype_token; path=/; expires=${expires}; Priority=High`;
-        document.cookie = `sb_user_role=${userRole}; path=/; expires=${expires}; Priority=High`;
-        document.cookie = `sb_user_email=${targetEmail}; path=/; expires=${expires}; Priority=High`;
-        if (propertyId) {
-          document.cookie = `sb_user_property=${propertyId}; path=/; expires=${expires}; Priority=High`;
-        }
+      if (authError) throw authError;
 
-        // ── STORAGE FALLBACK ──
-        localStorage.setItem('stayboard_user_role', userRole);
-        localStorage.setItem('stayboard_user_email', targetEmail);
-        if (propertyId) {
-          localStorage.setItem('stayboard_user_property', propertyId);
-        }
-        
-        // Redirect logic based on role
-        if (userRole === 'reception' && propertyId) {
-          window.location.href = `/property/${propertyId}`;
-        } else {
-          window.location.href = '/dashboard';
-        }
+      // 2. Fetch User Profile (Role & Assigned Property)
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authData.user.id)
+        .single();
+
+      if (profileError) {
+         console.warn("No profile found for user, defaulting to owner role.");
       }
-    }, 1200);
+
+      const userRole = profile?.role || 'owner';
+      const propertyId = profile?.property_id || '';
+      const targetEmail = email;
+
+      // ── SET AUTH COOKIES (for Middleware) ──
+      const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toUTCString();
+      document.cookie = `sb_auth_token=${authData.session?.access_token}; path=/; expires=${expires}; Priority=High`;
+      document.cookie = `sb_user_role=${userRole}; path=/; expires=${expires}; Priority=High`;
+      document.cookie = `sb_user_email=${targetEmail}; path=/; expires=${expires}; Priority=High`;
+      if (propertyId) {
+        document.cookie = `sb_user_property=${propertyId}; path=/; expires=${expires}; Priority=High`;
+      }
+
+      // ── STORAGE FALLBACK ──
+      localStorage.setItem('stayboard_user_role', userRole);
+      localStorage.setItem('stayboard_user_email', targetEmail);
+      if (propertyId) {
+        localStorage.setItem('stayboard_user_property', propertyId);
+      }
+      
+      // Redirect logic based on role
+      if (userRole === 'reception' && propertyId) {
+        window.location.href = `/property/${propertyId}`;
+      } else {
+        window.location.href = '/dashboard';
+      }
+    } catch (error: any) {
+      console.error("Login failed:", error.message);
+      // Fallback for demo if users don't exist yet in their Supabase
+      // In production, this should show a toast error
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

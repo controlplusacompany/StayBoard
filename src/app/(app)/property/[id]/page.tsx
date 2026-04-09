@@ -71,9 +71,11 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  const refreshData = () => {
-    setRooms(getEnrichedRooms(defaultRooms));
-    setMockBookings(getStoredBookings(defaultBookings));
+  const refreshData = async () => {
+    const fetchedRooms = await getEnrichedRooms(defaultRooms);
+    const fetchedBookings = await getStoredBookings(defaultBookings);
+    setRooms(fetchedRooms);
+    setMockBookings(fetchedBookings);
     setRefreshTrigger(prev => prev + 1);
   };
 
@@ -101,7 +103,8 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
   const isHostel = property.type === 'hostel';
 
   const filteredRooms = rooms.filter(room => {
-    const bookings = getBookingsForRoom(room.id);
+    // Get bookings from local state instead of async store call
+    const bookings = Object.values(mockBookings).filter(b => b.room_id === room.id && b.status !== 'cancelled' && b.status !== 'no_show');
     const guestNames = bookings.map(b => b.guest_name.toLowerCase());
     
     let matchesTab = true;
@@ -148,7 +151,7 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
   };
 
   const selectedRoom = rooms.find(r => r.id === selectedRoomId);
-  const selectedBookings = selectedRoom ? getBookingsForRoom(selectedRoom.id) : [];
+  const selectedBookings = selectedRoom ? Object.values(mockBookings).filter(b => b.room_id === selectedRoom.id && b.status !== 'cancelled' && b.status !== 'no_show') : [];
   
   // Find active booking for today to show in the drawer
   const activeBooking = selectedBookings.find(b => {
@@ -274,29 +277,7 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                     {floorRooms.map((room, idx) => {
-                      const bookings = getBookingsForRoom(room.id);
                       const now = new Date();
-                      
-                      const currentBooking = bookings.find(b => {
-                        const start = parseISO(b.check_in_date);
-                        const end = parseISO(b.check_out_date);
-                        // Room is occupied if we are between check-in and check-out
-                        return (now >= start && now < end);
-                      });
-
-                      const arrivalToday = bookings.find(b => isSameDay(parseISO(b.check_in_date), now));
-                      const checkoutToday = bookings.find(b => isSameDay(parseISO(b.check_out_date), now));
-
-                      const nextBooking = bookings
-                        .filter(b => parseISO(b.check_in_date) > now)
-                        .sort((a, b) => parseISO(a.check_in_date).getTime() - parseISO(b.check_in_date).getTime())[0];
-                        
-                      // Determine effective status for display
-                      let displayStatus: RoomStatus = room.status;
-                      if (currentBooking) displayStatus = 'occupied';
-                      else if (arrivalToday) displayStatus = 'arriving_today';
-                      else if (checkoutToday) displayStatus = 'checkout_today';
-
                       return (
                         <div
                           key={room.id}
@@ -305,12 +286,16 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
                         >
                           <RoomCard
                             room={room}
-                            status={displayStatus}
-                            currentBooking={currentBooking}
-                            arrivalToday={arrivalToday}
-                            checkoutToday={checkoutToday}
-                            hasBalance={((currentBooking || arrivalToday || checkoutToday)?.total_amount || 0) > ((currentBooking || arrivalToday || checkoutToday)?.amount_paid || 0)}
-                            futureBooking={nextBooking ? `Next: ${format(parseISO(nextBooking.check_in_date), 'd MMM')}` : undefined}
+                            status={room.status}
+                            currentBooking={Object.values(mockBookings).find(b => {
+                                const start = parseISO(b.check_in_date);
+                                const end = parseISO(b.check_out_date);
+                                return b.room_id === room.id && now >= start && now < end && b.status !== 'cancelled';
+                            })}
+                            arrivalToday={Object.values(mockBookings).find(b => b.room_id === room.id && isSameDay(parseISO(b.check_in_date), now) && b.status !== 'cancelled')}
+                            checkoutToday={Object.values(mockBookings).find(b => b.room_id === room.id && isSameDay(parseISO(b.check_out_date), now) && b.status !== 'cancelled')}
+                            hasBalance={false}
+                            futureBooking={undefined}
                             onClick={handleRoomClick}
                           />
                         </div>

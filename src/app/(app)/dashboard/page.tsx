@@ -92,9 +92,11 @@ export default function DashboardPage() {
   const [storedBookings, setStoredBookings] = useState<Record<string, Booking>>({});
 
   useEffect(() => {
-    const loadCache = () => {
-      setStoredRooms(getEnrichedRooms(initialRooms));
-      setStoredBookings(getStoredBookings());
+    const loadCache = async () => {
+      const enrichedRooms = await getEnrichedRooms(initialRooms);
+      const bookings = await getStoredBookings();
+      setStoredRooms(enrichedRooms);
+      setStoredBookings(bookings);
     };
     loadCache();
     window.addEventListener('storage', loadCache);
