@@ -34,41 +34,52 @@ export default function ReportsPage() {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
   useEffect(() => {
-    // Basic computation for MVP showcase
-    const allBookings = Object.values(getStoredBookings({}));
-    const allInvoices = Object.values(getStoredInvoices());
-    const allRooms = getStoredRooms([]);
-    
-    // In a real app we'd filter these by dateRange
-    // For MVP, we'll just sum everything but pretend it's filtered
-    const totalRev = allInvoices.reduce((sum, inv) => sum + inv.amount_paid, 0);
-    const completedOrActiveBookings = allBookings.filter(b => b.status !== 'cancelled' && b.status !== 'no_show');
-    
-    // Filter bookings for the list
-    let list = allBookings;
-    const now = new Date();
-    
-    if (filter === 'arrivals') {
-      list = allBookings.filter(b => isSameDay(parseISO(b.check_in_date), now));
-    } else if (filter === 'check_out') {
-      list = allBookings.filter(b => isSameDay(parseISO(b.check_out_date), now));
-    } else if (filter === 'occupied') {
-      list = allBookings.filter(b => b.status === 'checked_in');
-    }
+    const fetchData = async () => {
+      // Fetch live cloud data
+      const [bookingsRaw, invoicesRaw, roomsRaw] = await Promise.all([
+        getBookingsList(),
+        getStoredInvoices(),
+        getStoredRooms()
+      ]);
 
-    setFilteredBookings(list);
+      const allBookings = bookingsRaw || [];
+      const allInvoices = invoicesRaw || [];
+      const allRooms = roomsRaw || [];
+      
+      // Compute Metrics from LIVE Data
+      const totalRev = allInvoices.reduce((sum, inv) => sum + (Number(inv.amount_paid) || 0), 0);
+      const activeBookings = allBookings.filter(b => b.status !== 'cancelled' && b.status !== 'no_show');
+      
+      // Filter list for display
+      let list = [...allBookings];
+      const now = new Date();
+      
+      if (filter === 'arrivals') {
+        list = allBookings.filter(b => isSameDay(parseISO(b.check_in_date), now));
+      } else if (filter === 'check_out') {
+        list = allBookings.filter(b => isSameDay(parseISO(b.check_out_date), now));
+      } else if (filter === 'occupied') {
+        list = allBookings.filter(b => b.status === 'checked_in');
+      }
 
-    // Mocking an occupancy rate (Total booked nights / Total available nights)
-    const mockOccupancy = Math.min((completedOrActiveBookings.length * 5) + 32, 100); 
-    const calculatedAdr = completedOrActiveBookings.length > 0 
-      ? totalRev / completedOrActiveBookings.length 
-      : 2450;
+      setFilteredBookings(list);
 
-    setRevenue(totalRev > 0 ? totalRev : 142500); // Mock starting revenue if empty
-    setBookingsCount(completedOrActiveBookings.length > 0 ? completedOrActiveBookings.length : 43); // Mock
-    setOccupancy(mockOccupancy);
-    setAdr(calculatedAdr);
-    
+      // Real Occupancy Calculation
+      const roomNights = activeBookings.length; // Approximate for MVP
+      const totalCapacity = allRooms.length * 30 || 300; 
+      const realOccupancy = Math.min((roomNights / totalCapacity) * 100, 100);
+      
+      const calculatedAdr = activeBookings.length > 0 
+        ? totalRev / activeBookings.length 
+        : 0;
+
+      setRevenue(totalRev > 0 ? totalRev : 0);
+      setBookingsCount(activeBookings.length);
+      setOccupancy(realOccupancy > 0 ? realOccupancy : 0);
+      setAdr(calculatedAdr);
+    };
+
+    fetchData();
   }, [dateRange, filter]);
 
   const handleExportCSV = () => {

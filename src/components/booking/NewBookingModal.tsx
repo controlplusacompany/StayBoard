@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Modal from '../ui/Modal';
-import { getStoredRooms, getAvailableRoomTypeCount } from '@/lib/store';
-import { Room } from '@/types';
+import { getStoredRooms, getBookingsList } from '@/lib/store';
+import { Room, Booking } from '@/types';
 import { Bed, Search, Home, ChevronRight, X } from 'lucide-react';
 
 interface NewBookingModalProps {
@@ -14,20 +14,31 @@ interface NewBookingModalProps {
 }
 
 const PROPERTIES = [
-  { id: '010', name: 'Peace Hotel' },
-  { id: '011', name: 'Starry Nights' },
-  { id: '012', name: 'Starry Night Homes' }
+  { id: '010', name: 'The Peace' },
+  { id: '011', name: 'The Starry Nights' }
 ];
 
 export default function NewBookingModal({ isOpen, onClose, propertyId }: NewBookingModalProps) {
   const router = useRouter();
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | 'all'>(propertyId || 'all');
 
+
   useEffect(() => {
-    setRooms(getStoredRooms([]));
-    if (propertyId) setSelectedPropertyId(propertyId);
+    const fetchData = async () => {
+      const [fetchedRooms, fetchedBookings] = await Promise.all([
+        getStoredRooms([]),
+        getBookingsList()
+      ]);
+      setRooms(Array.isArray(fetchedRooms) ? fetchedRooms : []);
+      setBookings(Array.isArray(fetchedBookings) ? fetchedBookings : []);
+    };
+    if (isOpen) {
+      fetchData();
+      if (propertyId) setSelectedPropertyId(propertyId);
+    }
   }, [isOpen, propertyId]);
 
   const vacantRooms = rooms.filter(r => {
@@ -39,13 +50,23 @@ export default function NewBookingModal({ isOpen, onClose, propertyId }: NewBook
     if (!isVacant || !matchesProperty || !matchesSearch) return false;
 
     // INVENTORY PROTECTION: Check if this room type has actual available count for today.
-    // If all rooms of this type are committed (including unassigned online bookings), 
-    // hide this room from selections even if physically vacant.
     const today = new Date().toISOString().split('T')[0];
     const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
-    const availCount = getAvailableRoomTypeCount(r.property_id, r.room_type, today, tomorrow);
     
-    return availCount > 0;
+    const propertyRoomsCount = rooms.filter(room => room.property_id === r.property_id && room.room_type === r.room_type).length;
+    const activeBookingsCount = bookings.filter(b => {
+        if (b.property_id !== r.property_id) return false;
+        if (b.status === 'cancelled' || b.status === 'no_show' || b.status === 'checked_out') return false;
+        
+        const bType = b.room_type || rooms.find(room => room.id === b.room_id)?.room_type;
+        if (bType !== r.room_type) return false;
+        
+        const bStartStr = b.check_in_date.split('T')[0];
+        const bEndStr = b.check_out_date.split('T')[0];
+        return (today < bEndStr && tomorrow > bStartStr);
+    }).length;
+
+    return (propertyRoomsCount - activeBookingsCount) > 0;
   });
 
   const handleRoomSelect = (room: Room) => {

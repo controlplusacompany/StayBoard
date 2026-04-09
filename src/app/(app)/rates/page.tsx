@@ -51,44 +51,48 @@ export default function RatesPage() {
     refreshRules();
   }, []);
 
-  const refreshRules = () => {
-    const raw = getStoredRateRules();
-    setRules(Object.values(raw).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+  const refreshRules = async () => {
+    const raw = await getStoredRateRules();
+    setRules(raw.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
   };
 
-  const handleCreateRule = () => {
+  const handleCreateRule = async () => {
     if (!ruleName || !startDate || !endDate || !adjustmentValue) {
       toast("Please fill out all required fields.", "error");
       return;
     }
 
-    addRateRule({
-      property_id: '010', // Hardcoded to Peace Hotel for demo
-      name: ruleName,
-      room_type: roomType,
-      plan: mealPlan,
-      include_tax: includeTax,
-      start_date: startDate,
-      end_date: endDate,
-      adjustment_type: adjustmentType,
-      adjustment_value: parseFloat(adjustmentValue),
-      days_of_week: [], // apply everyday for this simplified version
-      is_active: true
-    });
+    try {
+      await addRateRule({
+        property_id: '010', // Hardcoded to Peace Hotel for demo
+        name: ruleName,
+        room_type: roomType,
+        plan: mealPlan,
+        include_tax: includeTax,
+        start_date: startDate,
+        end_date: endDate,
+        adjustment_type: adjustmentType,
+        adjustment_value: parseFloat(adjustmentValue),
+        days_of_week: [], // apply everyday for this simplified version
+        is_active: true
+      });
 
-    toast("Pricing rule successfully created.", "success");
-    setShowAddModal(false);
-    setRuleName('');
-    setAdjustmentValue('');
-    setStartDate('');
-    setEndDate('');
-    refreshRules();
+      toast("Pricing rule successfully created.", "success");
+      setShowAddModal(false);
+      setRuleName('');
+      setAdjustmentValue('');
+      setStartDate('');
+      setEndDate('');
+      await refreshRules();
+    } catch (e) {
+      toast("Failed to create rule", "error");
+    }
   };
 
-  const handleDeleteRule = (id: string) => {
-    deleteRateRule(id);
+  const handleDeleteRule = async (id: string) => {
+    await deleteRateRule(id);
     toast("Pricing rule removed.", "info");
-    refreshRules();
+    await refreshRules();
   };
 
   return (

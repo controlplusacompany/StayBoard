@@ -13,7 +13,7 @@ import { getEnrichedRooms, getStoredBookings } from '@/lib/store';
 import { Room, Booking } from '@/types';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useNewBooking } from '@/components/booking/NewBookingProvider';
-import { parseISO, format } from 'date-fns';
+import { parseISO, format, isSameDay } from 'date-fns';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -61,32 +61,28 @@ export default function DashboardPage() {
 
   const propertyConfig = [
     { id: '010', name: 'The Peace', type: 'bnb' as const },
-    { id: '011', name: 'Starry Nights', type: 'hostel' as const },
-    { id: '012', name: 'Starry BnB', type: 'airbnb' as const },
+    { id: '011', name: 'The Starry Nights', type: 'hostel' as const },
   ];
 
-  const initialRooms: Room[] = [];
-  propertyConfig.forEach(p => {
-    for (let i = 1; i <= 9; i++) {
-      let floor = 1;
-      if (i <= 3) floor = 1;
-      else if (i <= 6) floor = 2;
-      else floor = 3;
-      
-      initialRooms.push({
-        id: `${p.id}-${i.toString().padStart(2, '0')}`,
-        property_id: p.id,
-        room_number: i.toString().padStart(2, '0'),
-        room_type: i % 2 === 0 ? 'double' : 'single',
-        status: 'vacant',
-        base_price: p.type === 'hostel' ? 800 : 1500,
-        floor,
-        max_occupancy: 2,
-        last_status_change: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      });
-    }
-  });
+  const initialRooms: Room[] = [
+    // The Peace (010)
+    { id: '010-101', property_id: '010', room_number: '101', room_type: 'double', status: 'vacant', base_price: 1500, floor: 1, max_occupancy: 2, last_status_change: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: '010-102', property_id: '010', room_number: '102', room_type: 'double', status: 'vacant', base_price: 1500, floor: 1, max_occupancy: 2, last_status_change: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: '010-201', property_id: '010', room_number: '201', room_type: 'double', status: 'vacant', base_price: 1500, floor: 2, max_occupancy: 2, last_status_change: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: '010-202', property_id: '010', room_number: '202', room_type: 'double', status: 'vacant', base_price: 1500, floor: 2, max_occupancy: 2, last_status_change: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: '010-203', property_id: '010', room_number: '203', room_type: 'double', status: 'vacant', base_price: 1500, floor: 2, max_occupancy: 2, last_status_change: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: '010-301', property_id: '010', room_number: '301', room_type: 'double', status: 'vacant', base_price: 1500, floor: 3, max_occupancy: 2, last_status_change: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: '010-302', property_id: '010', room_number: '302', room_type: 'double', status: 'vacant', base_price: 1500, floor: 3, max_occupancy: 2, last_status_change: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: '010-303', property_id: '010', room_number: '303', room_type: 'double', status: 'vacant', base_price: 1500, floor: 3, max_occupancy: 2, last_status_change: new Date().toISOString(), updated_at: new Date().toISOString() },
+    
+    // The Starry Nights (011)
+    { id: '011-1', property_id: '011', room_number: '1', room_type: 'single', status: 'vacant', base_price: 800, floor: 1, max_occupancy: 1, last_status_change: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: '011-2', property_id: '011', room_number: '2', room_type: 'single', status: 'vacant', base_price: 800, floor: 1, max_occupancy: 1, last_status_change: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: '011-3', property_id: '011', room_number: '3', room_type: 'single', status: 'vacant', base_price: 800, floor: 2, max_occupancy: 1, last_status_change: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: '011-4', property_id: '011', room_number: '4', room_type: 'single', status: 'vacant', base_price: 800, floor: 2, max_occupancy: 1, last_status_change: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: '011-5', property_id: '011', room_number: '5', room_type: 'single', status: 'vacant', base_price: 800, floor: 2, max_occupancy: 1, last_status_change: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: '011-6', property_id: '011', room_number: '6', room_type: 'single', status: 'vacant', base_price: 800, floor: 2, max_occupancy: 1, last_status_change: new Date().toISOString(), updated_at: new Date().toISOString() },
+  ];
 
   const [storedRooms, setStoredRooms] = useState<Room[]>(initialRooms);
   const [storedBookings, setStoredBookings] = useState<Record<string, Booking>>({});
@@ -131,21 +127,24 @@ export default function DashboardPage() {
   const propertySummaries: Record<string, any> = {
     '010': getPropertySummary('010'),
     '011': getPropertySummary('011'),
-    '012': getPropertySummary('012')
   };
 
   const totalVacant = allRooms.filter(r => r.status === 'vacant').length;
 
   const properties: Property[] = [
-    { id: '010', owner_id: '001', name: 'The Peace', type: 'bnb', city: 'Varanasi', state: 'UP', total_rooms: 9, is_active: true, created_at: '2026-03-10T10:00:00Z' },
-    { id: '011', owner_id: '001', name: 'Starry Nights', type: 'hostel', total_rooms: 9, city: 'Varanasi', state: 'UP', is_active: true, created_at: '2025-11-20' },
-    { id: '012', owner_id: '001', name: 'Starry BnB', type: 'airbnb', total_rooms: 9, city: 'Varanasi', state: 'UP', is_active: true, created_at: '2026-01-15' }
+    { id: '010', owner_id: '001', name: 'The Peace', type: 'bnb', city: 'Varanasi', state: 'UP', total_rooms: 8, is_active: true, created_at: '2026-03-10T10:00:00Z' },
+    { id: '011', owner_id: '001', name: 'The Starry Nights', type: 'hostel', total_rooms: 6, city: 'Varanasi', state: 'UP', is_active: true, created_at: '2025-11-20' },
   ];
 
   const filteredProperties = properties.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           p.city.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesPropertyFilter = propertyFilter ? p.id === propertyFilter : true;
+    
+    // STAFF RESTRICTION: Staff only sees their assigned property
+    const staffPropertyId = typeof window !== 'undefined' ? localStorage.getItem('stayboard_user_property') : null;
+    if (userRole === 'reception' && staffPropertyId && p.id !== staffPropertyId) return false;
+
     return matchesSearch && matchesPropertyFilter;
   });
 
@@ -219,55 +218,32 @@ export default function DashboardPage() {
             <div className="flex flex-col gap-1">
               <span className="text-[10px] font-semibold uppercase tracking-widest text-ink-muted">Revenue</span>
               <span className="text-xl sm:text-2xl font-mono font-medium tracking-tight text-ink-primary">
-                ₹{allRooms.filter(r => r.status === 'occupied').reduce((acc, curr) => acc + (curr.base_price || 0), 0)}
+                ₹{Object.values(storedBookings).filter(b => isSameDay(parseISO(b.check_in_date), new Date())).reduce((sum, b) => sum + (Number(b.amount_paid) || 0), 0)}
               </span>
             </div>
           </div>
         )}
       </header>
 
-      {/* Summary Stats Row */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6 overflow-x-auto no-scrollbar pb-2">
-        <StatCard 
-          label="Total Occupied" 
-          value={allRooms.filter(r => r.status === 'occupied').length} 
-          subLabel={`of ${allRooms.length} rooms`} 
-          href="/reports?filter=occupied" 
-          accentColor="blue" 
-        />
-        <StatCard 
-          label="Checking In" 
-          value={allRooms.filter(r => r.status === 'arriving_today').length} 
-          subLabel="arrivals today" 
-          href="/reports?filter=arrivals" 
-          accentColor="purple" 
-        />
-        <StatCard 
-          label="Checking Out" 
-          value={allRooms.filter(r => r.status === 'checkout_today').length} 
-          subLabel="departures today" 
-          href="/reports?filter=check_out" 
-          accentColor="orange" 
-        />
-        <StatCard 
-          label="Vacant Tonight" 
-          value={totalVacant} 
-          subLabel="available" 
-          href="/reports?filter=vacant" 
-          accentColor="green" 
-        />
-
-        {!isReception && (
-          <StatCard
-            label="Today's Revenue"
-            value={0}
-            isCurrency
-            subLabel="UPI + Cash"
-            accentColor="blue"
-            trend={{ value: '0%', type: 'up' }}
-            href="/reports?period=today"
-          />
-        )}
+      {/* GLOBAL KPI DASHBOARD */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-2">
+        {[
+          { label: 'Total Occupied', value: allRooms.filter(r => r.status === 'occupied').length, sub: `of ${allRooms.length} rooms`, border: 'border-l-[#2563EB]' },
+          { label: 'Checking In', value: allRooms.filter(r => r.status === 'arriving_today').length, sub: 'arrivals today', border: 'border-l-[#A855F7]' },
+          { label: 'Checking Out', value: allRooms.filter(r => r.status === 'checkout_today').length, sub: 'departures today', border: 'border-l-[#F97316]' },
+          { label: 'Vacant Tonight', value: totalVacant, sub: 'available', border: 'border-l-[#22C55E]' },
+          { label: "Today's Revenue", value: `₹${Object.values(storedBookings).filter(b => isSameDay(parseISO(b.check_in_date), new Date())).reduce((sum, b) => sum + (Number(b.amount_paid) || 0), 0)}`, sub: 'UPI + Cash', border: 'border-l-[#2563EB]', isRevenue: true }
+        ].map((kpi, i) => (
+          <div key={i} className={`bg-white border border-border-subtle rounded-lg p-3 sm:p-4 shadow-xs border-l-4 ${kpi.border} flex flex-col gap-1 sm:gap-2 transition-all hover:shadow-md duration-300`}>
+            <span className="text-[9px] sm:text-[10px] font-bold text-ink-muted uppercase tracking-widest">{kpi.label}</span>
+            <div className="flex flex-col">
+              <span className={`text-xl sm:text-2xl font-display font-bold text-ink-primary ${kpi.isRevenue ? 'font-mono' : ''}`}>{kpi.value}</span>
+              <span className="text-[10px] text-ink-muted font-medium mt-0.5">
+                {kpi.sub} {kpi.isRevenue && <span className="text-success font-bold ml-1">↗ 0%</span>}
+              </span>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Properties Section */}

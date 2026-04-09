@@ -35,9 +35,9 @@ export default function RoomCard({
   // Use status prop if provided, otherwise fallback to room.status
   const effectiveStatus = status || room.status;
   
-  // Use currentBooking data if available
-  const displayGuest = guestName || currentBooking?.guest_name || arrivalToday?.guest_name;
-  const displayCheckout = checkoutDate || currentBooking?.check_out_date || arrivalToday?.check_out_date;
+  // Use enriched room data from cloud
+  const displayGuest = guestName || (room as any).guest_name;
+  const displayCheckout = checkoutDate || (room as any).checkout_date;
   const getStatusClass = (status: RoomStatus) => {
     switch (status) {
       case 'vacant': return 'room-card--vacant';

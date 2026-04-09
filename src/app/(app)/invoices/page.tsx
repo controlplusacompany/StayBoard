@@ -44,9 +44,15 @@ export default function InvoicesPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('upi');
 
   useEffect(() => {
-    const rawInvoices = getStoredInvoices();
-    setInvoices(Object.values(rawInvoices).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
-    setBookings(getStoredBookings({}));
+    const loadData = async () => {
+      const rawInvoices = await getStoredInvoices();
+      const rawBookings = await getStoredBookings({});
+      setInvoices(rawInvoices.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+      setBookings(rawBookings);
+    };
+    loadData();
+    window.addEventListener('storage', loadData);
+    return () => window.removeEventListener('storage', loadData);
   }, []);
 
   const handleDownloadInvoice = (invoice: Invoice) => {
@@ -80,7 +86,7 @@ export default function InvoicesPage() {
     }, 1000);
   };
 
-  const handleRecordPayment = () => {
+  const handleRecordPayment = async () => {
     if (!selectedInvoice) return;
     
     const amount = parseFloat(paymentAmount);
@@ -95,8 +101,7 @@ export default function InvoicesPage() {
       return;
     }
 
-    const updatedMap = processPayment(selectedInvoice.id, amount, paymentMethod);
-    setInvoices(Object.values(updatedMap).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+    await processPayment(selectedInvoice.id, amount, paymentMethod);
     
     toast(`Payment of ₹${amount} recorded via ${paymentMethod.toUpperCase()}`, "success");
     setShowPaymentModal(false);

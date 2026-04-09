@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -27,8 +27,9 @@ type IDType = 'aadhaar' | 'passport' | 'driving_license' | 'voter_id' | 'other';
 import { formatINR, formatDate } from '@/lib/formatting';
 import Badge from '@/components/ui/Badge';
 import { differenceInCalendarDays, addDays, format, areIntervalsOverlapping, parseISO } from 'date-fns';
-import { getStoredRooms, addBooking, getBookingsForRoom, getAvailableRoomTypeCount } from '@/lib/store';
+import { getStoredRooms, addBooking, getBookingsForRoom, getAvailableRoomTypeCount, getRoomBlockedDates } from '@/lib/store';
 import { useToast } from '@/components/ui/Toast';
+import CalendarPicker from '@/components/ui/CalendarPicker';
 
 
 function BookingFlow() {
@@ -41,14 +42,21 @@ function BookingFlow() {
   
   const [isSuccess, setIsSuccess] = useState(false);
 
-  // Get real rooms
-  const rooms = getStoredRooms([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getStoredRooms([]).then(fetchedRooms => {
+      setRooms(fetchedRooms);
+      setLoading(false);
+    });
+  }, []);
   
   // Find room by ID or by (number + property)
   const room = rooms.find(r => 
     r.id === roomId || 
     (r.room_number === roomNumber && r.property_id === propertyId)
-  ) || rooms[0] || { id: 'temp', room_number: roomNumber || '?', property_id: propertyId || '?', room_type: 'Unknown', base_price: 1500, floor: 1 };
+  ) || (rooms.length > 0 ? rooms[0] : { id: 'temp', room_number: roomNumber || '?', property_id: propertyId || '?', room_type: 'Unknown', base_price: 1500, floor: 1 });
 
   // Form State
   const [formData, setFormData] = useState({
@@ -78,6 +86,14 @@ function BookingFlow() {
     arrivalDateIndia: '',
   });
 
+  const [blockedDates, setBlockedDates] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (room && room.id !== 'temp') {
+      getRoomBlockedDates(room.id).then(setBlockedDates);
+    }
+  }, [room?.id]);
+
   // Set initial price when room is found
   React.useEffect(() => {
     if (room && formData.pricePerNight === 0) {
@@ -94,7 +110,7 @@ function BookingFlow() {
   const totalAmount = formData.includeTax ? baseAmount * 1.12 : baseAmount;
   const balanceDue = totalAmount - formData.advancePaid;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.guestName || !formData.guestPhone) {
       toast("Please enter Name and Phone Number", "error");
       return;
@@ -109,7 +125,7 @@ function BookingFlow() {
     // This is a final check to prevent clashes with unassigned online bookings.
     const from = formData.checkInDate;
     const to = formData.checkOutDate;
-    const availCount = getAvailableRoomTypeCount(room.property_id, room.room_type, from, to);
+    const availCount = await getAvailableRoomTypeCount(room.property_id, room.room_type, from, to);
     
     if (availCount <= 0) {
       toast(`All ${room.room_type} rooms are already committed for these dates (including unassigned online bookings).`, "error");
@@ -117,7 +133,7 @@ function BookingFlow() {
     }
 
     // Conflict Check
-    const existingBookings = getBookingsForRoom(room.id);
+    const existingBookings = await getBookingsForRoom(room.id);
     const newStartStr = formData.checkInDate;
     const newEndStr = formData.checkOutDate;
 
@@ -168,7 +184,7 @@ function BookingFlow() {
       }
     };
 
-    addBooking(newBooking);
+    await addBooking(newBooking);
     toast("Check-in successful", "success");
     setIsSuccess(true);
   };
@@ -233,25 +249,16 @@ function BookingFlow() {
               <h2 className="text-lg font-display text-ink-primary font-medium">Stay & Occupancy</h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="field">
-                <label className="label">Check-in Date</label>
-                <input
-                  type="date"
-                  className="input"
-                  value={formData.checkInDate}
-                  onChange={(e) => updateField('checkInDate', e.target.value)}
-                />
-              </div>
-              <div className="field">
-                <label className="label">Check-out Date</label>
-                <input
-                  type="date"
-                  className="input"
-                  value={formData.checkOutDate}
-                  onChange={(e) => updateField('checkOutDate', e.target.value)}
-                />
-              </div>
+            <div className="flex flex-col gap-2">
+              <label className="label mb-2">Select Duration (Visual Calendar)</label>
+              <CalendarPicker 
+                startDate={formData.checkInDate}
+                endDate={formData.checkOutDate}
+                blockedDates={blockedDates}
+                onChange={(start, end) => {
+                  setFormData(prev => ({ ...prev, checkInDate: start, checkOutDate: end }));
+                }}
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

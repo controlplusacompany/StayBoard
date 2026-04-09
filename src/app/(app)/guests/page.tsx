@@ -34,29 +34,18 @@ export default function GuestsPage() {
   const [showColumnFilters, setShowColumnFilters] = useState(false);
 
   useEffect(() => {
-    const rawGuests = getStoredGuests();
-    setGuests(Object.values(rawGuests));
+    const loadData = async () => {
+      const rawGuests = await getStoredGuests();
+      setGuests(rawGuests);
+    };
+    loadData();
+    window.addEventListener('storage', loadData);
+    return () => window.removeEventListener('storage', loadData);
   }, []);
 
-  const handleToggleVip = (guestId: string) => {
-    const updatedGuests = guests.map(g => {
-      if (g.id === guestId) {
-        const updated = { ...g, is_vip: !g.is_vip };
-        // Sync with selectedGuest if open
-        if (selectedGuest?.id === guestId) setSelectedGuest(updated);
-        return updated;
-      }
-      return g;
-    });
-    
-    setGuests(updatedGuests);
-    
-    // Persist to localStorage
-    const stored = JSON.parse(localStorage.getItem('stayboard_guests') || '{}');
-    if (stored[guestId]) {
-      stored[guestId].is_vip = !stored[guestId].is_vip;
-      localStorage.setItem('stayboard_guests', JSON.stringify(stored));
-    }
+  const handleToggleVip = async (guestId: string) => {
+    await toggleVipStatus(guestId);
+    toast("VIP status updated", "success");
   };
 
   const handleSort = (key: keyof Guest | 'last_stay_date') => {

@@ -40,15 +40,29 @@ export default function CalendarPage() {
   useEffect(() => {
     setIsMounted(true);
     
-    const loadCache = () => {
-      setRooms(getEnrichedRooms([]));
-      setBookings(getBookingsList());
+    const fetchData = async () => {
+      try {
+        const [fetchedRooms, fetchedBookings] = await Promise.all([
+          getEnrichedRooms(),
+          getBookingsList()
+        ]);
+        
+        // Ensure we ALWAYS have rooms to show
+        const roomsToSet = Array.isArray(fetchedRooms) && fetchedRooms.length > 0 
+          ? fetchedRooms 
+          : [];
+          
+        setRooms(roomsToSet);
+        setBookings(Array.isArray(fetchedBookings) ? fetchedBookings : []);
+      } catch (error) {
+        console.error("Failed to fetch calendar data:", error);
+      }
     };
     
-    loadCache();
-    window.addEventListener('storage', loadCache);
-    return () => window.removeEventListener('storage', loadCache);
-  }, []);
+    fetchData();
+    window.addEventListener('storage', fetchData);
+    return () => window.removeEventListener('storage', fetchData);
+  }, [propertyId]);
 
   if (!isMounted) return <div className="p-20 text-center text-ink-muted">Loading calendar...</div>;
 

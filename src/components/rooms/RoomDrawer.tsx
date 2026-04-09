@@ -35,10 +35,24 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [extendDays, setExtendDays] = useState('1');
   const [serviceRequest, setServiceRequest] = useState('');
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [vacantRooms, setVacantRooms] = useState<Room[]>([]);
+
+  useEffect(() => {
+    if (modalOpen === 'shift') {
+      getVacantRooms(room!.property_id).then(setVacantRooms);
+    }
+  }, [modalOpen, room?.property_id]);
   
   // Checkout Revamp State
-  const [checkoutDiscount, setCheckoutDiscount] = useState(0);
   const [checkoutPayAmount, setCheckoutPayAmount] = useState(0);
+
+  useEffect(() => {
+    if (modalOpen === 'checkout' && room?.booking) {
+      const balance = (room.booking.total_amount || 0) - (room.booking.amount_paid || 0);
+      setCheckoutPayAmount(Math.max(0, balance));
+    }
+  }, [modalOpen, room?.booking]);
 
   // Inline Edit State
   const [isEditing, setIsEditing] = useState(false);
@@ -85,7 +99,6 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
         
         // Reset checkout states
         const initialBalance = room.booking.total_amount - room.booking.amount_paid;
-        setCheckoutDiscount(0);
         setCheckoutPayAmount(initialBalance > 0 ? initialBalance : 0);
       }
     }
@@ -520,11 +533,14 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
                   start: new Date(),
                   end: addDays(new Date(), 29)
                 }).map((date, i) => {
-                  const bookingLine = getBookingsForRoom(room.id).find(b => {
-                    const startDay = parseISO(b.check_in_date);
-                    const endDay = parseISO(b.check_out_date);
-                    return (isSameDay(date, startDay) || (date > startDay && date < endDay));
-                  });
+                  // Fallback for async timeline
+                  const bookingLine = (room.bookings || [])
+                    .filter(b => b.status === 'checked_in' || b.status === 'confirmed' || b.status === 'issued')
+                    .find(b => {
+                      const startDay = parseISO(b.check_in_date);
+                      const endDay = parseISO(b.check_out_date);
+                      return (isSameDay(date, startDay) || (date > startDay && date < endDay));
+                    });
                   return (
                     <div 
                       key={i} 
@@ -536,8 +552,8 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
               </div>
               
               {(() => {
-                const nextBookingLine = getBookingsForRoom(room.id)
-                  .filter(b => parseISO(b.check_in_date) > new Date())
+                const nextBookingLine = (room.bookings || [])
+                  .filter(b => (b.status === 'confirmed' || b.status === 'issued') && parseISO(b.check_in_date) > new Date())
                   .sort((a, b) => parseISO(a.check_in_date).getTime() - parseISO(b.check_in_date).getTime())[0];
                 
                 if (nextBookingLine) {
@@ -737,8 +753,7 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
         className="max-w-[440px]"
       >
         <div className="flex flex-col gap-6 py-2">
-          {/* Billing Summary */}
-          <div className="bg-bg-sunken/50 rounded-2xl p-5 border border-border-subtle flex flex-col gap-4">
+          {/* Billing Summary          <div className="bg-bg-sunken/50 rounded-2xl p-5 border border-border-subtle flex flex-col gap-4">
              <div className="flex justify-between items-center text-xs font-medium text-ink-muted">
                 <span>Room Charges Total</span>
                 <span className="font-sans font-semibold text-ink-primary">{formatINR(room.booking?.total_amount || 0)}</span>
@@ -751,78 +766,43 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
              <div className="flex justify-between items-center">
                 <span className="text-sm font-semibold text-ink-primary">Outstanding Balance</span>
                 <span className="text-lg font-sans font-bold text-danger tabular-nums">
-                  {formatINR(Math.max(0, (room.booking?.total_amount || 0) - (room.booking?.amount_paid || 0)))}
+                   {formatINR(Math.max(0, (room.booking?.total_amount || 0) - (room.booking?.amount_paid || 0)))}
                 </span>
              </div>
           </div>
 
-          {/* Payment Entry Section */}
+          {/* Simplified Payment Section */}
           <div className="flex flex-col gap-5">
-             <div className="grid grid-cols-2 gap-4">
-                <div className="field">
-                  <label className="text-[10px] font-semibold text-ink-muted uppercase tracking-widest block mb-2 ml-1">Apply Discount</label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-ink-muted">₹</span>
-                    <input 
-                      type="text"
-                      className="w-full bg-white border border-border-subtle rounded-xl pl-8 pr-4 py-3 text-sm font-sans font-semibold text-ink-primary focus:border-accent transition-all"
-                      value={checkoutDiscount === 0 ? '' : checkoutDiscount}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/[^0-9]/g, '');
-                        setCheckoutDiscount(val === '' ? 0 : parseInt(val));
-                      }}
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-                <div className="field">
-                  <label className="text-[10px] font-semibold text-ink-muted uppercase tracking-widest block mb-2 ml-1">Collecting Now</label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-ink-muted">₹</span>
-                    <input 
+             <div className="field">
+                <label className="text-[10px] font-semibold text-ink-muted uppercase tracking-widest block mb-2 ml-1">Collecting Now</label>
+                <div className="relative">
+                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-ink-muted">₹</span>
+                   <input 
                       type="text"
                       className="w-full bg-white border border-border-subtle rounded-xl pl-8 pr-4 py-3 text-sm font-sans font-semibold text-success focus:border-accent transition-all animate-pulse-subtle"
                       value={checkoutPayAmount === 0 ? '' : checkoutPayAmount}
                       onChange={(e) => {
-                        const val = e.target.value.replace(/[^0-9]/g, '');
-                        setCheckoutPayAmount(val === '' ? 0 : parseInt(val));
+                         const val = e.target.value.replace(/[^0-9]/g, '');
+                         setCheckoutPayAmount(val === '' ? 0 : parseInt(val));
                       }}
-                      placeholder="0"
-                    />
-                  </div>
+                      placeholder={((room.booking?.total_amount || 0) - (room.booking?.amount_paid || 0)).toString()}
+                   />
                 </div>
-             </div>
-
-             <div className="bg-success/5 border border-success/10 rounded-2xl p-4 flex justify-between items-center">
-                <div className="flex flex-col">
-                   <span className="text-[9px] text-success font-bold uppercase tracking-widest">Final Settlement After Payment</span>
-                   <span className="text-xs text-ink-muted font-medium">Balance to be cleared at checkout</span>
-                </div>
-                <span className={`text-xl font-sans font-bold tabular-nums ${
-                   ((room.booking?.total_amount || 0) - (room.booking?.amount_paid || 0) - checkoutDiscount - checkoutPayAmount) <= 0 
-                   ? 'text-success' 
-                   : 'text-danger'
-                }`}>
-                   {formatINR(Math.max(0, (room.booking?.total_amount || 0) - (room.booking?.amount_paid || 0) - checkoutDiscount - checkoutPayAmount))}
-                </span>
              </div>
           </div>
 
           <div className="flex flex-col gap-3 pt-2">
             <button 
-              onClick={() => {
-                const finalBalance = (room.booking?.total_amount || 0) - (room.booking?.amount_paid || 0) - checkoutDiscount - checkoutPayAmount;
-                if (finalBalance > 0) {
-                  toast(`Remaining balance ${formatINR(finalBalance)} must be collected or discounted`, "warning");
-                  return;
-                }
-                
+              onClick={async () => {
                 if (room.booking) {
-                  finalCheckout(room.booking.id, checkoutPayAmount, checkoutDiscount);
-                  toast(`Payment of ${formatINR(checkoutPayAmount)} recorded & Checkout completed`, "success");
-                  setModalOpen(null);
-                  onClose();
-                  setTimeout(() => window.location.reload(), 500);
+                  try {
+                    await finalCheckout(room.booking.id, checkoutPayAmount);
+                    toast(`Payment of ${formatINR(checkoutPayAmount)} recorded & Checkout completed`, "success");
+                    setModalOpen(null);
+                    onClose();
+                  } catch (e) {
+                    toast("Checkout failed", "error");
+                  }
                 }
               }}
               className="btn btn-accent btn--lg py-5 shadow-lg shadow-accent/20 text-[15px] font-bold"
@@ -941,11 +921,11 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
            <div className="flex flex-col gap-4">
              <div className="flex justify-between items-center px-1">
                <span className="text-[10px] font-bold text-ink-muted uppercase tracking-widest">Select Target Room</span>
-               <span className="text-[10px] text-accent font-bold uppercase">{getVacantRooms(room.property_id).length} Vacant Rooms</span>
+               <span className="text-[10px] text-accent font-bold uppercase">{vacantRooms.length} Vacant Rooms</span>
              </div>
              
              <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto pr-1">
-               {getVacantRooms(room.property_id).map(vRoom => (
+               {vacantRooms.map(vRoom => (
                  <button 
                    key={vRoom.id}
                    onClick={() => {
@@ -976,7 +956,7 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
                  </button>
                ))}
                
-               {getVacantRooms(room.property_id).length === 0 && (
+               {vacantRooms.length === 0 && (
                  <div className="p-8 border-2 border-dashed border-border-subtle rounded-2xl flex flex-col items-center justify-center text-center">
                     <AlertTriangle size={24} className="text-ink-muted mb-2" />
                     <p className="text-xs text-ink-muted font-medium uppercase tracking-tight">No vacant rooms available to shift</p>

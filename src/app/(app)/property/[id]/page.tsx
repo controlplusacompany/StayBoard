@@ -43,26 +43,23 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
     bed: ''
   });
 
-  const defaultRooms: Room[] = Array.from({ length: 9 }, (_, i) => {
-    const roomNum = i + 1;
-    let floor = 1;
-    if (roomNum <= 3) floor = 1;
-    else if (roomNum <= 6) floor = 2;
-    else floor = 3;
-    
-    return {
-      id: `${params.id}-${roomNum.toString().padStart(2, '0')}`,
-      property_id: params.id,
-      room_number: roomNum.toString().padStart(2, '0'),
-      room_type: roomNum % 2 === 0 ? 'double' : 'single',
-      floor,
-      base_price: params.id === '011' ? 800 : 1500,
-      max_occupancy: 2,
-      status: 'vacant',
-      last_status_change: '',
-      updated_at: ''
-    };
-  });
+  const defaultRooms: Room[] = params.id === '010' ? [
+    { id: '010-101', property_id: '010', room_number: '101', room_type: 'double', status: 'vacant', base_price: 1500, floor: 1, max_occupancy: 2, last_status_change: '', updated_at: '' },
+    { id: '010-102', property_id: '010', room_number: '102', room_type: 'double', status: 'vacant', base_price: 1500, floor: 1, max_occupancy: 2, last_status_change: '', updated_at: '' },
+    { id: '010-201', property_id: '010', room_number: '201', room_type: 'double', status: 'vacant', base_price: 1500, floor: 2, max_occupancy: 2, last_status_change: '', updated_at: '' },
+    { id: '010-202', property_id: '010', room_number: '202', room_type: 'double', status: 'vacant', base_price: 1500, floor: 2, max_occupancy: 2, last_status_change: '', updated_at: '' },
+    { id: '010-203', property_id: '010', room_number: '203', room_type: 'double', status: 'vacant', base_price: 1500, floor: 2, max_occupancy: 2, last_status_change: '', updated_at: '' },
+    { id: '010-301', property_id: '010', room_number: '301', room_type: 'double', status: 'vacant', base_price: 1500, floor: 3, max_occupancy: 2, last_status_change: '', updated_at: '' },
+    { id: '010-302', property_id: '010', room_number: '302', room_type: 'double', status: 'vacant', base_price: 1500, floor: 3, max_occupancy: 2, last_status_change: '', updated_at: '' },
+    { id: '010-303', property_id: '010', room_number: '303', room_type: 'double', status: 'vacant', base_price: 1500, floor: 3, max_occupancy: 2, last_status_change: '', updated_at: '' },
+  ] : [
+    { id: '011-1', property_id: '011', room_number: '1', room_type: 'single', status: 'vacant', base_price: 800, floor: 1, max_occupancy: 1, last_status_change: '', updated_at: '' },
+    { id: '011-2', property_id: '011', room_number: '2', room_type: 'single', status: 'vacant', base_price: 800, floor: 1, max_occupancy: 1, last_status_change: '', updated_at: '' },
+    { id: '011-3', property_id: '011', room_number: '3', room_type: 'single', status: 'vacant', base_price: 800, floor: 2, max_occupancy: 1, last_status_change: '', updated_at: '' },
+    { id: '011-4', property_id: '011', room_number: '4', room_type: 'single', status: 'vacant', base_price: 800, floor: 2, max_occupancy: 1, last_status_change: '', updated_at: '' },
+    { id: '011-5', property_id: '011', room_number: '5', room_type: 'single', status: 'vacant', base_price: 800, floor: 2, max_occupancy: 1, last_status_change: '', updated_at: '' },
+    { id: '011-6', property_id: '011', room_number: '6', room_type: 'single', status: 'vacant', base_price: 800, floor: 2, max_occupancy: 1, last_status_change: '', updated_at: '' },
+  ];
 
   const defaultBookings: Record<string, Booking> = {};
 
@@ -72,9 +69,12 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const refreshData = async () => {
-    const fetchedRooms = await getEnrichedRooms(defaultRooms);
+    const allEnrichedRooms = await getEnrichedRooms(defaultRooms);
+    // STRICT FILTER: Only show rooms for this property
+    const filteredRooms = allEnrichedRooms.filter(r => r.property_id === params.id);
+    
     const fetchedBookings = await getStoredBookings(defaultBookings);
-    setRooms(fetchedRooms);
+    setRooms(filteredRooms);
     setMockBookings(fetchedBookings);
     setRefreshTrigger(prev => prev + 1);
   };
@@ -94,10 +94,10 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
 
   const property = {
     id: params.id,
-    name: params.id === '010' ? 'The Peace' : params.id === '011' ? 'Starry Nights' : 'Starry BnB',
-    type: params.id === '010' ? 'bnb' : params.id === '011' ? 'hostel' : 'airbnb' as PropertyType,
+    name: params.id === '010' ? 'The Peace' : 'The Starry Nights',
+    type: (params.id === '010' ? 'bnb' : 'hostel') as PropertyType,
     city: 'Varanasi',
-    total_rooms: 9
+    total_rooms: params.id === '010' ? 8 : 6
   };
 
   const isHostel = property.type === 'hostel';
@@ -160,12 +160,14 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
     const localToday = new Date(now.getTime() - offset).toISOString().split('T')[0];
     const bStart = b.check_in_date.split('T')[0];
     const bEnd = b.check_out_date.split('T')[0];
-    return (localToday >= bStart && localToday < bEnd);
+    // ONLY show as active in drawer if they ARE checked in and today falls within dates
+    return (b.status === 'checked_in' && localToday >= bStart && localToday < bEnd);
   });
   
   const selectedRoomWithBooking = selectedRoom ? {
     ...selectedRoom,
-    booking: activeBooking
+    booking: activeBooking,
+    bookings: selectedBookings // Pass ALL bookings for the 30-day bar
   } : null;
 
   return (
@@ -179,6 +181,27 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
             <ChevronRight size={14} />
             <span className="text-ink-secondary font-medium">{property.name}</span>
           </nav>
+          
+          {/* KPI DASHBOARD */}
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-2">
+            {[
+              { label: 'Total Occupied', value: getCount('occupied'), sub: `of ${rooms.length} rooms tonight`, border: 'border-l-[#2563EB]' },
+              { label: 'Checking In', value: getCount('arriving_today'), sub: 'arrivals today', border: 'border-l-[#A855F7]' },
+              { label: 'Checking Out', value: getCount('checkout_today'), sub: 'departures today', border: 'border-l-[#F97316]' },
+              { label: 'Vacant Tonight', value: getCount('vacant'), sub: 'available', border: 'border-l-[#22C55E]' },
+              { label: "Today's Revenue", value: `₹${Object.values(mockBookings).filter(b => isSameDay(parseISO(b.check_in_date), new Date())).reduce((sum, b) => sum + (Number(b.amount_paid) || 0), 0)}`, sub: 'UPI + Cash', border: 'border-l-[#2563EB]', isRevenue: true }
+            ].map((kpi, i) => (
+              <div key={i} className={`bg-white border border-border-subtle rounded-lg p-3 sm:p-4 shadow-xs border-l-4 ${kpi.border} flex flex-col gap-1 sm:gap-2 transition-all hover:shadow-md duration-300`}>
+                <span className="text-[9px] sm:text-[10px] font-bold text-ink-muted uppercase tracking-widest">{kpi.label}</span>
+                <div className="flex flex-col">
+                  <span className={`text-xl sm:text-2xl font-display font-bold text-ink-primary ${kpi.isRevenue ? 'font-mono' : ''}`}>{kpi.value}</span>
+                  <span className="text-[10px] text-ink-muted font-medium mt-0.5">
+                    {kpi.sub} {kpi.isRevenue && <span className="text-success font-bold ml-1">↗ 0%</span>}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
 
           {/* Header */}
           <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
@@ -287,15 +310,7 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
                           <RoomCard
                             room={room}
                             status={room.status}
-                            currentBooking={Object.values(mockBookings).find(b => {
-                                const start = parseISO(b.check_in_date);
-                                const end = parseISO(b.check_out_date);
-                                return b.room_id === room.id && now >= start && now < end && b.status !== 'cancelled';
-                            })}
-                            arrivalToday={Object.values(mockBookings).find(b => b.room_id === room.id && isSameDay(parseISO(b.check_in_date), now) && b.status !== 'cancelled')}
-                            checkoutToday={Object.values(mockBookings).find(b => b.room_id === room.id && isSameDay(parseISO(b.check_out_date), now) && b.status !== 'cancelled')}
-                            hasBalance={false}
-                            futureBooking={undefined}
+                            futureBooking={(room as any).future_booking}
                             onClick={handleRoomClick}
                           />
                         </div>

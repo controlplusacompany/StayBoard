@@ -43,9 +43,8 @@ import RoomCard from '@/components/rooms/RoomCard';
 import { format } from 'date-fns';
 
 const PROPERTIES = [
-  { id: '010', name: 'Peace Hotel' },
-  { id: '011', name: 'Starry Nights' },
-  { id: '012', name: 'Starry Night Homes' }
+  { id: '010', name: 'The Peace' },
+  { id: '011', name: 'The Starry Nights' }
 ];
 
 const TASK_STATUSES: { label: string; value: HousekeepingTask['status'] }[] = [
@@ -63,6 +62,7 @@ export default function HousekeepingPage() {
   const filterProperty = globalPropertyId;
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'tasks' | 'rooms'>('tasks');
+  const [isLoading, setIsLoading] = useState(true);
 
   // Form states
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -72,9 +72,18 @@ export default function HousekeepingPage() {
       setUserRole(localStorage.getItem('stayboard_user_role'));
     }
     
-    const loadStore = () => {
-      setTasks(getStoredTasks());
-      setRooms(getEnrichedRooms([]));
+    const loadStore = async () => {
+      setIsLoading(true);
+      try {
+        const fetchedTasks = await getStoredTasks();
+        const fetchedRooms = await getEnrichedRooms();
+        setTasks(fetchedTasks);
+        setRooms(fetchedRooms);
+      } catch (error) {
+        console.error("Error loading housekeeping data:", error);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     loadStore();
@@ -95,7 +104,7 @@ export default function HousekeepingPage() {
   });
 
 
-  const handleCreateTask = () => {
+  const handleCreateTask = async () => {
     if (!newTask.room_id) {
       toast("Please select a room", "warning");
       return;
@@ -105,27 +114,32 @@ export default function HousekeepingPage() {
     const [hours, minutes] = newTask.due_by.split(':');
     today.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
-    addTask({
+    setIsLoading(true);
+    await addTask({
       ...newTask,
       owner_id: '001',
       status: 'pending',
       due_by: today.toISOString()
     });
 
-    setTasks(getStoredTasks());
+    const fetchedTasks = await getStoredTasks();
+    setTasks(fetchedTasks);
+    setIsLoading(false);
     setShowCreateModal(false);
     toast(`Task created for Room ${rooms.find(r => r.id === newTask.room_id)?.room_number}`, "success");
   };
 
-  const handleStatusChange = (taskId: string, status: HousekeepingTask['status']) => {
+  const handleStatusChange = async (taskId: string, status: HousekeepingTask['status']) => {
     const now = new Date().toISOString();
-    updateTaskStatus(
+    await updateTaskStatus(
       taskId, 
       status, 
       status === 'in_progress' ? now : undefined,
       status === 'done' ? now : undefined
     );
-    setTasks(getStoredTasks());
+    
+    const fetchedTasks = await getStoredTasks();
+    setTasks(fetchedTasks);
     
     if (status === 'done') {
       const task = tasks.find(t => t.id === taskId);

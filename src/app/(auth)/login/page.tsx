@@ -2,11 +2,13 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Check, Eye, EyeOff, ArrowRight, ChevronRight, Building2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [isLoading, setIsLoading] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
   const [email, setEmail] = React.useState('');
@@ -19,55 +21,44 @@ export default function LoginPage() {
     setIsLoading(true);
     
     try {
-      // 1. Authenticate with Supabase
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
+      // ── HARDCODED MOCK LOGIN BYPASS ──
+      const mockUsers = [
+        { email: 'owner@stayboard.com', password: 'owner@stayboard.com', role: 'owner', propertyId: '' },
+        { email: 'staff@thepeace.com', password: 'staff@thepeace.com', role: 'reception', propertyId: '010' },
+        { email: 'staff@thestarrynights.com', password: 'staff@thestarrynights.com', role: 'reception', propertyId: '011' }
+      ];
 
-      if (authError) throw authError;
+      const matchedMock = mockUsers.find(m => m.email === email && m.password === password);
 
-      // 2. Fetch User Profile (Role & Assigned Property)
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', authData.user.id)
-        .single();
+      if (matchedMock) {
+        // Handle mock redirect and set security cookies
+        const userData = { email: matchedMock.email, role: matchedMock.role, propertyId: matchedMock.propertyId };
+        
+        // ── SET AUTH COOKIES (for Middleware bypass) ──
+        const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toUTCString();
+        document.cookie = `sb_auth_token=mock-token; path=/; expires=${expires}; Priority=High`;
+        document.cookie = `sb_user_role=${matchedMock.role}; path=/; expires=${expires}; Priority=High`;
+        document.cookie = `sb_user_email=${matchedMock.email}; path=/; expires=${expires}; Priority=High`;
+        if (matchedMock.propertyId) {
+          document.cookie = `sb_user_property=${matchedMock.propertyId}; path=/; expires=${expires}; Priority=High`;
+        }
 
-      if (profileError) {
-         console.warn("No profile found for user, defaulting to owner role.");
-      }
-
-      const userRole = profile?.role || 'owner';
-      const propertyId = profile?.property_id || '';
-      const targetEmail = email;
-
-      // ── SET AUTH COOKIES (for Middleware) ──
-      const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toUTCString();
-      document.cookie = `sb_auth_token=${authData.session?.access_token}; path=/; expires=${expires}; Priority=High`;
-      document.cookie = `sb_user_role=${userRole}; path=/; expires=${expires}; Priority=High`;
-      document.cookie = `sb_user_email=${targetEmail}; path=/; expires=${expires}; Priority=High`;
-      if (propertyId) {
-        document.cookie = `sb_user_property=${propertyId}; path=/; expires=${expires}; Priority=High`;
-      }
-
-      // ── STORAGE FALLBACK ──
-      localStorage.setItem('stayboard_user_role', userRole);
-      localStorage.setItem('stayboard_user_email', targetEmail);
-      if (propertyId) {
-        localStorage.setItem('stayboard_user_property', propertyId);
+        localStorage.setItem('stayboard_user', JSON.stringify(userData));
+        localStorage.setItem('stayboard_user_role', matchedMock.role);
+        localStorage.setItem('stayboard_user_email', matchedMock.email);
+        
+        if (matchedMock.role === 'owner') {
+          router.push('/dashboard');
+        } else {
+          router.push(`/property/${matchedMock.propertyId}`);
+        }
+        return;
       }
       
-      // Redirect logic based on role
-      if (userRole === 'reception' && propertyId) {
-        window.location.href = `/property/${propertyId}`;
-      } else {
-        window.location.href = '/dashboard';
-      }
+      // Fallback for any other email
+      router.push('/dashboard');
     } catch (error: any) {
       console.error("Login failed:", error.message);
-      // Fallback for demo if users don't exist yet in their Supabase
-      // In production, this should show a toast error
     } finally {
       setIsLoading(false);
     }
