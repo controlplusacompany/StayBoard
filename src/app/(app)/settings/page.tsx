@@ -122,20 +122,17 @@ function ReportsContent() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <Card>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Total Revenue (MTD)</p>
-          <p className="text-2xl font-bold text-[#011432]">₹ 4,32,000</p>
-          <p className="text-xs text-green-500 mt-2 flex items-center gap-1">
-            <ChevronRight className="-rotate-90" size={12} />
-            +12% from last month
-          </p>
+          <p className="text-2xl font-bold text-[#011432]">₹ 0</p>
+          <p className="text-xs text-gray-400 mt-2">No revenue recorded yet</p>
         </Card>
         <Card>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Average Occupancy</p>
-          <p className="text-2xl font-bold text-[#011432]">78.4%</p>
-          <p className="text-xs text-blue-500 mt-2">Peak: Starry Nights (92%)</p>
+          <p className="text-2xl font-bold text-[#011432]">0%</p>
+          <p className="text-xs text-gray-400 mt-2">Waiting for first booking</p>
         </Card>
         <Card>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">ADR</p>
-          <p className="text-2xl font-bold text-[#011432]">₹ 2,450</p>
+          <p className="text-2xl font-bold text-[#011432]">₹ 0</p>
           <p className="text-xs text-gray-400 mt-2">Target: ₹ 2,800</p>
         </Card>
       </div>
@@ -145,19 +142,19 @@ function ReportsContent() {
           <div className="space-y-2">
             <div className="flex justify-between text-xs font-medium">
               <span>Peace Hotel</span>
-              <span>₹ 2,80,000 (65%)</span>
+              <span>₹ 0 (0%)</span>
             </div>
             <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-              <div className="h-full bg-accent w-[65%]" />
+              <div className="h-full bg-accent w-0 transition-all duration-1000" />
             </div>
           </div>
           <div className="space-y-2">
             <div className="flex justify-between text-xs font-medium">
               <span>Starry Nights</span>
-              <span>₹ 1,52,000 (35%)</span>
+              <span>₹ 0 (0%)</span>
             </div>
             <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-              <div className="h-full bg-blue-400 w-[35%]" />
+              <div className="h-full bg-blue-400 w-0 transition-all duration-1000" />
             </div>
           </div>
         </div>
@@ -299,9 +296,9 @@ function StaffContent() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {[
-                { name: 'Rahul K.', bookings: 124, checkins: 89 },
-                { name: 'Sneha M.', bookings: 98, checkins: 102 },
-                { name: 'Amit V.', bookings: 45, checkins: 38 }
+                { name: 'Rahul K.', bookings: 0, checkins: 0 },
+                { name: 'Sneha M.', bookings: 0, checkins: 0 },
+                { name: 'Amit V.', bookings: 0, checkins: 0 }
               ].map(staff => (
                 <tr key={staff.name}>
                   <td className="py-4 text-sm font-medium text-[#011432]">{staff.name}</td>

@@ -84,10 +84,10 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
       getStoredBookings(),
       getArrivalsToday(params.id)
     ]);
-    
+
     // Convert both to strings for safety
     const filteredRooms = allEnrichedRooms.filter(r => String(r.property_id) === String(params.id));
-    
+
     setRooms(filteredRooms);
     setMockBookings(fetchedBookings);
     setArrivals(arrivalsToday);
@@ -231,8 +231,8 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
           {/* Breadcrumb & Global Actions */}
           <div className="flex items-center justify-between">
             <nav className="flex items-center gap-2 text-[12px] font-sans text-ink-muted">
-              <Link 
-                href="/dashboard" 
+              <Link
+                href="/dashboard"
                 onClick={() => {
                   if (typeof window !== 'undefined' && isOwnerRole) {
                     localStorage.removeItem('stayboard_master_property');
@@ -247,7 +247,7 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
               <span className="text-ink-secondary font-medium">{property.name}</span>
             </nav>
 
-            <button 
+            <button
               onClick={openNewBooking}
               className="btn btn-accent flex items-center gap-2 px-6 py-2.5 rounded-full font-semibold shadow-lg shadow-accent/20 animate-in slide-in-from-right-4 duration-500"
             >
@@ -292,13 +292,13 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
                   const checkOut = parseISO(booking.check_out_date);
                   const nights = differenceInDays(checkOut, checkIn) || 1;
                   const room = rooms.find(r => r.id === booking.room_id);
-                  
+
                   return (
-                    <div 
-                      key={booking.id} 
+                    <div
+                      key={booking.id}
                       className="min-w-[320px] bg-white border border-border-subtle rounded-xl shadow-sm overflow-hidden flex flex-col relative group transition-all"
                     >
-                    <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: 'var(--status-arriving-border)' }} />
+                      <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: 'var(--status-arriving-border)' }} />
                       <div className="p-4 flex flex-col gap-4">
                         <div className="flex items-start justify-between">
                           <div className="flex flex-col gap-1">
@@ -324,7 +324,7 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
                               <span className="text-sm font-mono font-bold text-ink-primary mt-1 tracking-tight">{booking.guest_phone}</span>
                             </div>
                           )}
-                          <button 
+                          <button
                             onClick={(e) => {
                               e.stopPropagation();
                               const url = `/booking/new?booking_id=${booking.id}&property=${params.id}`;
@@ -367,7 +367,7 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
                 </button>
               )}
               <div className="bg-bg-sunken px-3 py-1.5 rounded-md border border-border-subtle text-xs font-medium text-ink-secondary hidden sm:block">
-                20 Mar 2026
+
               </div>
             </div>
           </header>
