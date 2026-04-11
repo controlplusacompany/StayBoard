@@ -324,7 +324,7 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
           <div className="flex justify-between items-start">
             <div className="flex flex-col gap-1">
               <div className="flex items-baseline gap-2">
-                 <h2 className="text-[32px] font-display text-ink-primary leading-tight">Room {room.room_number}</h2>
+                 <h2 className="text-[32px] font-display font-semibold text-ink-primary leading-tight">Room {room.room_number}</h2>
               </div>
               <div className="flex items-center gap-3">
                 <Badge type={room.status} label={room.status.replace('_', ' ')} />
@@ -355,10 +355,10 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
                   {isEditing ? (
                     <div className="flex flex-col gap-5 animate-in fade-in slide-in-from-top-2 duration-300">
                       <div className="field">
-                        <label className="text-[9px] font-bold text-ink-muted uppercase tracking-[0.15em] block mb-1.5 ml-0.5">Guest Full Name</label>
+                        <label className="text-[9px] font-semibold text-ink-muted uppercase tracking-[0.15em] block mb-1.5 ml-0.5">Guest Full Name</label>
                         <input 
                           type="text" 
-                          className="w-full bg-bg-sunken border border-border-subtle rounded-xl px-4 py-3 text-lg font-sans font-medium text-ink-primary focus:bg-white focus:border-accent focus:ring-4 focus:ring-accent/5 transition-all"
+                          className="w-full bg-bg-sunken border border-border-subtle rounded-xl px-4 py-3 text-lg font-sans font-semibold text-ink-primary focus:bg-white focus:border-accent focus:ring-4 focus:ring-accent/5 transition-all"
                           placeholder="Enter guest name"
                           value={editData.guest_name}
                           onChange={(e) => setEditData({...editData, guest_name: e.target.value})}
@@ -398,7 +398,7 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
                               <span className="absolute left-0 top-1/2 -translate-y-1/2 text-sm font-semibold text-ink-muted">₹</span>
                               <input 
                                   type="text"
-                                  className="w-full bg-transparent border-none p-0 pl-3 text-lg font-sans font-bold text-success focus:ring-0 tabular-nums"
+                                  className="w-full bg-transparent border-none p-0 pl-3 text-lg font-sans font-semibold text-success focus:ring-0 tabular-nums"
                                   value={editData.amount_paid === 0 ? '' : editData.amount_paid}
                                   onChange={(e) => {
                                     const val = e.target.value.replace(/[^0-9]/g, '');
@@ -422,7 +422,7 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
                   ) : (
                     <div className="flex justify-between items-start">
                       <div className="flex flex-col gap-1.5">
-                        <span className="text-3xl font-display text-ink-primary leading-tight">{room.booking.guest_name}</span>
+                        <span className="text-3xl font-display font-semibold text-ink-primary leading-tight">{room.booking.guest_name}</span>
                         <div className="flex items-center gap-2 text-sm font-sans text-ink-secondary">
                           <div className="w-6 h-6 rounded-full bg-accent/5 flex items-center justify-center text-accent">
                             <Phone size={12} strokeWidth={2.5} />
@@ -432,7 +432,7 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
                       </div>
                       <div className={`p-4 rounded-2xl text-right min-w-[120px] shadow-inner ${room.booking.total_amount - room.booking.amount_paid > 0 ? 'bg-danger/5 border border-danger/10' : 'bg-success/5 border border-success/10'}`}>
                         <span className="text-[9px] text-ink-muted uppercase font-semibold tracking-[0.12em] block mb-1">Balance</span>
-                        <span className={`text-2xl font-sans font-bold tabular-nums tracking-tight leading-none ${room.booking.total_amount - room.booking.amount_paid > 0 ? 'text-danger' : 'text-success'}`}>
+                        <span className={`text-2xl font-sans font-semibold tabular-nums tracking-tight leading-none ${room.booking.total_amount - room.booking.amount_paid > 0 ? 'text-danger' : 'text-success'}`}>
                           {formatINR(room.booking.total_amount - room.booking.amount_paid)}
                         </span>
                       </div>
@@ -454,7 +454,7 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
                         onChange={(e) => setEditData({...editData, check_in_date: e.target.value})}
                       />
                     ) : (
-                      <span className="text-sm font-bold text-ink-primary">{formatDate(room.booking.check_in_date)}</span>
+                      <span className="text-sm font-semibold text-ink-primary">{formatDate(room.booking.check_in_date)}</span>
                     )}
                   </div>
                   <div className="flex flex-col gap-1.5">
@@ -470,7 +470,7 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
                         onChange={(e) => setEditData({...editData, check_out_date: e.target.value})}
                       />
                     ) : (
-                      <span className="text-sm font-bold text-ink-primary">{formatDate(room.booking.check_out_date)}</span>
+                      <span className="text-sm font-semibold text-ink-primary">{formatDate(room.booking.check_out_date)}</span>
                     )}
                   </div>
                 </div>
@@ -488,7 +488,7 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
                     <button 
                       onClick={handleSaveBooking}
                       disabled={isSaving}
-                      className="flex-[2] h-11 rounded-full bg-gradient-to-b from-[#87B9FF] to-[#0259DD] text-white text-[11px] font-bold uppercase tracking-wider shadow-lg shadow-accent/20 flex items-center justify-center gap-2 hover:translate-y-[-1px] active:scale-[0.98] transition-all disabled:opacity-50"
+                      className="btn btn-accent flex-[2] flex items-center justify-center gap-2 disabled:opacity-50"
                     >
                       {isSaving ? (
                         <RefreshCw size={14} className="animate-spin" />
@@ -527,8 +527,8 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
             
             <div className="flex flex-col gap-3">
               <div className="flex justify-between items-baseline">
-                <span className="text-xs font-bold text-ink-primary">Room Availability</span>
-                <span className="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Next 30 Days</span>
+                <span className="text-xs font-semibold text-ink-primary">Room Availability</span>
+                <span className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider">Next 30 Days</span>
               </div>
               
               <div className="flex gap-[2px] h-3 w-full bg-bg-sunken rounded-full overflow-hidden border border-border-subtle p-[1px]">
@@ -547,7 +547,7 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
                   return (
                     <div 
                       key={i} 
-                      className={`flex-1 rounded-[1px] ${bookingLine ? 'bg-accent' : 'bg-green-500/20'}`}
+                      className={`flex-1 rounded-[1px] ${bookingLine ? 'bg-status-arriving-fg' : 'bg-status-vacant-bg'}`}
                       title={bookingLine ? `Booked: ${bookingLine.guest_name}` : `Vacant: ${format(date, 'dd MMM')}`}
                     />
                   );
@@ -575,7 +575,7 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
             <section className="flex flex-col gap-4">
               <div className="flex justify-between items-center">
                 <h3 className="text-[10px] font-bold text-ink-muted uppercase tracking-[0.12em]">Active Requests</h3>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold transition-all ${activeRequests.length > 0 ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success'}`}>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold transition-all ${activeRequests.length > 0 ? 'bg-status-checkout-bg text-status-checkout-fg' : 'bg-status-vacant-bg text-status-vacant-fg'}`}>
                   {activeRequests.length} {activeRequests.length === 1 ? 'Alert' : 'Alerts'}
                 </span>
               </div>
@@ -731,7 +731,7 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
           <div className="flex flex-col w-full gap-3 mt-4">
             <button 
               onClick={handleCancelBooking}
-              className="btn btn-accent bg-danger border-danger hover:bg-danger/90 rounded-full w-full py-4 shadow-lg shadow-danger/20"
+              className="btn btn-danger w-full py-4"
             >
               Confirm Cancellation
             </button>

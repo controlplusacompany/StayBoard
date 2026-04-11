@@ -9,6 +9,7 @@ import Modal from '../ui/Modal';
 import { useToast } from '../ui/Toast';
 import { useNewBooking } from '../booking/NewBookingProvider';
 import { getSelectedProperty, setSelectedProperty } from '@/lib/store';
+import { format } from 'date-fns';
 
 export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const pathname = usePathname();
@@ -19,12 +20,15 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   
   const [userRole, setUserRole] = React.useState<string | null>(null);
   const [userEmail, setUserEmail] = React.useState<string | null>(null);
+  const [currentTime, setCurrentTime] = React.useState(new Date());
 
   React.useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     if (typeof window !== 'undefined') {
       setUserRole(localStorage.getItem('stayboard_user_role') || 'owner');
       setUserEmail(localStorage.getItem('stayboard_user_email') || 'owner@example.com');
     }
+    return () => clearInterval(timer);
   }, []);
 
   const isReception = userRole === 'reception';
@@ -144,7 +148,7 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                     {!getSelectedProperty() && <Check size={14} className="text-accent" />}
                   </button>
                   
-                  <div className="h-px bg-border-subtle/30 my-1" />
+                  <div className="h-px bg-border-subtle my-1" />
                   
                   {properties.map(p => (
                     <button 
@@ -165,7 +169,7 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                     </button>
                   ))}
 
-                  <div className="mt-2 pt-2 border-t border-border-subtle/50">
+                  <div className="mt-2 pt-2 border-t-2 border-border-subtle/30">
                     <button 
                       onClick={() => {
                         closeAll();
@@ -183,7 +187,16 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
+          <div className="hidden lg:flex flex-col items-end mr-2">
+            <span className="text-[13px] font-bold text-ink-primary leading-none mb-1">
+              {format(currentTime, 'HH:mm:ss')}
+            </span>
+            <span className="text-[9px] font-medium text-ink-muted uppercase tracking-wider leading-none">
+              {format(currentTime, 'EEEE, dd MMM yyyy')}
+            </span>
+          </div>
+
           <div className="relative">
             <button 
               onClick={() => {

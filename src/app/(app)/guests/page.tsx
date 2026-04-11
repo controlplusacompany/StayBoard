@@ -18,7 +18,7 @@ import {
   X,
   FileSpreadsheet
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, differenceInCalendarDays } from 'date-fns';
 import { useToast } from '@/components/ui/Toast';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
@@ -49,14 +49,46 @@ export default function GuestsPage() {
       const currentFilter = getSelectedProperty();
       setPropertyFilter(currentFilter);
 
-      const [rawGuests, rawBookings] = await Promise.all([
-        getStoredGuests(),
-        getBookingsList()
-      ]);
-      
-      setGuests(rawGuests);
-      setBookings(rawBookings);
-      setDataLoaded(true);
+      try {
+        const [rawGuests, rawBookings] = await Promise.all([
+          getStoredGuests(),
+          getBookingsList()
+        ]);
+        
+        // Enrich guests with data from bookings since DB schema is limited
+        const enrichedGuests = (rawGuests || []).map(guest => {
+          const guestBookings = (rawBookings || []).filter(b => b.guest_phone === guest.phone);
+          const totalSpent = guestBookings.reduce((sum, b) => sum + (Number(b.total_amount) || 0), 0);
+          const lastBooking = guestBookings[0]; // Already sorted by date desc in store
+
+          let stayNights = 0;
+          if (lastBooking?.check_in_date && lastBooking?.check_out_date) {
+            stayNights = Math.max(0, differenceInCalendarDays(
+              new Date(lastBooking.check_out_date),
+              new Date(lastBooking.check_in_date)
+            ));
+          }
+
+          return {
+            ...guest,
+            total_spent: totalSpent,
+            total_stays: guestBookings.length,
+            id_number: lastBooking?.guest_id_number || 'Not provided',
+            id_type: lastBooking?.guest_id_type || 'other',
+            last_stay_date: lastBooking?.check_in_date || guest.last_stay_date,
+            check_in_date: lastBooking?.check_in_date,
+            check_out_date: lastBooking?.check_out_date,
+            stay_duration: stayNights
+          };
+        });
+
+        setGuests(enrichedGuests);
+        setBookings(rawBookings || []);
+      } catch (err) {
+        console.error("GuestsPage Load Error:", err);
+      } finally {
+        setDataLoaded(true);
+      }
     };
     loadData();
     window.addEventListener('storage', loadData);
@@ -84,20 +116,19 @@ export default function GuestsPage() {
 
   const filteredGuests = guests.filter(g => {
     // 1. Property Filter logic:
-    // If a property is selected, only show guests who have a booking at that property
-    if (propertyFilter) {
+    // If a specific property is selected, only show guests who have a booking at that property
+    if (propertyFilter && propertyFilter !== 'all') {
       const hasBookingAtProperty = bookings.some(b => 
         b.property_id === propertyFilter && b.guest_phone === g.phone
       );
       if (!hasBookingAtProperty) return false;
     }
 
-    // 2. Global Search
     const matchesGlobal = 
       !searchQuery ||
-      g.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      g.phone.includes(searchQuery) ||
-      g.id_number.toLowerCase().includes(searchQuery.toLowerCase());
+      g.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      g.phone?.includes(searchQuery) ||
+      (g.id_number && g.id_number.toLowerCase().includes(searchQuery.toLowerCase()));
       
     // 3. Column Filters
     const matchesColumn = Object.entries(columnFilters).every(([key, value]) => {
@@ -106,7 +137,7 @@ export default function GuestsPage() {
       return guestValue?.toString().toLowerCase().includes(value.toLowerCase());
     });
 
-    const matchesVip = filterVip ? g.is_vip : true;
+    const matchesVip = filterVip ? !!g.is_vip : true;
     
     return matchesGlobal && matchesColumn && matchesVip;
   });
@@ -114,7 +145,7 @@ export default function GuestsPage() {
   const handleExportCSV = () => {
     if (sortedGuests.length === 0) return;
     
-    const headers = ['Name', 'Phone', 'ID Number', 'ID Type', 'Total Spent', 'Stays', 'Last Visit', 'VIP'];
+    const headers = ['Name', 'Phone', 'ID Number', 'ID Type', 'Value', 'Stays', 'Check In', 'Check Out', 'Duration', 'Last Visit'];
     const rows = sortedGuests.map(g => [
       g.name,
       g.phone,
@@ -122,8 +153,10 @@ export default function GuestsPage() {
       g.id_type,
       g.total_spent,
       g.total_stays,
+      (g as any).check_in_date ? format(new Date((g as any).check_in_date), 'yyyy-MM-dd HH:mm') : '--',
+      (g as any).check_out_date ? format(new Date((g as any).check_out_date), 'yyyy-MM-dd HH:mm') : '--',
+      (g as any).stay_duration || 0,
       g.last_stay_date ? format(new Date(g.last_stay_date), 'yyyy-MM-dd HH:mm') : 'Never',
-      g.is_vip ? 'Yes' : 'No'
     ]);
 
     const csvContent = [
@@ -150,7 +183,7 @@ export default function GuestsPage() {
     let bValue: any = b[key as keyof Guest];
 
     // Handle dates
-    if (key === 'last_stay_date' || key === 'created_at') {
+    if (key === 'last_stay_date' || key === 'created_at' || key === 'check_in_date' || key === 'check_out_date') {
       aValue = aValue ? new Date(aValue).getTime() : 0;
       bValue = bValue ? new Date(bValue).getTime() : 0;
     }
@@ -160,7 +193,7 @@ export default function GuestsPage() {
     return 0;
   });
 
-  const SortIcon = ({ column }: { column: keyof Guest | 'last_stay_date' }) => {
+  const SortIcon = ({ column }: { column: keyof Guest }) => {
     if (sortConfig?.key !== column) return <ArrowUpDown size={12} className="opacity-30" />;
     return sortConfig.direction === 'asc' ? <ArrowUp size={12} className="text-accent" /> : <ArrowDown size={12} className="text-accent" />;
   };
@@ -181,19 +214,19 @@ export default function GuestsPage() {
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">
         <div className="flex flex-col gap-3">
           <span className="text-[10px] font-medium text-accent uppercase tracking-[0.3em] font-sans">Relationships & Loyalty</span>
-          <h1 className="text-4xl md:text-5xl font-display text-ink-primary tracking-tighter font-medium text-balance">Guest Directory</h1>
+          <h1 className="text-4xl md:text-5xl font-display text-ink-primary tracking-tighter font-semibold text-balance">Guest Directory</h1>
         </div>
         
         {/* Metric Summaries */}
         <div className="flex flex-wrap gap-4">
           <div className="bg-white border border-border-subtle rounded-xl p-4 flex flex-col gap-1 shadow-sm min-w-[120px]">
             <span className="text-xs font-medium text-ink-muted uppercase tracking-wider">Total Guests</span>
-            <span className="text-2xl font-mono font-normal text-ink-primary">{guests.length}</span>
+            <span className="text-2xl font-mono font-semibold text-ink-primary">{guests.length}</span>
           </div>
           <div className="bg-white border text-accent border-accent/20 rounded-xl p-4 flex flex-col gap-1 shadow-sm min-w-[120px]">
             <span className="text-xs font-medium uppercase tracking-wider">VIP Guests</span>
-            <span className="text-2xl font-mono font-normal flex items-center gap-2">
-              {guests.filter(g => g.is_vip).length}
+            <span className="text-2xl font-mono font-semibold flex items-center gap-2">
+              {guests.filter(g => !!g.is_vip).length}
               <Star size={16} fill="currentColor" />
             </span>
           </div>
@@ -288,11 +321,22 @@ export default function GuestsPage() {
                 </th>
                 <th 
                   className="py-4 px-6 text-[10px] font-semibold text-ink-muted uppercase tracking-[0.1em] cursor-pointer hover:text-accent transition-colors"
-                  onClick={() => handleSort('total_stays')}
+                  onClick={() => handleSort('check_in_date')}
                 >
-                  <div className="flex items-center gap-2 text-nowrap text-center">
-                    Stays <SortIcon column="total_stays" />
+                  <div className="flex items-center gap-2 text-nowrap">
+                    Check In <SortIcon column="check_in_date" />
                   </div>
+                </th>
+                <th 
+                  className="py-4 px-6 text-[10px] font-semibold text-ink-muted uppercase tracking-[0.1em] cursor-pointer hover:text-accent transition-colors"
+                  onClick={() => handleSort('check_out_date')}
+                >
+                  <div className="flex items-center gap-2 text-nowrap">
+                    Check Out <SortIcon column="check_out_date" />
+                  </div>
+                </th>
+                <th className="py-4 px-6 text-[10px] font-semibold text-ink-muted uppercase tracking-[0.1em]">
+                  Stay
                 </th>
                 <th 
                   className="py-4 px-6 text-xs font-medium text-ink-muted uppercase tracking-wider cursor-pointer hover:text-accent transition-colors text-right"
@@ -369,7 +413,7 @@ export default function GuestsPage() {
                         <UserCircle2 size={16} />
                       </div>
                       <div className="flex flex-col">
-                        <span className="font-medium text-ink-primary flex items-center gap-1.5 antialiased">
+                        <span className="font-semibold text-ink-primary flex items-center gap-1.5 antialiased">
                           {guest.name}
                           {guest.is_vip && <Star size={11} className="fill-accent text-accent" />}
                         </span>
@@ -389,10 +433,30 @@ export default function GuestsPage() {
                     </div>
                   </td>
                   <td className="py-4 px-6 font-mono font-medium text-success">
-                    ₹{guest.total_spent.toLocaleString()}
+                    ₹{(guest.total_spent || 0).toLocaleString()}
                   </td>
-                  <td className="py-4 px-6 text-center">
-                    <Badge type="info" label={guest.total_stays.toString()} className="font-mono" />
+                  <td className="py-4 px-6">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-ink-primary">
+                        {(guest as any).check_in_date ? format(new Date((guest as any).check_in_date), 'dd MMM yyyy') : '--'}
+                      </span>
+                      <span className="text-[10px] font-mono text-ink-muted">
+                        {(guest as any).check_in_date ? format(new Date((guest as any).check_in_date), 'HH:mm') : '--:--'}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="py-4 px-6">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-ink-primary">
+                        {(guest as any).check_out_date ? format(new Date((guest as any).check_out_date), 'dd MMM yyyy') : '--'}
+                      </span>
+                      <span className="text-[10px] font-mono text-ink-muted">
+                        {(guest as any).check_out_date ? format(new Date((guest as any).check_out_date), 'HH:mm') : '--:--'}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="py-4 px-6">
+                    <Badge type="info" label={`${(guest as any).stay_duration || 0} Days`} className="font-mono whitespace-nowrap" />
                   </td>
                   <td className="py-4 px-6 text-right">
                     <div className="flex flex-col items-end">
@@ -409,7 +473,7 @@ export default function GuestsPage() {
               
               {sortedGuests.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-20 text-center">
+                  <td colSpan={9} className="py-20 text-center">
                     <div className="flex flex-col items-center justify-center gap-3 text-ink-muted">
                       <Users size={48} className="opacity-20" />
                       <p className="font-semibold">No guests found</p>

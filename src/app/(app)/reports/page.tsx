@@ -332,7 +332,9 @@ export default function ReportsPage() {
                   <td className="px-6 py-4">
                     <div className="flex flex-col text-sm">
                       <span className="text-ink-secondary">{format(parseISO(b.check_in_date), 'dd MMM')} - {format(parseISO(b.check_out_date), 'dd MMM')}</span>
-                      <span className="text-[10px] font-medium text-accent uppercase tracking-tighter">Room {b.room_id.split('-').pop()}</span>
+                      <span className="text-[10px] font-medium text-accent uppercase tracking-tighter">
+                        {b.room_id ? `Room ${b.room_id.split('-').pop()}` : 'Unassigned'}
+                      </span>
                     </div>
                   </td>
                   <td className="px-6 py-4 font-mono font-medium text-ink-primary">

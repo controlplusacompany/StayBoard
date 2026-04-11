@@ -125,14 +125,17 @@ export interface Guest {
   name: string;
   phone: string;
   email?: string;
-  id_type: 'aadhaar' | 'passport' | 'driving_license' | 'voter_id' | 'other';
-  id_number: string;
-  total_stays: number;
-  total_spent: number;
+  id_type?: 'aadhaar' | 'passport' | 'driving_license' | 'voter_id' | 'other';
+  id_number?: string;
+  total_stays?: number;
+  total_spent?: number;
   last_stay_date?: string;
   notes?: string;
-  is_vip: boolean;
-  created_at: string;
+  is_vip?: boolean;
+  check_in_date?: string;
+  check_out_date?: string;
+  stay_duration?: number;
+  created_at?: string;
 }
 
 export interface RateRule {

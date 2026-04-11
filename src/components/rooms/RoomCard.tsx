@@ -50,6 +50,18 @@ export default function RoomCard({
     }
   };
 
+  const getStatusTextClass = (status: RoomStatus) => {
+    switch (status) {
+      case 'vacant': return 'text-status-vacant-fg';
+      case 'occupied': return 'text-status-occupied-fg';
+      case 'cleaning': return 'text-status-cleaning-fg';
+      case 'maintenance': return 'text-status-maintenance-fg';
+      case 'checkout_today': return 'text-status-checkout-fg';
+      case 'arriving_today': return 'text-status-arriving-fg';
+      default: return 'text-ink-primary';
+    }
+  };
+
   const getStatusLabel = (status: RoomStatus) => {
     return status.replace('_', ' ');
   };
@@ -59,10 +71,9 @@ export default function RoomCard({
       onClick={() => onClick(room.id)}
       className={`room-card ${getStatusClass(effectiveStatus)} group overflow-hidden`}
     >
-      {/* status bar removed as per request */}
       <div className="flex justify-between items-start">
         <div className="flex flex-col">
-          <span className="room-card__number text-ink-primary font-display text-[22px]">
+          <span className={`room-card__number font-display text-[24px] font-bold ${getStatusTextClass(effectiveStatus)}`}>
             {room.room_number}
           </span>
           {propertyName && (
@@ -103,17 +114,7 @@ export default function RoomCard({
           </span>
         )}
         
-        {futureBooking && (
-          <div className="mt-1.5 pt-1.5 border-t border-accent/5 overflow-hidden">
-            <span 
-              className="text-[10px] font-bold text-accent uppercase tracking-wider flex items-center gap-1.5 truncate"
-              title={futureBooking}
-            >
-              <span className="w-1 h-1 rounded-full bg-accent animate-pulse shrink-0" />
-              <span className="truncate">{futureBooking}</span>
-            </span>
-          </div>
-        )}
+
       </div>
 
       {hasBalance && (

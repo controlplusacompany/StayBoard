@@ -4,10 +4,11 @@ import React from 'react';
 import { RoomStatus } from '@/types';
 
 interface MiniRoomGridProps {
-  rooms: { status: RoomStatus }[];
+  rooms: { status: RoomStatus; name: string }[];
+  noWrap?: boolean;
 }
 
-export default function MiniRoomGrid({ rooms }: MiniRoomGridProps) {
+export default function MiniRoomGrid({ rooms, noWrap }: MiniRoomGridProps) {
   const getDotClass = (status: RoomStatus) => {
     switch (status) {
       case 'vacant': return 'bg-status-vacant-fg opacity-85';
@@ -20,14 +21,27 @@ export default function MiniRoomGrid({ rooms }: MiniRoomGridProps) {
     }
   };
 
+  const formatRoomName = (name: string) => {
+    if (!name) return '';
+    // If it's "Bed X", just show "X"
+    if (name.toLowerCase().startsWith('bed ')) {
+      return name.split(' ')[1];
+    }
+    return name;
+  };
+
   return (
-    <div className="grid grid-cols-10 sm:grid-cols-15 md:grid-cols-20 gap-[2px] w-full opacity-90">
+    <div className={`flex ${noWrap ? 'flex-nowrap' : 'flex-wrap'} gap-[3px] w-full opacity-90 overflow-hidden`}>
       {rooms.map((room, idx) => (
         <div
           key={idx}
-          className={`w-full aspect-square rounded-[1px] transition-colors duration-300 ease-in-out ${getDotClass(room.status)}`}
+          className={`w-[30px] h-[30px] rounded-[0px] transition-all duration-300 ease-in-out ${getDotClass(room.status)} flex items-center justify-center`}
           style={{ animationDelay: `${idx * 2}ms` }}
-        />
+        >
+          <span className="text-[10px] font-bold text-white/90 leading-none tracking-tighter">
+            {formatRoomName(room.name)}
+          </span>
+        </div>
       ))}
     </div>
   );

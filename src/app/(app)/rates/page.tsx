@@ -131,13 +131,13 @@ export default function RatesPage() {
             <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
                <Layers size={60} strokeWidth={1} />
             </div>
-            <span className="text-[10px] uppercase font-bold text-accent tracking-widest">Base Occupancy Rate</span>
+            <span className="text-[10px] uppercase font-semibold text-accent tracking-widest">Base Occupancy Rate</span>
             <div className="flex flex-col">
-              <span className="text-3xl font-mono font-bold text-ink-primary">₹1,500</span>
+              <span className="text-3xl font-mono font-semibold text-ink-primary">₹1,500</span>
               <span className="text-xs text-ink-muted">Standard rate applied to all vacant rooms.</span>
             </div>
             <div className="h-px bg-border-subtle my-2" />
-            <div className="flex justify-between items-center text-[10px] font-bold text-ink-muted uppercase">
+            <div className="flex justify-between items-center text-[10px] font-semibold text-ink-muted uppercase">
               <span>Managed by Admin</span>
               <button className="text-accent hover:underline">Edit Rate</button>
             </div>
@@ -184,8 +184,8 @@ export default function RatesPage() {
                      {rule.adjustment_value > 0 ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
                    </div>
                    <div className="flex flex-col">
-                     <span className="text-xs uppercase font-bold text-ink-muted tracking-wide">Adjustment</span>
-                     <span className="font-mono font-bold text-lg">
+                     <span className="text-xs uppercase font-semibold text-ink-muted tracking-wide">Adjustment</span>
+                     <span className="font-mono font-semibold text-lg">
                        {rule.adjustment_value > 0 ? '+' : ''}{rule.adjustment_value}{rule.adjustment_type === 'percentage' ? '%' : ' ₹'}
                      </span>
                    </div>
@@ -269,13 +269,13 @@ export default function RatesPage() {
                 <label className="label">Adjustment Type</label>
                 <div className="flex bg-bg-sunken p-1 rounded-lg border border-border-subtle">
                   <button 
-                    className={`flex-1 py-2 text-xs font-bold rounded-md transition-colors ${adjustmentType === 'percentage' ? 'bg-white shadow-sm text-ink-primary' : 'text-ink-muted'}`}
+                    className={`flex-1 py-2 text-xs font-semibold rounded-md transition-colors ${adjustmentType === 'percentage' ? 'bg-white shadow-sm text-ink-primary' : 'text-ink-muted'}`}
                     onClick={() => setAdjustmentType('percentage')}
                   >
                     (%)
                   </button>
                   <button 
-                    className={`flex-1 py-2 text-xs font-bold rounded-md transition-colors ${adjustmentType === 'fixed' ? 'bg-white shadow-sm text-ink-primary' : 'text-ink-muted'}`}
+                    className={`flex-1 py-2 text-xs font-semibold rounded-md transition-colors ${adjustmentType === 'fixed' ? 'bg-white shadow-sm text-ink-primary' : 'text-ink-muted'}`}
                     onClick={() => setAdjustmentType('fixed')}
                   >
                     (₹)

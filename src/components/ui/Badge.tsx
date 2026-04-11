@@ -31,8 +31,7 @@ export default function Badge({ type, label, className = '' }: BadgeProps) {
   };
 
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.75 rounded-full font-sans font-medium text-[10px] tracking-[0.04em] uppercase whitespace-nowrap ${getBadgeClass(type)} ${className}`}>
-      <span className="w-1.25 h-1.25 rounded-full bg-current flex-shrink-0" />
+    <span className={`inline-flex items-center justify-center px-2 py-0.75 rounded-full font-sans font-medium text-[10px] tracking-[0.04em] uppercase whitespace-nowrap ${getBadgeClass(type)} ${className}`}>
       {label}
     </span>
   );

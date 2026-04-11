@@ -19,7 +19,7 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  
+
   const [activeTab, setActiveTab] = useState<RoomStatus | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
@@ -35,12 +35,12 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
         router.push(`/property/${globalPropId}`);
       }
     };
-    
+
     checkRedirect();
     window.addEventListener('storage', checkRedirect);
     return () => window.removeEventListener('storage', checkRedirect);
   }, [params.id, router]);
-  
+
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
       setUserRole(localStorage.getItem('stayboard_user_role'));
@@ -67,10 +67,11 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
 
   const refreshData = async () => {
     const allEnrichedRooms = await getEnrichedRooms();
-    // STRICT FILTER: Only show rooms for this property
-    const filteredRooms = allEnrichedRooms.filter(r => r.property_id === params.id);
-    
     const fetchedBookings = await getStoredBookings();
+    
+    // Convert both to strings for safety
+    const filteredRooms = allEnrichedRooms.filter(r => String(r.property_id) === String(params.id));
+    
     setRooms(filteredRooms);
     setMockBookings(fetchedBookings);
     setDataLoaded(true);
@@ -80,7 +81,7 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
   useEffect(() => {
     refreshData();
     window.addEventListener('storage', refreshData);
-    
+
     // Handle highlight from Dashboard
     const highlight = searchParams.get('highlight');
     if (highlight === 'arrivals') setActiveTab('arriving_today');
@@ -95,7 +96,7 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
     name: params.id === '010' ? 'The Peace' : 'The Starry Nights',
     type: (params.id === '010' ? 'bnb' : 'hostel') as PropertyType,
     city: 'Varanasi',
-    total_rooms: params.id === '010' ? 8 : 6
+    total_rooms: params.id === '010' ? 8 : 15
   };
 
   const isHostel = property.type === 'hostel';
@@ -104,7 +105,7 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
     // Get bookings from local state instead of async store call
     const bookings = Object.values(mockBookings).filter(b => b.room_id === room.id && b.status !== 'cancelled' && b.status !== 'no_show');
     const guestNames = bookings.map(b => b.guest_name.toLowerCase());
-    
+
     let matchesTab = true;
     if (activeTab === 'all') matchesTab = true;
     else matchesTab = room.status === activeTab;
@@ -141,18 +142,25 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
 
   const selectedRoom = rooms.find(r => r.id === selectedRoomId);
   const selectedBookings = selectedRoom ? Object.values(mockBookings).filter(b => b.room_id === selectedRoom.id && b.status !== 'cancelled' && b.status !== 'no_show') : [];
-  
-  // Find active booking for today to show in the drawer
+
+  // Find active booking for today to show in the drawer (including Check-ins and Check-outs)
   const activeBooking = selectedBookings.find(b => {
     const now = new Date();
     const offset = now.getTimezoneOffset() * 60000;
     const localToday = new Date(now.getTime() - offset).toISOString().split('T')[0];
     const bStart = b.check_in_date.split('T')[0];
     const bEnd = b.check_out_date.split('T')[0];
-    // ONLY show as active in drawer if they ARE checked in and today falls within dates
-    return (b.status === 'checked_in' && localToday >= bStart && localToday < bEnd);
+
+    // Priority 1: Currently staying (localToday >= start AND localToday < end)
+    const isStaying = (b.status === 'checked_in' && localToday >= bStart && localToday < bEnd);
+    // Priority 2: Checking out today (localToday === end)
+    const isCheckingOut = (b.status === 'checked_in' && localToday === bEnd);
+    // Priority 3: Arriving today (localToday === start)
+    const isArriving = ((b.status === 'assigned' || b.status === 'unassigned') && localToday === bStart);
+
+    return isStaying || isCheckingOut || isArriving;
   });
-  
+
   const selectedRoomWithBooking = selectedRoom ? {
     ...selectedRoom,
     booking: activeBooking,
@@ -186,7 +194,7 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
             <ChevronRight size={14} />
             <span className="text-ink-secondary font-medium">{property.name}</span>
           </nav>
-          
+
           {/* KPI DASHBOARD */}
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-2">
             {[
@@ -197,11 +205,11 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
               { label: "Today's Revenue", value: `₹${Object.values(mockBookings).filter(b => isSameDay(parseISO(b.check_in_date), new Date())).reduce((sum, b) => sum + (Number(b.amount_paid) || 0), 0)}`, sub: 'UPI + Cash', border: 'border-l-[#2563EB]', isRevenue: true }
             ].map((kpi, i) => (
               <div key={i} className={`bg-white border border-border-subtle rounded-lg p-3 sm:p-4 shadow-xs border-l-4 ${kpi.border} flex flex-col gap-1 sm:gap-2 transition-all hover:shadow-md duration-300`}>
-                <span className="text-[9px] sm:text-[10px] font-bold text-ink-muted uppercase tracking-widest">{kpi.label}</span>
+                <span className="text-[9px] sm:text-[10px] font-semibold text-ink-muted uppercase tracking-widest">{kpi.label}</span>
                 <div className="flex flex-col">
-                  <span className={`text-xl sm:text-2xl font-display font-bold text-ink-primary ${kpi.isRevenue ? 'font-mono' : ''}`}>{kpi.value}</span>
+                  <span className={`text-xl sm:text-2xl font-display font-semibold text-ink-primary ${kpi.isRevenue ? 'font-mono' : ''}`}>{kpi.value}</span>
                   <span className="text-[10px] text-ink-muted font-medium mt-0.5">
-                    {kpi.sub} {kpi.isRevenue && <span className="text-success font-bold ml-1">↗ 0%</span>}
+                    {kpi.sub} {kpi.isRevenue && <span className="text-success font-semibold ml-1">↗ 0%</span>}
                   </span>
                 </div>
               </div>
@@ -222,15 +230,15 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
               </div>
             </div>
             <div className="flex items-center gap-3 w-full sm:w-auto">
-            {!isReception && (
-              <button 
-                onClick={() => setIsAddRoomOpen(true)}
-                className="btn btn-accent flex items-center justify-center gap-2 group"
-              >
-                <Plus size={16} className="group-hover:rotate-90 transition-transform" />
-                <span>Add Room</span>
-              </button>
-            )}
+              {!isReception && !isOwnerRole && (
+                <button
+                  onClick={() => setIsAddRoomOpen(true)}
+                  className="btn btn-accent flex items-center justify-center gap-2 group"
+                >
+                  <Plus size={16} className="group-hover:rotate-90 transition-transform" />
+                  <span>Add Room</span>
+                </button>
+              )}
               <div className="bg-bg-sunken px-3 py-1.5 rounded-md border border-border-subtle text-xs font-medium text-ink-secondary hidden sm:block">
                 20 Mar 2026
               </div>
@@ -269,7 +277,7 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
                 className="input input--sm pl-10 pr-10"
               />
               {searchQuery && (
-                <button 
+                <button
                   onClick={() => setSearchQuery('')}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink-primary"
                 >
@@ -283,27 +291,35 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
           <div className="flex-1 overflow-y-auto no-scrollbar flex flex-col gap-6 py-2">
             {Object.keys(
               filteredRooms.reduce((acc, r) => {
-                const f = r.floor || 1;
+                const f = String(r.floor ?? '1');
                 if (!acc[f]) acc[f] = [];
                 acc[f].push(r);
                 return acc;
-              }, {} as Record<number, Room[]>)
-            ).sort((a, b) => Number(a) - Number(b)).map((floorStr) => {
-              const floor = Number(floorStr);
-              const floorRooms = filteredRooms.filter(r => (r.floor || 1) === floor);
+              }, {} as Record<string, Room[]>)
+            ).sort((a, b) => {
+              const numA = a === '0' ? 999 : parseInt(a);
+              const numB = b === '0' ? 999 : parseInt(b);
+              if (isNaN(numA) && isNaN(numB)) return a.localeCompare(b);
+              if (isNaN(numA)) return 1;
+              if (isNaN(numB)) return -1;
+              return numA - numB;
+            }).map((floor) => {
+              const floorRooms = filteredRooms.filter(r => String(r.floor ?? '1') === String(floor));
               if (floorRooms.length === 0) return null;
 
               return (
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-bg-sunken px-2 py-1 rounded-md border border-border-subtle flex items-center gap-2">
-                         <Layers size={12} className="text-ink-muted" />
-                         <h2 className="text-[10px] font-medium text-ink-secondary uppercase tracking-[0.15em]">Floor {floor}</h2>
-                      </div>
-                      <div className="h-px flex-1 bg-gradient-to-r from-border-subtle to-transparent" />
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-bg-sunken px-2 py-1 rounded-md border border-border-subtle flex items-center gap-2">
+                      <Layers size={12} className="text-ink-muted" />
+                      <h2 className="text-[10px] font-medium text-ink-secondary uppercase tracking-[0.15em]">
+                        {floor === '0' ? 'Dorm Area' : `Floor ${floor}`}
+                      </h2>
                     </div>
+                    <div className="h-px flex-1 bg-gradient-to-r from-border-subtle to-transparent" />
+                  </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                     {floorRooms.map((room, idx) => {
                       const now = new Date();
                       return (
@@ -360,14 +376,14 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">Room Number*</label>
-            <input type="text" placeholder={newRoom.number ? "" : "105"} className="input" value={newRoom.number} onChange={e => setNewRoom({...newRoom, number: e.target.value})} />
+            <input type="text" placeholder={newRoom.number ? "" : "105"} className="input" value={newRoom.number} onChange={e => setNewRoom({ ...newRoom, number: e.target.value })} />
           </div>
 
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">Price per Night*</label>
             <div className="relative">
               <IndianRupee size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
-              <input type="number" placeholder={newRoom.price ? "" : "1200"} className="input pl-10" value={newRoom.price} onChange={e => setNewRoom({...newRoom, price: e.target.value})} />
+              <input type="number" placeholder={newRoom.price ? "" : "1200"} className="input pl-10" value={newRoom.price} onChange={e => setNewRoom({ ...newRoom, price: e.target.value })} />
             </div>
           </div>
         </div>

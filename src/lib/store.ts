@@ -18,6 +18,8 @@ import { supabase } from './supabase';
 // NATIVE CLOUD STORE - SOURCE OF TRUTH: SUPABASE
 // --------------------------------------------------
 
+const MASTER_OWNER_ID = '00000000-0000-0000-0000-000000000000';
+
 // GLOBAL FILTERS (Stored in LocalStorage for persistence)
 export const getSelectedProperty = (): string | null => {
   if (typeof window === 'undefined') return null;
@@ -168,6 +170,11 @@ export const finalCheckout = async (bookingId: string, paymentAmount: number) =>
   window.dispatchEvent(new Event('storage'));
 };
 
+export const getBookingById = async (id: string): Promise<Booking | null> => {
+  const { data } = await supabase.from('bookings').select('*').eq('id', id).single();
+  return data;
+};
+
 export const updateBookingStatus = async (bookingId: string, status: Booking['status']) => {
   const { data: booking, error: fetchErr } = await supabase.from('bookings').select('*').eq('id', bookingId).single();
   if (fetchErr || !booking) return;
@@ -192,6 +199,23 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
   window.dispatchEvent(new Event('storage'));
 };
 
+export const updateBooking = async (bookingId: string, updates: Partial<Booking>) => {
+  const { error } = await supabase.from('bookings').update(updates).eq('id', bookingId);
+  if (error) throw error;
+  
+  // Sync guest info if guest details changed
+  if (updates.guest_name || updates.guest_phone || updates.status) {
+    const { data: booking } = await supabase.from('bookings').select('*').eq('id', bookingId).single();
+    if (booking) await syncGuestFromBooking(booking);
+  }
+
+  // Update room status if status changed
+  if (updates.status === 'checked_in' && updates.room_id) await updateRoomStatus(updates.room_id, 'occupied');
+  if (updates.status === 'checked_out' && updates.room_id) await updateRoomStatus(updates.room_id, 'vacant');
+
+  window.dispatchEvent(new Event('storage'));
+};
+
 export const addBooking = async (booking: Booking) => {
   const { data, error } = await supabase.from('bookings').insert([{ ...booking, owner_id: MASTER_OWNER_ID }]).select();
   if (error) throw error;
@@ -209,18 +233,21 @@ export const addBooking = async (booking: Booking) => {
     owner_id: MASTER_OWNER_ID,
     invoice_number: `SB-${Math.floor(1000 + Math.random() * 9000)}`,
     amount_total: Number(booking.total_amount),
-    amount_paid: Number(booking.amount_paid) || 0,
-    status: (Number(booking.amount_paid) >= Number(booking.total_amount)) ? 'paid' : 'issued',
-    created_at: new Date().toISOString(),
-    due_date: booking.check_out_date
+    amount_paid: 0,
+    status: 'pending'
   });
 
-  // Create Guest if not exists
-  await syncGuestFromBooking(booking);
+  // Sync Guest (Non-blocking)
+  try {
+    await syncGuestFromBooking(booking);
+  } catch (err) {
+    console.error("Guest Sync Failed during booking save:", err);
+  }
 
   window.dispatchEvent(new Event('storage'));
   return data;
 };
+
 
 export const updateRoomStatus = async (roomId: string, status: RoomStatus) => {
   const { data } = await supabase.from('rooms').update({ status, updated_at: new Date().toISOString() }).eq('id', roomId).select();
@@ -230,17 +257,41 @@ export const updateRoomStatus = async (roomId: string, status: RoomStatus) => {
 
 // GUESTS & PAYMENTS
 export const getStoredGuests = async (): Promise<Guest[]> => {
-  const { data } = await supabase.from('guests').select('*').order('name');
-  const guests = (data as Guest[]) || [];
+  console.log('Fetching guests from Supabase...');
+  const { data, error } = await supabase.from('guests').select('*').order('name');
+  if (error) {
+    console.error('CRITICAL: Error fetching guests:', error);
+    return [];
+  }
+  
+  let guests = (data as Guest[]) || [];
+  console.log(`Initial guest count: ${guests.length}`);
   
   // SELF-HEALING: If directory is empty but we have bookings, rebuild it!
   if (guests.length === 0) {
-    const bookings = await getBookingsList();
-    if (bookings.length > 0) {
-      for (const b of bookings) {
-        await syncGuestFromBooking(b);
+    console.log('GUEST DIRECTORY EMPTY - TRIGGERING HEALING...');
+    const { data: bookingsRaw, error: bError } = await supabase.from('bookings').select('*');
+    if (bError) {
+      console.error('HEAL FAIL: Could not fetch bookings:', bError);
+      return [];
+    }
+    
+    if (bookingsRaw && bookingsRaw.length > 0) {
+      console.log(`HEALING: Attempting to rebuild ${bookingsRaw.length} guests from bookings...`);
+      // Use sequential for-of to avoid hammering Supabase and to handle errors better
+      for (const b of bookingsRaw) {
+        try {
+          await syncGuestFromBooking(b);
+        } catch (syncErr) {
+          console.error(`HEAL FAIL: Sync for booking ${b.id} failed:`, syncErr);
+        }
       }
-      const { data: refreshed } = await supabase.from('guests').select('*').order('name');
+      
+      const { data: refreshed, error: rError } = await supabase.from('guests').select('*').order('name');
+      if (rError) {
+        console.error('HEAL FAIL: Refetch after sync failed:', rError);
+        return [];
+      }
       return (refreshed as Guest[]) || [];
     }
   }
@@ -249,33 +300,34 @@ export const getStoredGuests = async (): Promise<Guest[]> => {
 };
 
 export const syncGuestFromBooking = async (booking: Booking) => {
-  const { data: existing } = await supabase.from('guests').select('*').eq('phone', booking.guest_phone).single();
-  
-  const guestData = {
-    name: booking.guest_name,
-    phone: booking.guest_phone,
-    id_number: booking.guest_id_number,
-    id_type: booking.guest_id_type,
-    last_stay_date: booking.check_in_date,
-    updated_at: new Date().toISOString()
-  };
+  try {
+    // Use .select() instead of .single() to avoid error noise if not found
+    const { data: existingList, error: qError } = await supabase.from('guests').select('*').eq('phone', booking.guest_phone);
+    if (qError) throw qError;
+    
+    const existing = existingList && existingList.length > 0 ? existingList[0] : null;
+    
+    const guestData: any = {
+      name: booking.guest_name,
+      phone: booking.guest_phone,
+      last_stay_date: booking.check_in_date
+    };
 
-  if (existing) {
-    await supabase.from('guests').update({
-      ...guestData,
-      total_spent: Number(existing.total_spent) + Number(booking.total_amount),
-      total_stays: Number(existing.total_stays) + 1
-    }).eq('id', existing.id);
-  } else {
-    await supabase.from('guests').insert([{
-      ...guestData,
-      id: `g-${Date.now()}`,
-      owner_id: MASTER_OWNER_ID,
-      total_spent: booking.total_amount,
-      total_stays: 1,
-      is_vip: false,
-      created_at: new Date().toISOString()
-    }]);
+    if (existing) {
+      console.log(`Updating existing guest: ${booking.guest_name}`);
+      const { error: uError } = await supabase.from('guests').update(guestData).eq('id', existing.id);
+      if (uError) console.error(`Failed to update guest ${booking.guest_name}:`, uError);
+    } else {
+      console.log(`Creating new guest record: ${booking.guest_name}`);
+      const { error: iError } = await supabase.from('guests').insert([{
+        ...guestData,
+        owner_id: MASTER_OWNER_ID
+      }]);
+      if (iError) console.error(`Failed to insert guest ${booking.guest_name}:`, iError);
+      else console.log(`Successfully created guest: ${booking.guest_name}`);
+    }
+  } catch (err) {
+    console.error("syncGuestFromBooking failed:", err);
   }
 };
 

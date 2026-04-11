@@ -84,7 +84,7 @@ export default function Sidebar({ isMobileOpen, onCloseMobile }: { isMobileOpen?
               onClick={onCloseMobile}
               className={`
                 flex items-center gap-3 h-11 px-4 rounded-xl transition-all duration-200 group/nav
-                font-sans font-medium text-[14px] leading-none no-underline
+                font-sans font-semibold text-[14px] leading-none no-underline
                 ${isActive 
                   ? 'bg-accent text-white shadow-md shadow-accent/20' 
                   : 'text-ink-primary/80 hover:bg-accent/5 hover:text-accent'}
@@ -99,11 +99,11 @@ export default function Sidebar({ isMobileOpen, onCloseMobile }: { isMobileOpen?
 
       <div className="mt-auto px-4 py-4 border-t border-border-subtle bg-bg-sunken/30">
         <div className="flex items-center gap-3 px-2 py-3">
-          <div className="w-9 h-9 rounded-full bg-accent text-white flex items-center justify-center font-medium text-xs ring-2 ring-white shadow-sm">
+          <div className="w-9 h-9 rounded-full bg-accent text-white flex items-center justify-center font-semibold text-xs ring-2 ring-white shadow-sm">
             {isReception ? 'R' : isOwner ? 'O' : 'MD'}
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-[13px] font-medium text-ink-primary truncate">
+            <span className="text-[13px] font-semibold text-ink-primary truncate">
               {isReception ? 'Reception' : isOwner ? 'Property Owner' : 'Operations Manager'}
             </span>
             <span className="text-[10px] text-ink-muted uppercase font-medium tracking-wider">

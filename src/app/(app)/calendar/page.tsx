@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Search, 
+import {
+  ChevronLeft,
+  ChevronRight,
+  Search,
   Filter,
   Plus,
   Info,
@@ -27,6 +27,9 @@ export default function CalendarPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [startDate, setStartDate] = useState(startOfDay(new Date()));
   const [searchQuery, setSearchQuery] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [floorFilter, setFloorFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [selectedRoom, setSelectedRoom] = useState<(Room & { booking?: Booking }) | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
@@ -38,7 +41,7 @@ export default function CalendarPage() {
 
   useEffect(() => {
     setIsMounted(true);
-    
+
     const fetchData = async () => {
       try {
         const currentProperty = getSelectedProperty();
@@ -48,19 +51,19 @@ export default function CalendarPage() {
           getEnrichedRooms(),
           getBookingsList()
         ]);
-        
+
         // Ensure we ALWAYS have rooms to show
-        const roomsToSet = Array.isArray(fetchedRooms) && fetchedRooms.length > 0 
-          ? fetchedRooms 
+        const roomsToSet = Array.isArray(fetchedRooms) && fetchedRooms.length > 0
+          ? fetchedRooms
           : [];
-          
+
         setRooms(roomsToSet);
         setBookings(Array.isArray(fetchedBookings) ? fetchedBookings : []);
       } catch (error) {
         console.error("Failed to fetch calendar data:", error);
       }
     };
-    
+
     fetchData();
     window.addEventListener('storage', fetchData);
     return () => window.removeEventListener('storage', fetchData);
@@ -69,21 +72,47 @@ export default function CalendarPage() {
   if (!isMounted) return <div className="p-20 text-center text-ink-muted">Loading calendar...</div>;
 
   const filteredRooms = rooms.filter(r => {
-    const matchesSearch = 
+    const matchesSearch =
       r.room_number.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     const matchesProperty = !propertyId || propertyId === 'all' || r.property_id === propertyId;
-    
-    return matchesSearch && matchesProperty;
+
+    const matchesFloor = floorFilter === 'all' || String(r.floor) === floorFilter;
+
+    const matchesStatus = statusFilter === 'all' || r.status === statusFilter;
+
+    return matchesSearch && matchesProperty && matchesFloor && matchesStatus;
   });
 
   const getBookingForDate = (roomId: string, date: Date) => {
+    const day = startOfDay(date);
+    const isToday = isSameDay(day, startOfDay(new Date()));
+
+    // 1. Look for a guest who is CURRENTLY in the room (checked-in) and checking out today
+    if (isToday) {
+      const checkoutGuest = bookings.find(b =>
+        b.room_id === roomId &&
+        b.status === 'checked_in' &&
+        isSameDay(startOfDay(parseISO(b.check_out_date)), day)
+      );
+      if (checkoutGuest) return checkoutGuest;
+    }
+
+    // 2. Otherwise, look for a guest who occupies the night of this date
+    // Or if the user explicitly wants to see checkouts on their final day
     return bookings.find(b => {
       if (b.room_id !== roomId || b.status === 'cancelled' || b.status === 'no_show') return false;
-      const start = parseISO(b.check_in_date);
-      const end = parseISO(b.check_out_date);
-      // Booking covers the date if date is between start and end (inclusive of start, exclusive of end usually, but for visualization we show check-out day as part of it or handle overlap)
-      return (isSameDay(date, start) || (date > start && date < end));
+      const start = startOfDay(parseISO(b.check_in_date));
+      const end = startOfDay(parseISO(b.check_out_date));
+
+      // Standard occupancy covers the night of the date
+      const staysNight = (isSameDay(day, start) || (day > start && day < end));
+
+      // If it's the checkout day and the guest is still in-house, show them
+      const isCheckOutDay = isSameDay(day, end);
+      const isStillInHouse = b.status === 'checked_in';
+
+      return staysNight || (isCheckOutDay && isStillInHouse);
     });
   };
 
@@ -92,7 +121,14 @@ export default function CalendarPage() {
       setSelectedRoom({ ...room, booking });
       setIsDrawerOpen(true);
     } else {
-      router.push(`/booking/new?room=${room.room_number}&property=${room.property_id}&date=${format(date, 'yyyy-MM-dd')}`);
+      const isToday = isSameDay(date, new Date());
+      // If the room is being cleaned or under maintenance TODAY, open the room drawer to manage its status first
+      if (isToday && (room.status === 'cleaning' || room.status === 'maintenance')) {
+        setSelectedRoom(room);
+        setIsDrawerOpen(true);
+      } else {
+        router.push(`/booking/new?room=${room.room_number}&property=${room.property_id}&date=${format(date, 'yyyy-MM-dd')}`);
+      }
     }
   };
 
@@ -102,9 +138,9 @@ export default function CalendarPage() {
       <header className="px-6 py-4 border-b border-border-subtle flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 bg-white z-20 shadow-sm">
         <div className="flex items-center gap-6">
           <h1 className="text-xl font-display font-medium text-ink-primary whitespace-nowrap tracking-tight">Room Availability</h1>
-          
+
           <div className="flex items-center bg-bg-sunken rounded-lg p-1 border border-border-subtle">
-            <button 
+            <button
               onClick={() => setStartDate(addDays(startDate, -7))}
               className="p-1.5 hover:bg-white hover:shadow-sm rounded-md transition-all text-ink-muted hover:text-ink-primary"
             >
@@ -113,7 +149,7 @@ export default function CalendarPage() {
             <div className="px-4 text-sm font-medium text-ink-secondary min-w-[140px] text-center">
               {format(startDate, 'MMM yyyy')}
             </div>
-            <button 
+            <button
               onClick={() => setStartDate(addDays(startDate, 7))}
               className="p-1.5 hover:bg-white hover:shadow-sm rounded-md transition-all text-ink-muted hover:text-ink-primary"
             >
@@ -121,7 +157,7 @@ export default function CalendarPage() {
             </button>
           </div>
 
-          <button 
+          <button
             onClick={() => setStartDate(startOfDay(new Date()))}
             className="text-xs font-medium text-accent hover:underline uppercase tracking-wider"
           >
@@ -132,19 +168,97 @@ export default function CalendarPage() {
         <div className="flex items-center gap-3">
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
-            <input 
-              type="text" 
-              placeholder="Search room..." 
+            <input
+              type="text"
+              placeholder="Search room..."
               className="input pl-10 h-10 w-48 text-sm"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
           </div>
-          <button className="btn btn-ghost border-border-subtle h-10 px-3 flex items-center gap-2">
-            <Filter size={16} />
-            <span className="text-sm">Filter</span>
-          </button>
-          <button 
+          <div className="relative">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`btn ${showFilters ? 'btn-accent' : 'btn-ghost border-border-subtle'} h-10 px-3 flex items-center gap-2 transition-all`}
+            >
+              <Filter size={16} />
+              <span className="text-sm">Filter</span>
+              {(floorFilter !== 'all' || statusFilter !== 'all') && (
+                <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+              )}
+            </button>
+
+            {showFilters && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowFilters(false)}
+                />
+                <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-border-subtle z-50 p-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-bold text-ink-primary">Filter Rooms</h3>
+                    <button
+                      onClick={() => {
+                        setFloorFilter('all');
+                        setStatusFilter('all');
+                      }}
+                      className="text-[10px] text-accent font-bold uppercase tracking-wider hover:underline"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-[10px] text-ink-muted uppercase font-bold tracking-widest mb-1.5 block">Floor</label>
+                      <select
+                        value={floorFilter}
+                        onChange={(e) => setFloorFilter(e.target.value)}
+                        className="w-full h-9 rounded-lg border border-border-subtle bg-bg-sunken px-2 text-sm outline-none focus:border-accent transition-colors"
+                      >
+                        <option value="all">All Floors</option>
+                        {[...new Set(rooms.map(r => r.floor))].sort().map(floor => (
+                          <option key={floor} value={String(floor)}>Floor {floor}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] text-ink-muted uppercase font-bold tracking-widest mb-1.5 block">Status</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {['all', 'vacant', 'occupied', 'cleaning', 'maintenance'].map(status => {
+                          const getStatusClass = (s: string) => {
+                            if (statusFilter !== s) return 'bg-bg-sunken text-ink-muted border-transparent hover:border-border-subtle';
+                            switch(s) {
+                              case 'vacant': return 'bg-status-vacant-fg text-white border-status-vacant-border';
+                              case 'occupied': return 'bg-status-occupied-fg text-white border-status-occupied-border';
+                              case 'cleaning': return 'bg-status-cleaning-fg text-white border-status-cleaning-border';
+                              case 'maintenance': return 'bg-status-maintenance-fg text-white border-status-maintenance-border';
+                              default: return 'bg-accent text-white border-accent';
+                            }
+                          };
+                          
+                          return (
+                            <button
+                              key={status}
+                              onClick={() => setStatusFilter(status)}
+                              className={`
+                                px-2 py-1.5 rounded-lg text-xs font-semibold capitalize border transition-all
+                                ${getStatusClass(status)}
+                              `}
+                            >
+                              {status}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+          <button
             onClick={() => openNewBooking()}
             className="btn btn-accent h-10 px-4 flex items-center gap-2"
           >
@@ -157,86 +271,119 @@ export default function CalendarPage() {
       {/* Calendar Grid Container */}
       <div className="flex-1 overflow-auto relative bg-bg-sunken/30 select-none">
         <table className="border-separate border-spacing-0 w-full min-w-max">
-          <thead className="sticky top-0 z-30">
+          <thead className="sticky top-0 z-40 bg-white shadow-[0_2px_10px_-3px_rgba(0,0,0,0.07)]">
             <tr>
-              <th className="sticky left-0 z-40 bg-white border-b border-r border-border-subtle p-0 w-48 h-14">
+              <th className="sticky left-0 top-0 z-50 bg-white border-b border-r border-border-subtle p-0 w-48 h-14 shadow-[2px_0_10px_-3px_rgba(0,0,0,0.07)]">
                 <div className="flex flex-col justify-center items-start px-4 h-full">
-                  <span className="text-[10px] font-medium text-ink-muted uppercase tracking-widest leading-none mb-1">Room</span>
+                  <span className="text-[10px] font-semibold text-ink-muted uppercase tracking-widest leading-none mb-1">Room</span>
                   <span className="text-xs text-ink-secondary">Total {filteredRooms.length} Units</span>
                 </div>
               </th>
               {days.map((date, i) => {
                 const isToday = isSameDay(date, new Date());
                 const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-                
+
                 return (
-                  <th 
-                    key={i} 
+                  <th
+                    key={i}
                     className={`
-                      border-b border-r border-border-subtle p-0 w-16 h-14 transition-colors
+                      border-b border-r border-border-subtle p-0 w-16 h-14 transition-colors relative
                       ${isToday ? 'bg-accent/5' : 'bg-white'}
                       ${isWeekend ? 'bg-bg-sunken/40' : ''}
                     `}
                   >
                     <div className="flex flex-col items-center justify-center h-full">
-                      <span className={`text-[10px] font-medium uppercase tracking-tighter ${isToday ? 'text-accent' : 'text-ink-muted'}`}>
+                      <span className={`text-[10px] font-semibold uppercase tracking-tighter ${isToday ? 'text-accent' : 'text-ink-muted'}`}>
                         {format(date, 'eee')}
                       </span>
-                      <span className={`text-sm font-medium mt-0.5 ${isToday ? 'text-accent' : 'text-ink-primary'}`}>
+                      <span className={`text-sm font-semibold mt-0.5 ${isToday ? 'text-accent' : 'text-ink-primary'}`}>
                         {format(date, 'd')}
                       </span>
                     </div>
-                    {isToday && <div className="absolute top-0 left-0 right-0 h-1 bg-accent" />}
+                    {isToday && <div className="absolute top-0 left-0 right-0 h-1 bg-accent z-10" />}
                   </th>
                 );
               })}
             </tr>
           </thead>
-          
-          <tbody className="relative z-10">
+
+          <tbody className="">
             {filteredRooms.map((room, ri) => (
               <tr key={room.id} className="group">
-                <td className="sticky left-0 z-20 bg-white border-b border-r border-border-subtle p-0 w-48 h-16 group-hover:bg-bg-sunken transition-colors">
-                  <div className="flex items-center gap-3 px-4 h-full cursor-pointer" onClick={() => {
-                    const activeBooking = bookings.find(b => b.room_id === room.id && (isSameDay(parseISO(b.check_in_date), new Date()) || (new Date() > parseISO(b.check_in_date) && new Date() < parseISO(b.check_out_date))));
-                    setSelectedRoom({ ...room, booking: activeBooking });
-                    setIsDrawerOpen(true);
-                  }}>
-                    <div className={`w-1.5 h-8 rounded-full shadow-sm bg-status-${(room.status || 'vacant').toLowerCase()}-fg`} />
-                    <div className="flex flex-col">
-                        <span className="text-sm font-medium text-ink-primary group-hover:text-accent transition-colors">Room {room.room_number}</span>
-                        <span className="text-[10px] text-ink-muted uppercase tracking-wider font-light">Unit</span>
-                    </div>
-                  </div>
+                <td className="sticky left-0 z-30 bg-white border-b border-r border-border-subtle p-0 w-48 h-16 group-hover:bg-bg-sunken transition-colors">
+                  {(() => {
+                    const today = startOfDay(new Date());
+                    const activeBooking = bookings.find(b => {
+                      if (b.room_id !== room.id || b.status === 'cancelled' || b.status === 'no_show' || b.status === 'completed') return false;
+                      const start = startOfDay(parseISO(b.check_in_date));
+                      const end = startOfDay(parseISO(b.check_out_date));
+                      return (isSameDay(today, start) || (today > start && today < end)) || isSameDay(today, end);
+                    });
+
+                    let effectiveStatus = (room.status || 'vacant').toLowerCase();
+                    let colorClass = `bg-status-${effectiveStatus.replace('_', '-')}-fg`;
+                    if (activeBooking) {
+                      const checkOutDay = startOfDay(parseISO(activeBooking.check_out_date));
+                      const checkInDay = startOfDay(parseISO(activeBooking.check_in_date));
+
+                      const isCheckoutToday = isSameDay(checkOutDay, today);
+                      const isArrivingToday = isSameDay(checkInDay, today);
+
+                      if (isCheckoutToday) {
+                        colorClass = 'bg-status-checkout-fg';
+                      } else if (isArrivingToday) {
+                        colorClass = 'bg-status-arriving-fg';
+                      } else if (activeBooking.status === 'checked_in') {
+                        colorClass = 'bg-success';
+                      } else if (activeBooking.status === 'confirmed') {
+                        colorClass = 'bg-accent';
+                      }
+                    }
+
+                    return (
+                      <div className="flex items-center gap-3 px-4 h-full cursor-pointer" onClick={() => {
+                        setSelectedRoom({ ...room, booking: activeBooking });
+                        setIsDrawerOpen(true);
+                      }}>
+                        <div className={`w-1.5 h-8 rounded-full shadow-sm ${colorClass}`} />
+                        <div className="flex flex-col">
+                          <span className="text-sm font-semibold text-ink-primary group-hover:text-accent transition-colors">Room {room.room_number}</span>
+                          <span className="text-[10px] text-ink-muted uppercase tracking-wider font-light">Unit</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </td>
-                
+
                 {(() => {
                   const segments: { type: 'empty' | 'booked'; duration: number; date: Date; booking?: Booking }[] = [];
                   let di = 0;
                   while (di < days.length) {
                     const date = days[di];
                     const booking = getBookingForDate(room.id, date);
-                    
+
                     if (booking) {
-                      // Calculate how many days of this booking are visible from this point
                       let checkOutDate;
                       try {
-                        checkOutDate = parseISO(booking.check_out_date);
+                        checkOutDate = startOfDay(parseISO(booking.check_out_date));
                       } catch (e) {
                         checkOutDate = addDays(date, 1);
                       }
 
                       let duration = 0;
                       let tempDi = di;
+                      const currentBookingId = booking.id;
+
                       while (tempDi < days.length) {
-                        const d = days[tempDi];
-                        // Safeguard: Stop if we hit check-out date OR if we've looped but haven't advanced (impossible stay)
-                        if (isSameDay(d, checkOutDate) || d >= checkOutDate) break;
-                        duration++;
-                        tempDi++;
+                        const nextBooking = getBookingForDate(room.id, days[tempDi]);
+                        if (nextBooking?.id === currentBookingId) {
+                          duration++;
+                          tempDi++;
+                        } else {
+                          break;
+                        }
                       }
-                      
-                      // CRITICAL FIX: Ensure di always advances even for logically impossible 0-night stays
+
                       const finalDi = Math.max(tempDi, di + 1);
                       const finalDuration = Math.max(duration, 1);
 
@@ -253,54 +400,73 @@ export default function CalendarPage() {
                     const isWeekend = seg.date.getDay() === 0 || seg.date.getDay() === 6;
 
                     if (seg.type === 'booked' && seg.booking) {
-                          const isBookingStart = isSameDay(seg.date, parseISO(seg.booking.check_in_date));
-                          const isFutureBooking = parseISO(seg.booking.check_in_date) > new Date();
-                          const displayStatus = isFutureBooking ? 'confirmed' : seg.booking.status;
-                          
-                          return (
-                            <td 
-                              key={si}
-                              colSpan={seg.duration}
-                              onClick={() => handleCellClick(room, seg.date, seg.booking)}
-                              className={`
+                      const checkInDate = parseISO(seg.booking.check_in_date);
+                      const checkOutDate = parseISO(seg.booking.check_out_date);
+                      const isBookingStart = isSameDay(seg.date, checkInDate);
+                      const isFutureBooking = checkInDate > new Date();
+                      const isCheckoutToday = isSameDay(checkOutDate, new Date());
+                      const isArrivingToday = isSameDay(checkInDate, new Date());
+
+                      const displayStatus = isFutureBooking ? 'confirmed' : seg.booking.status;
+
+                      // Determine color class
+                      let colorClass = 'bg-ink-muted text-white';
+                      let labelStatus = displayStatus;
+
+                      if (isCheckoutToday && displayStatus === 'checked_in') {
+                        colorClass = 'bg-status-checkout-fg text-white';
+                        labelStatus = 'checking out';
+                      } else if (isArrivingToday && displayStatus === 'confirmed') {
+                        colorClass = 'bg-status-arriving-fg text-white';
+                        labelStatus = 'arriving';
+                      } else if (displayStatus === 'confirmed') {
+                        colorClass = 'bg-accent text-white';
+                      } else if (displayStatus === 'checked_in') {
+                        colorClass = 'bg-success text-white';
+                      }
+
+                      return (
+                        <td
+                          key={si}
+                          colSpan={seg.duration}
+                          onClick={() => handleCellClick(room, seg.date, seg.booking)}
+                          className={`
                                 border-b border-r border-border-subtle p-1 h-16 relative cursor-pointer
                                 hover:bg-bg-sunken transition-colors group/cell
                               `}
-                            >
-                              <div 
-                                className={`
+                        >
+                          <div
+                            className={`
                                   w-full h-full rounded-lg shadow-sm flex flex-col justify-center px-3 py-1 overflow-hidden transition-all duration-300 transform active:scale-[0.98]
-                                  ${displayStatus === 'confirmed' ? 'bg-accent text-white' : 
-                                    displayStatus === 'checked_in' ? 'bg-success text-white' : 
-                                    'bg-ink-muted text-white'}
+                                  ${colorClass}
                                   ${!isBookingStart ? 'rounded-l-none' : ''}
                                 `}
-                                title={`${seg.booking.guest_name} • ${formatDate(seg.booking.check_in_date)} - ${formatDate(seg.booking.check_out_date)}`}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[10px] font-medium leading-none truncate whitespace-nowrap">
-                                    {seg.booking.guest_name}
-                                  </span>
-                                  {seg.duration > 1 && (
-                                    <span className="text-[8px] font-medium opacity-70 uppercase whitespace-nowrap bg-white/10 px-1.5 py-0.5 rounded ml-2">
-                                      {seg.duration} Nights
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-1.5 mt-1">
-                                  <div className={`w-1.5 h-1.5 rounded-full bg-white ${displayStatus === 'checked_in' ? 'animate-pulse' : ''}`} />
-                                  <span className="text-[8px] font-semibold uppercase tracking-widest opacity-80">
-                                    {displayStatus.replace('_', ' ')}
-                                  </span>
-                                </div>
-                              </div>
-                            </td>
-                          );
+                            title={`${seg.booking.guest_name} • ${formatDate(seg.booking.check_in_date)} - ${formatDate(seg.booking.check_out_date)}`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-semibold leading-none truncate whitespace-nowrap">
+                                {seg.booking.guest_name}
+                              </span>
+                              {seg.duration > 1 && (
+                                <span className="text-[8px] font-semibold opacity-70 uppercase whitespace-nowrap bg-white/10 px-1.5 py-0.5 rounded ml-2">
+                                  {seg.duration} Nights
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <div className={`w-1.5 h-1.5 rounded-full bg-white ${displayStatus === 'checked_in' ? 'animate-pulse' : ''}`} />
+                              <span className="text-[8px] font-semibold uppercase tracking-widest opacity-80">
+                                {labelStatus.replace('_', ' ')}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                      );
                     }
 
                     return (
-                      <td 
-                        key={si} 
+                      <td
+                        key={si}
                         onClick={() => handleCellClick(room, seg.date)}
                         className={`
                           border-b border-r border-border-subtle p-0.5 w-16 h-16 relative cursor-pointer
@@ -309,9 +475,22 @@ export default function CalendarPage() {
                           ${isWeekend ? 'bg-bg-sunken/20' : ''}
                         `}
                       >
-                        <div className="w-full h-full opacity-0 group-hover/cell:opacity-100 flex items-center justify-center transition-opacity">
-                           <Plus size={14} className="text-ink-muted hover:text-accent" />
-                        </div>
+                        {isToday && (room.status === 'cleaning' || room.status === 'maintenance') ? (
+                          <div className={`
+                            w-full h-full p-1 opacity-80
+                          `}>
+                            <div className={`
+                              w-full h-full rounded-lg border-2 border-dashed flex flex-col items-center justify-center
+                              ${room.status === 'cleaning' ? 'border-status-cleaning-fg text-status-cleaning-fg bg-status-cleaning-fg/5' : 'border-status-maintenance-fg text-status-maintenance-fg bg-status-maintenance-fg/5'}
+                            `}>
+                              <span className="text-[7px] font-bold uppercase tracking-tighter leading-none">{room.status}</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="w-full h-full opacity-0 group-hover/cell:opacity-100 flex items-center justify-center transition-opacity">
+                            <Plus size={14} className="text-ink-muted hover:text-accent" />
+                          </div>
+                        )}
                         {isToday && <div className="absolute left-0 right-0 top-0 h-0.5 bg-accent/20" />}
                       </td>
                     );
@@ -345,13 +524,13 @@ export default function CalendarPage() {
             <span className="text-[10px] font-medium text-accent uppercase tracking-[0.15em] leading-none">Today</span>
           </div>
         </div>
-        
+
         <div className="text-[11px] text-ink-muted">
-           <span className="font-medium text-ink-secondary">PRO TIP:</span> Click any vacant slot to create a new booking on that date.
+          <span className="font-medium text-ink-secondary">PRO TIP:</span> Click any vacant slot to create a new booking on that date.
         </div>
       </footer>
 
-      <RoomDrawer 
+      <RoomDrawer
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         room={selectedRoom}

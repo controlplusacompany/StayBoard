@@ -13,7 +13,7 @@ import { getEnrichedRooms, getStoredBookings, getSelectedProperty, getArrivalsTo
 import { Room, Booking } from '@/types';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useNewBooking } from '@/components/booking/NewBookingProvider';
-import { parseISO, format, isSameDay } from 'date-fns';
+import { parseISO, format, isSameDay, differenceInDays } from 'date-fns';
 import Badge from '@/components/ui/Badge';
 
 export default function DashboardPage() {
@@ -100,7 +100,7 @@ export default function DashboardPage() {
     return {
       occupied: propertyRooms.filter(r => r.status === 'occupied').length,
       checkout_today: propertyRooms.filter(r => r.status === 'checkout_today').length,
-      roomStatusList: propertyRooms.map(r => ({ status: r.status, floor: r.floor }))
+      roomStatusList: propertyRooms.map(r => ({ status: r.status, floor: r.floor, name: r.name }))
     };
   };
 
@@ -157,10 +157,6 @@ export default function DashboardPage() {
     <div className="p-4 md:p-6 lg:p-8 flex flex-col gap-6 animate-slide-up bg-bg-canvas min-h-screen">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="flex flex-col gap-2 w-full">
-          <span className="text-[10px] font-medium text-accent uppercase tracking-[0.3em] font-sans flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-            {currentDateTime}
-          </span>
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 w-full">
             <h1 className="text-3xl md:text-4xl font-display text-ink-primary tracking-tighter font-medium text-balance">
               {getGreeting()}
@@ -169,21 +165,24 @@ export default function DashboardPage() {
         </div>
 
         {!isReception && (
-          <div className="flex items-center gap-8 md:text-right shrink-0">
-            <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-8 text-right shrink-0">
+            <div className="flex flex-col gap-1 items-end">
               <span className="text-[10px] font-medium uppercase tracking-widest text-ink-muted">Occupancy</span>
               <span className="text-xl sm:text-2xl font-mono font-medium tracking-tight text-ink-primary">
                 {Math.round((allRooms.filter(r => r.status === 'occupied').length / Math.max(1, allRooms.length)) * 100)}%
               </span>
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 items-end">
               <span className="text-[10px] font-medium uppercase tracking-widest text-ink-muted">Revenue</span>
-              <span className="text-xl sm:text-2xl font-mono font-medium tracking-tight text-ink-primary">
-                ₹{Object.values(storedBookings)
-                  .filter(b => isSameDay(parseISO(b.check_in_date), new Date()))
-                  .filter(b => !propertyFilter || b.property_id === propertyFilter)
-                  .reduce((sum, b) => sum + (Number(b.amount_paid) || 0), 0)}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xl sm:text-2xl font-mono font-medium tracking-tight text-ink-primary">
+                  ₹{Object.values(storedBookings)
+                    .filter(b => isSameDay(parseISO(b.check_in_date), new Date()))
+                    .filter(b => !propertyFilter || b.property_id === propertyFilter)
+                    .reduce((sum, b) => sum + (Number(b.amount_paid) || 0), 0)}
+                </span>
+                <span className="text-[11px] font-bold text-success">↗ 0%</span>
+              </div>
             </div>
           </div>
         )}
@@ -191,130 +190,90 @@ export default function DashboardPage() {
 
       {/* GLOBAL KPI DASHBOARD */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-2">
-        {[
-          { 
-            label: 'Vacant Rooms', 
-            value: allRooms.filter(r => r.status === 'vacant').length, 
-            sub: 'Available tonight', 
-            border: 'border-l-success' 
-          },
-          { 
-            label: 'Occupied Rooms', 
-            value: allRooms.filter(r => r.status === 'occupied').length, 
-            sub: 'Currently in-stay', 
-            border: 'border-l-accent' 
-          },
-          { 
-            label: 'Check-ins Today', 
-            value: Object.values(storedBookings)
-              .filter(b => isSameDay(parseISO(b.check_in_date), new Date()))
-              .filter(b => !propertyFilter || b.property_id === propertyFilter)
-              .length, 
-            sub: 'Arriving guests', 
-            border: 'border-l-info' 
-          },
-          { 
-            label: 'Check-outs Today', 
-            value: Object.values(storedBookings)
-              .filter(b => isSameDay(parseISO(b.check_out_date), new Date()))
-              .filter(b => !propertyFilter || b.property_id === propertyFilter)
-              .length, 
-            sub: 'Departing guests', 
-            border: 'border-l-warning' 
-          },
-          { 
-            label: "Revenue Today", 
-            value: `₹${Object.values(storedBookings)
-              .filter(b => isSameDay(parseISO(b.check_in_date), new Date()))
-              .filter(b => !propertyFilter || b.property_id === propertyFilter)
-              .reduce((sum, b) => sum + (Number(b.amount_paid) || 0), 0).toLocaleString()}`, 
-            sub: 'Collected today', 
-            border: 'border-l-primary', 
-            isRevenue: true 
-          }
-        ].map((kpi, i) => (
-          <div key={i} className={`bg-white border border-border-subtle rounded-lg p-3 sm:p-4 shadow-xs border-l-4 ${kpi.border} flex flex-col gap-1 sm:gap-2 transition-all hover:shadow-md duration-300`}>
-            <span className="text-[9px] sm:text-[10px] font-medium text-ink-muted uppercase tracking-widest">{kpi.label}</span>
-            <div className="flex flex-col">
-              <span className={`text-xl sm:text-2xl font-display font-medium text-ink-primary ${kpi.isRevenue ? 'font-mono' : ''}`}>{kpi.value}</span>
-              <span className="text-[10px] text-ink-muted font-medium mt-0.5">
-                {kpi.sub} {kpi.isRevenue && <span className="text-success font-medium ml-1">↗ 0%</span>}
-              </span>
-            </div>
-          </div>
-        ))}
+            {[
+              { label: 'Vacant Rooms', value: allRooms.filter(r => r.status === 'vacant').length, sub: 'Available tonight', border: 'border-l-success' },
+              { label: 'Occupied Rooms', value: allRooms.filter(r => r.status === 'occupied').length, sub: 'Currently in-stay', border: 'border-l-accent' },
+              { label: 'Check-ins Today', value: Object.values(storedBookings).filter(b => isSameDay(parseISO(b.check_in_date), new Date())).filter(b => !propertyFilter || b.property_id === propertyFilter).length, sub: 'Arriving guests', border: 'border-l-info' },
+              { label: 'Check-outs Today', value: Object.values(storedBookings).filter(b => isSameDay(parseISO(b.check_out_date), new Date())).filter(b => !propertyFilter || b.property_id === propertyFilter).length, sub: 'Departing guests', border: 'border-l-warning' },
+              { label: "Revenue Today", value: `₹${Object.values(storedBookings).filter(b => isSameDay(parseISO(b.check_in_date), new Date())).filter(b => !propertyFilter || b.property_id === propertyFilter).reduce((sum, b) => sum + (Number(b.amount_paid) || 0), 0).toLocaleString()}`, sub: 'Collected today', border: 'border-l-primary', isRevenue: true }
+            ].map((kpi, i) => (
+              <div key={i} className={`bg-white border border-border-subtle rounded-lg p-3 sm:p-4 shadow-xs border-l-4 ${kpi.border} flex flex-col gap-1 sm:gap-2 transition-all hover:shadow-md duration-300`}>
+                <span className="text-[9px] sm:text-[10px] font-semibold text-ink-muted uppercase tracking-widest">{kpi.label}</span>
+                <div className="flex flex-col">
+                  <span className={`text-xl sm:text-2xl font-display font-semibold text-ink-primary ${kpi.isRevenue ? 'font-mono' : ''}`}>{kpi.value}</span>
+                  <span className="text-[10px] text-ink-muted font-medium mt-0.5">
+                    {kpi.sub} {kpi.isRevenue && <span className="text-success font-semibold ml-1">↗ 0%</span>}
+                  </span>
+                </div>
+              </div>
+            ))}
       </div>
 
       {/* ARRIVALS TODAY SECTION */}
       {arrivals.length > 0 && (
-        <section className="flex flex-col gap-4">
-          <div className="flex items-center justify-between font-sans">
-            <h2 className="text-xl font-display text-ink-primary font-medium flex items-center gap-2">
-              Arrivals Today
-              <span className="w-5 h-5 rounded-full bg-accent text-[10px] text-white flex items-center justify-center font-bold">
-                {arrivals.length}
-              </span>
-            </h2>
+        <section className="flex flex-col gap-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-display text-ink-primary font-semibold">Arrivals Today</h2>
             <Link href="/reservations" className="text-xs font-bold text-accent uppercase tracking-widest hover:underline flex items-center gap-1.5 group">
               View Guest List <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
             </Link>
           </div>
-          <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 custom-scrollbar">
-            {arrivals.map(booking => (
-              <div key={booking.id} className="min-w-[280px] sm:min-w-[320px] bg-white border border-border-subtle rounded-2xl p-4 shadow-sm flex flex-col gap-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex flex-col">
-                    <span className="text-xs font-medium text-ink-muted uppercase tracking-wider">
-                      {booking.status === 'unassigned' ? 'Unassigned' : `Room ${storedRooms.find(r => r.id === booking.room_id)?.room_number}`}
-                    </span>
-                    <h3 className="text-base font-semibold text-ink-primary">{booking.guest_name}</h3>
-                  </div>
-                  <Badge variant={booking.status === 'assigned' ? 'success' : 'warning'}>
-                    {booking.status === 'assigned' ? 'Assigned' : 'Reserved'}
-                  </Badge>
-                </div>
-                
-                <div className="flex items-center gap-4 text-xs text-ink-muted">
-                  <div className="flex items-center gap-1.5">
-                    <User size={14} />
-                    <span>{booking.num_guests} Guests</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <CreditCard size={14} />
-                    <span>{booking.amount_paid > 0 ? 'Paid' : 'Unpaid'}</span>
-                  </div>
-                </div>
+          <div className="flex gap-5 overflow-x-auto pb-6 -mx-4 px-4 custom-scrollbar">
+            {arrivals.map(booking => {
+              const checkIn = parseISO(booking.check_in_date);
+              const checkOut = parseISO(booking.check_out_date);
+              const nights = differenceInDays(checkOut, checkIn) || 1;
+              const room = storedRooms.find(r => r.id === booking.room_id);
+              
+              return (
+                <div key={booking.id} className="min-w-[340px] bg-white border border-border-subtle rounded-xl shadow-sm overflow-hidden flex flex-col relative group transition-all hover:shadow-md">
+                  <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-accent" />
+                  <div className="p-5 flex flex-col gap-5">
+                    <div className="flex items-start justify-between">
+                      <div className="flex flex-col gap-1">
+                        <h3 className="text-xl font-bold text-ink-primary tracking-tight leading-tight">{booking.guest_name}</h3>
+                        <p className="text-sm font-medium text-ink-secondary">
+                          {room ? `Room ${room.room_number}` : 'Double Room'} • {nights} {nights === 1 ? 'night' : 'nights'}
+                        </p>
+                      </div>
+                      <div className="bg-blue-50 text-[10px] font-bold text-blue-600 px-2.5 py-1 rounded-md uppercase tracking-wide border border-blue-100">
+                        {booking.booking_source?.replace('_', '.') || 'Booking.com'}
+                      </div>
+                    </div>
 
-                <div className="flex gap-2 mt-auto">
-                  {booking.status === 'unassigned' ? (
-                    <button 
-                      onClick={() => openNewBooking()}
-                      className="flex-1 py-2 bg-accent text-white rounded-lg text-xs font-bold hover:bg-accent/90 transition-all"
-                    >
-                      Assign Room
-                    </button>
-                  ) : (
-                    <button 
-                      onClick={async () => {
-                        if (booking.room_id) {
-                          await updateBookingStatus(booking.id, 'checked_in');
-                          toast(`Guest ${booking.guest_name} checked in!`, 'success');
-                          // Refresh arrivals after check-in
-                          const updatedArrivals = await getArrivalsToday(propertyFilter || undefined);
-                          setArrivals(updatedArrivals);
-                        }
-                      }}
-                      className="flex-1 py-2 bg-success text-white rounded-lg text-xs font-bold hover:bg-success/90 transition-all font-mono"
-                    >
-                      CHECK IN
-                    </button>
-                  )}
-                  <button className="p-2 border border-border-subtle rounded-lg text-ink-muted hover:bg-bg-sunken">
-                    <ExternalLink size={16} />
-                  </button>
+                    <div className="flex items-end justify-between pt-1">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-ink-muted uppercase tracking-[0.2em]">ADVANCE PAID</span>
+                        <span className="text-2xl font-bold text-ink-primary mt-1 tracking-tight">₹{booking.amount_paid}</span>
+                      </div>
+                      
+                      {booking.status === 'unassigned' ? (
+                        <button 
+                          onClick={() => openNewBooking()}
+                          className="px-6 py-2.5 border-2 border-accent text-accent font-bold rounded-xl text-sm hover:bg-accent/5 transition-all shadow-sm"
+                        >
+                          Assign Room
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={async () => {
+                            if (booking.room_id) {
+                              await updateBookingStatus(booking.id, 'checked_in');
+                              toast(`Guest ${booking.guest_name} checked in!`, 'success');
+                              const updatedArrivals = await getArrivalsToday(propertyFilter || undefined);
+                              setArrivals(updatedArrivals);
+                            }
+                          }}
+                          className="px-6 py-2.5 border-2 border-success text-success font-bold rounded-xl text-sm hover:bg-success/5 transition-all shadow-sm"
+                        >
+                          Check In
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}
@@ -335,7 +294,7 @@ export default function DashboardPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
              </div>
-             {!isReception && (
+             {!isReception && !isOwnerRole && (
                <button 
                   onClick={handleAddPropertyClick}
                   className="btn btn-accent flex items-center gap-2 group whitespace-nowrap"
@@ -364,6 +323,7 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+        <div className="h-px bg-border-subtle mt-10 mb-6" />
       </section>
 
       {/* MODAL: Add Property */}

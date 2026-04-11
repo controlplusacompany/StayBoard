@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   Search, 
   Calendar, 
@@ -11,24 +12,46 @@ import {
   CalendarDays,
   Clock,
   ArrowRight,
-  ClipboardList
+  ClipboardList,
+  Trash2
 } from 'lucide-react';
 import { format, parseISO, isAfter, startOfDay, isToday } from 'date-fns';
-import { getBookingsList, getSelectedProperty, getStoredRooms } from '@/lib/store';
+import { getBookingsList, getSelectedProperty, getStoredRooms, updateBookingStatus } from '@/lib/store';
 import { Booking, Room } from '@/types';
 import Badge from '@/components/ui/Badge';
 import { useNewBooking } from '@/components/booking/NewBookingProvider';
 import Modal from '@/components/ui/Modal';
+import { useToast } from '@/components/ui/Toast';
 
 export default function ReservationsPage() {
+  const router = useRouter();
+  const { toast } = useToast();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'unassigned' | 'assigned'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'unassigned' | 'assigned' | 'in_house'>('all');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
   const { open: openNewBooking } = useNewBooking();
   const [propertyId, setPropertyId] = useState<string | null>(null);
+
+  const handleCheckInNow = (booking: Booking) => {
+    setSelectedBooking(null);
+    router.push(`/booking/new?booking_id=${booking.id}&mode=checkin&room=${booking.room_id || ''}&property=${booking.property_id}`);
+  };
+
+  const handleCancelBooking = async (bookingId: string) => {
+    if (confirm('Are you sure you want to cancel this reservation?')) {
+      try {
+        await updateBookingStatus(bookingId, 'cancelled');
+        toast('Reservation cancelled', 'success');
+        setSelectedBooking(null);
+        // Data will refresh via storage listener
+      } catch (err) {
+        toast('Failed to cancel reservation', 'error');
+      }
+    }
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -59,12 +82,19 @@ export default function ReservationsPage() {
     const checkOut = parseISO(b.check_out_date);
     if (!isAfter(checkOut, today) && !isToday(checkOut)) return false;
 
-    // 3. Status Filter: ONLY show pending arrivals (unassigned or assigned)
-    if (b.status !== 'unassigned' && b.status !== 'assigned') return false;
+    // 3. Status Filter:
+    const isArrival = b.status === 'unassigned' || b.status === 'assigned';
+    const isInHouse = b.status === 'checked_in';
 
-    // 4. Manual Status Filter
-    if (statusFilter === 'unassigned' && b.status !== 'unassigned') return false;
-    if (statusFilter === 'assigned' && b.status !== 'assigned') return false;
+    if (statusFilter === 'all') {
+      if (!isArrival && !isInHouse) return false;
+    } else if (statusFilter === 'unassigned') {
+      if (b.status !== 'unassigned') return false;
+    } else if (statusFilter === 'assigned') {
+      if (b.status !== 'assigned') return false;
+    } else if (statusFilter === 'in_house') {
+      if (!isInHouse) return false;
+    }
 
     // 5. Search
     const matchesSearch = 
@@ -72,7 +102,12 @@ export default function ReservationsPage() {
       b.guest_phone.includes(searchQuery);
 
     return matchesSearch;
-  }).sort((a, b) => parseISO(a.check_in_date).getTime() - parseISO(b.check_in_date).getTime());
+  }).sort((a, b) => {
+    // In-house guests first if we are in 'all' view, then by date
+    if (a.status === 'checked_in' && b.status !== 'checked_in') return -1;
+    if (a.status !== 'checked_in' && b.status === 'checked_in') return 1;
+    return parseISO(a.check_in_date).getTime() - parseISO(b.check_in_date).getTime();
+  });
 
   const getRoomNumber = (roomId: string) => {
     return rooms.find(r => r.id === roomId)?.room_number || 'N/A';
@@ -94,7 +129,7 @@ export default function ReservationsPage() {
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">
         <div className="flex flex-col gap-3">
           <span className="text-[10px] font-medium text-accent uppercase tracking-[0.3em] font-sans">{format(new Date(), 'EEEE, dd MMM yyyy')}</span>
-          <h1 className="text-4xl md:text-5xl font-display text-ink-primary tracking-tighter font-medium text-balance">Future Reservations</h1>
+          <h1 className="text-4xl md:text-5xl font-display text-ink-primary tracking-tighter font-medium text-balance">Reservations & Stays</h1>
         </div>
         
         <button 
@@ -120,13 +155,13 @@ export default function ReservationsPage() {
         </div>
         
         <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto no-scrollbar py-1">
-          {(['all', 'unassigned', 'assigned'] as const).map((status) => (
+          {(['all', 'unassigned', 'assigned', 'in_house'] as const).map((status) => (
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
               className={`px-4 py-2 rounded-lg text-xs font-bold transition-all uppercase tracking-wider whitespace-nowrap ${statusFilter === status ? 'bg-accent text-white shadow-md' : 'bg-bg-sunken text-ink-muted hover:text-ink-primary border border-border-subtle'}`}
             >
-              {status}
+              {status.replace('_', ' ')}
             </button>
           ))}
         </div>
@@ -207,75 +242,88 @@ export default function ReservationsPage() {
         )}
       </div>
 
-      {/* Booking Details Modal (Reuse logic if needed or just show basic info) */}
       <Modal 
         isOpen={!!selectedBooking} 
         onClose={() => setSelectedBooking(null)}
         title="Reservation Details"
       >
         {selectedBooking && (
-          <div className="flex flex-col gap-6">
-            <div className="bg-bg-sunken p-4 rounded-xl flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-ink-muted shadow-sm">
-                <UserCircle2 size={24} />
+          <div className="flex flex-col gap-4">
+            <div className="bg-bg-sunken p-3 rounded-xl flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-ink-muted shadow-sm">
+                <UserCircle2 size={20} />
               </div>
               <div className="flex flex-col">
-                <h3 className="text-lg font-semibold text-ink-primary">{selectedBooking.guest_name}</h3>
-                <span className="text-xs text-ink-muted font-mono">{selectedBooking.guest_phone}</span>
+                <h3 className="text-base font-semibold text-ink-primary leading-tight">{selectedBooking.guest_name}</h3>
+                <span className="text-[10px] text-ink-muted font-mono">{selectedBooking.guest_phone}</span>
               </div>
               <div className="ml-auto">
                 <Badge type={selectedBooking.status} label={selectedBooking.status.replace('_', ' ')} />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="border border-border-subtle rounded-lg p-4 flex flex-col gap-1.5">
-                <span className="text-[10px] uppercase font-bold text-ink-muted tracking-widest flex items-center gap-1.5 line-clamp-1">
-                  <Calendar size={12} /> Check-In
+            <div className="grid grid-cols-2 gap-3">
+              <div className="border border-border-subtle rounded-lg p-3 flex flex-col gap-1">
+                <span className="text-[9px] uppercase font-bold text-ink-muted tracking-widest flex items-center gap-1.5">
+                  <Calendar size={10} /> Check-In
                 </span>
-                <span className="text-sm font-semibold text-ink-primary">
-                  {format(parseISO(selectedBooking.check_in_date), 'EEEE, dd MMM yyyy')}
+                <span className="text-xs font-semibold text-ink-primary">
+                  {format(parseISO(selectedBooking.check_in_date), 'dd MMM yyyy')}
                 </span>
               </div>
-              <div className="border border-border-subtle rounded-lg p-4 flex flex-col gap-1.5">
-                <span className="text-[10px] uppercase font-bold text-ink-muted tracking-widest flex items-center gap-1.5 line-clamp-1">
-                  <Calendar size={12} /> Check-Out
+              <div className="border border-border-subtle rounded-lg p-3 flex flex-col gap-1">
+                <span className="text-[9px] uppercase font-bold text-ink-muted tracking-widest flex items-center gap-1.5">
+                  <Calendar size={10} /> Check-Out
                 </span>
-                <span className="text-sm font-semibold text-ink-primary">
-                  {format(parseISO(selectedBooking.check_out_date), 'EEEE, dd MMM yyyy')}
+                <span className="text-xs font-semibold text-ink-primary">
+                  {format(parseISO(selectedBooking.check_out_date), 'dd MMM yyyy')}
                 </span>
               </div>
             </div>
 
-            <div className="bg-accent/5 border border-accent/10 rounded-xl p-4 flex items-center justify-between">
+            <div className="bg-accent/5 border border-accent/10 rounded-xl p-3 flex items-center justify-between">
               <div className="flex flex-col gap-0.5">
-                <span className="text-xs font-bold text-accent uppercase tracking-widest">Pricing</span>
-                <span className="font-mono text-sm text-ink-primary">Base Rate: ₹{Math.round(selectedBooking.total_amount / (Math.max(1, (parseISO(selectedBooking.check_out_date).getTime() - parseISO(selectedBooking.check_in_date).getTime()) / (1000 * 60 * 60 * 24))))}</span>
+                <span className="text-[9px] font-semibold text-accent uppercase tracking-widest">Pricing</span>
+                <span className="font-mono text-xs text-ink-primary">Rate: ₹{Math.round(selectedBooking.total_amount / (Math.max(1, (parseISO(selectedBooking.check_out_date).getTime() - parseISO(selectedBooking.check_in_date).getTime()) / (1000 * 60 * 60 * 24))))}</span>
               </div>
               <div className="text-right">
-                <span className="text-xs font-bold text-accent uppercase tracking-widest">Total Stay</span>
-                <div className="text-xl font-mono font-bold text-ink-primary">₹{selectedBooking.total_amount.toLocaleString()}</div>
+                <span className="text-[9px] font-semibold text-accent uppercase tracking-widest">Total Amount</span>
+                <div className="text-lg font-mono font-semibold text-ink-primary leading-none">₹{selectedBooking.total_amount.toLocaleString()}</div>
               </div>
             </div>
 
             {selectedBooking.status === 'unassigned' && (
-              <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-start gap-3">
-                 <div className="text-amber-600 mt-0.5"><Clock size={16} /></div>
-                 <div className="flex flex-col gap-1">
-                   <span className="text-xs font-bold text-amber-800 uppercase tracking-widest">Unassigned Reservation</span>
-                   <p className="text-xs text-amber-700 leading-relaxed">
-                     This guest has a confirmed reservation but no specific room has been assigned yet. This allows for flexible inventory management.
-                   </p>
-                 </div>
+              <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg flex items-start gap-2">
+                 <div className="text-amber-600 mt-0.5"><Clock size={14} /></div>
+                 <p className="text-[10px] text-amber-800 leading-tight">
+                   <strong className="font-semibold">Unassigned:</strong> Confirmed reservation without an assigned room.
+                 </p>
               </div>
             )}
             
-            <button 
-              onClick={() => setSelectedBooking(null)}
-              className="btn btn-primary w-full"
-            >
-              Close
-            </button>
+            <div className="flex flex-col gap-2 mt-2">
+              <button 
+                onClick={() => handleCheckInNow(selectedBooking)}
+                className="btn btn-accent w-full py-3 text-[11px]"
+              >
+                CHECK IN NOW
+              </button>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => handleCancelBooking(selectedBooking.id)}
+                  className="btn btn-danger flex-1 flex items-center justify-center gap-2 py-2.5 text-[9px]"
+                >
+                  <Trash2 size={12} />
+                  CANCEL
+                </button>
+                <button 
+                  onClick={() => setSelectedBooking(null)}
+                  className="btn btn-primary flex-1 py-2.5 text-[9px]"
+                >
+                  CLOSE
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </Modal>

@@ -55,9 +55,9 @@ const config: Config = {
         "border-strong": "var(--border-strong)",
       },
       fontFamily: {
-        display: ["var(--font-display)", "system-ui", "serif"],
+        display: ["var(--font-sans)", "system-ui", "sans-serif"],
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
-        mono: ["var(--font-mono)", "monospace"],
+        mono: ["var(--font-sans)", "monospace"],
       },
       boxShadow: {
         xs: "var(--shadow-xs)",
