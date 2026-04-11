@@ -1,7 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Search, 
@@ -56,27 +56,28 @@ export default function ReservationsPage() {
     }
   };
 
-  useEffect(() => {
-    const loadData = async () => {
-      const currentProperty = getSelectedProperty();
-      setPropertyId(currentProperty);
-      if (typeof window !== 'undefined') {
-        setUserRole(localStorage.getItem('stayboard_user_role'));
-      }
+  const loadData = useCallback(async () => {
+    const currentProperty = getSelectedProperty();
+    setPropertyId(currentProperty);
+    if (typeof window !== 'undefined') {
+      setUserRole(localStorage.getItem('stayboard_user_role'));
+    }
 
-      const [rawBookings, rawRooms] = await Promise.all([
-        getBookingsList(),
-        getStoredRooms()
-      ]);
-      
-      setBookings(rawBookings);
-      setRooms(rawRooms);
-      setDataLoaded(true);
-    };
+    const [rawBookings, rawRooms] = await Promise.all([
+      getBookingsList(),
+      getStoredRooms()
+    ]);
+    
+    setBookings(rawBookings);
+    setRooms(rawRooms);
+    setDataLoaded(true);
+  }, []);
+
+  useEffect(() => {
     loadData();
     window.addEventListener('storage', loadData);
     return () => window.removeEventListener('storage', loadData);
-  }, []);
+  }, [loadData]);
 
   // Supabase Realtime Sync
   useRealtime(loadData);

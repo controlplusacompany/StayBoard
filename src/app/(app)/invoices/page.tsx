@@ -47,17 +47,18 @@ export default function InvoicesPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('upi');
   const [dataLoaded, setDataLoaded] = useState(false);
 
-  useEffect(() => {
-    const loadData = async () => {
-      const currentProperty = getSelectedProperty();
-      setPropertyFilter(currentProperty);
+  const loadData = async () => {
+    const currentProperty = getSelectedProperty();
+    setPropertyFilter(currentProperty);
 
-      const rawInvoices = await getStoredInvoices();
-      const rawBookings = await getStoredBookings({});
-      setInvoices(rawInvoices.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
-      setBookings(rawBookings);
-      setDataLoaded(true);
-    };
+    const rawInvoices = await getStoredInvoices();
+    const rawBookings = await getStoredBookings({});
+    setInvoices(rawInvoices.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+    setBookings(rawBookings);
+    setDataLoaded(true);
+  };
+
+  useEffect(() => {
     loadData();
     window.addEventListener('storage', loadData);
     return () => window.removeEventListener('storage', loadData);

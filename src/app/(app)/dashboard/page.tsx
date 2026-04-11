@@ -73,24 +73,25 @@ export default function DashboardPage() {
     address: ''
   });
 
+  const loadCache = async () => {
+    const currentFilter = getSelectedProperty();
+    setPropertyFilter(currentFilter);
+    
+    const [enrichedRooms, bookings, arrivalsToday, fetchedProps] = await Promise.all([
+      getEnrichedRooms(),
+      getStoredBookings(),
+      getArrivalsToday(),
+      getStoredProperties()
+    ]);
+    
+    setStoredRooms(enrichedRooms);
+    setStoredBookings(bookings);
+    setArrivals(arrivalsToday);
+    setProperties(fetchedProps as Property[]);
+    setDataLoaded(true);
+  };
+
   useEffect(() => {
-    const loadCache = async () => {
-      const currentFilter = getSelectedProperty();
-      setPropertyFilter(currentFilter);
-      
-      const [enrichedRooms, bookings, arrivalsToday, fetchedProps] = await Promise.all([
-        getEnrichedRooms(),
-        getStoredBookings(),
-        getArrivalsToday(),
-        getStoredProperties()
-      ]);
-      
-      setStoredRooms(enrichedRooms);
-      setStoredBookings(bookings);
-      setArrivals(arrivalsToday);
-      setProperties(fetchedProps as Property[]);
-      setDataLoaded(true);
-    };
     loadCache();
     window.addEventListener('storage', loadCache);
     return () => window.removeEventListener('storage', loadCache);

@@ -64,37 +64,37 @@ export default function HousekeepingPage() {
   // Form states
   const [userRole, setUserRole] = useState<string | null>(null);
 
+  const loadStore = async () => {
+    setIsLoading(true);
+    try {
+      const currentProperty = getSelectedProperty();
+      setFilterProperty(currentProperty);
+
+      const [fetchedTasks, fetchedRooms, fetchedProperties] = await Promise.all([
+        getStoredTasks(),
+        getEnrichedRooms(),
+        getStoredProperties()
+      ]);
+      setTasks(fetchedTasks);
+      setRooms(fetchedRooms);
+      setAvailableProperties(fetchedProperties.map(p => ({ id: p.id, name: p.name })));
+
+      // Sync form default if needed
+      if (currentProperty && currentProperty !== 'all') {
+         setNewTask(prev => ({ ...prev, property_id: currentProperty }));
+      }
+    } catch (error) {
+      console.error("Error loading housekeeping data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setUserRole(localStorage.getItem('stayboard_user_role'));
     }
     
-    const loadStore = async () => {
-      setIsLoading(true);
-      try {
-        const currentProperty = getSelectedProperty();
-        setFilterProperty(currentProperty);
-
-        const [fetchedTasks, fetchedRooms, fetchedProperties] = await Promise.all([
-          getStoredTasks(),
-          getEnrichedRooms(),
-          getStoredProperties()
-        ]);
-        setTasks(fetchedTasks);
-        setRooms(fetchedRooms);
-        setAvailableProperties(fetchedProperties.map(p => ({ id: p.id, name: p.name })));
-
-        // Sync form default if needed
-        if (currentProperty && currentProperty !== 'all') {
-           setNewTask(prev => ({ ...prev, property_id: currentProperty }));
-        }
-      } catch (error) {
-        console.error("Error loading housekeeping data:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     loadStore();
     window.addEventListener('storage', loadStore);
     return () => window.removeEventListener('storage', loadStore);

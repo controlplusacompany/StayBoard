@@ -44,55 +44,56 @@ export default function GuestsPage() {
   const { toast } = useToast();
   const [dataLoaded, setDataLoaded] = useState(false);
 
+  const loadData = async () => {
+    const currentFilter = getSelectedProperty();
+    setPropertyFilter(currentFilter);
+    if (typeof window !== 'undefined') {
+      setUserRole(localStorage.getItem('stayboard_user_role'));
+    }
+
+    try {
+      const [rawGuests, rawBookings] = await Promise.all([
+        getStoredGuests(),
+        getBookingsList()
+      ]);
+      
+      // Enrich guests with data from bookings since DB schema is limited
+      const enrichedGuests = (rawGuests || []).map(guest => {
+        const guestBookings = (rawBookings || []).filter(b => b.guest_phone === guest.phone);
+        const totalSpent = guestBookings.reduce((sum, b) => sum + (Number(b.total_amount) || 0), 0);
+        const lastBooking = guestBookings[0]; // Already sorted by date desc in store
+
+        let stayNights = 0;
+        if (lastBooking?.check_in_date && lastBooking?.check_out_date) {
+          stayNights = Math.max(0, differenceInCalendarDays(
+            new Date(lastBooking.check_out_date),
+            new Date(lastBooking.check_in_date)
+          ));
+        }
+
+        return {
+          ...guest,
+          total_spent: totalSpent,
+          total_stays: guestBookings.length,
+          id_number: lastBooking?.guest_id_number || 'Not provided',
+          id_type: lastBooking?.guest_id_type || 'other',
+          last_stay_date: lastBooking?.check_in_date || guest.last_stay_date,
+          check_in_date: lastBooking?.check_in_date,
+          check_out_date: lastBooking?.check_out_date,
+          stay_duration: stayNights
+        };
+      });
+
+      setGuests(enrichedGuests);
+      setBookings(rawBookings || []);
+    } catch (err) {
+      console.error("GuestsPage Load Error:", err);
+    } finally {
+      setDataLoaded(true);
+    }
+  };
+
   useEffect(() => {
-    const loadData = async () => {
-      const currentFilter = getSelectedProperty();
-      setPropertyFilter(currentFilter);
-      if (typeof window !== 'undefined') {
-        setUserRole(localStorage.getItem('stayboard_user_role'));
-      }
-
-      try {
-        const [rawGuests, rawBookings] = await Promise.all([
-          getStoredGuests(),
-          getBookingsList()
-        ]);
-        
-        // Enrich guests with data from bookings since DB schema is limited
-        const enrichedGuests = (rawGuests || []).map(guest => {
-          const guestBookings = (rawBookings || []).filter(b => b.guest_phone === guest.phone);
-          const totalSpent = guestBookings.reduce((sum, b) => sum + (Number(b.total_amount) || 0), 0);
-          const lastBooking = guestBookings[0]; // Already sorted by date desc in store
-
-          let stayNights = 0;
-          if (lastBooking?.check_in_date && lastBooking?.check_out_date) {
-            stayNights = Math.max(0, differenceInCalendarDays(
-              new Date(lastBooking.check_out_date),
-              new Date(lastBooking.check_in_date)
-            ));
-          }
-
-          return {
-            ...guest,
-            total_spent: totalSpent,
-            total_stays: guestBookings.length,
-            id_number: lastBooking?.guest_id_number || 'Not provided',
-            id_type: lastBooking?.guest_id_type || 'other',
-            last_stay_date: lastBooking?.check_in_date || guest.last_stay_date,
-            check_in_date: lastBooking?.check_in_date,
-            check_out_date: lastBooking?.check_out_date,
-            stay_duration: stayNights
-          };
-        });
-
-        setGuests(enrichedGuests);
-        setBookings(rawBookings || []);
-      } catch (err) {
-        console.error("GuestsPage Load Error:", err);
-      } finally {
-        setDataLoaded(true);
-      }
-    };
     loadData();
     window.addEventListener('storage', loadData);
     return () => window.removeEventListener('storage', loadData);
