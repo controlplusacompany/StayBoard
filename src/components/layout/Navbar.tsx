@@ -8,6 +8,7 @@ import Badge from '../ui/Badge';
 import Modal from '../ui/Modal';
 import { useToast } from '../ui/Toast';
 import { useNewBooking } from '../booking/NewBookingProvider';
+import { getSelectedProperty, setSelectedProperty } from '@/lib/store';
 
 export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const pathname = usePathname();
@@ -47,21 +48,23 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
     { id: '012', name: 'Starry Night Homes', type: 'Airbnb' }
   ];
 
-  const [currentProperty, setCurrentProperty] = React.useState('All Properties');
+  const [currentPropertyLabel, setCurrentPropertyLabel] = React.useState('All Properties');
 
   React.useEffect(() => {
-    const propertyId = searchParams.get('propertyId');
-    let prop = 'All Properties';
-    
-    if (propertyId) {
-      const found = properties.find(p => p.id === propertyId);
-      if (found) prop = found.name;
-    } else if (pathname.includes('/property/')) {
-       prop = pathname.includes('010') ? 'Peace Hotel' : pathname.includes('011') ? 'Starry Nights' : 'Starry Night Homes';
-    }
-    
-    setCurrentProperty(prop);
-  }, [pathname, searchParams]);
+    const syncProperty = () => {
+      const selectedId = getSelectedProperty();
+      if (!selectedId) {
+        setCurrentPropertyLabel('All Properties');
+      } else {
+        const found = properties.find(p => p.id === selectedId);
+        setCurrentPropertyLabel(found ? found.name : 'All Properties');
+      }
+    };
+
+    syncProperty();
+    window.addEventListener('storage', syncProperty);
+    return () => window.removeEventListener('storage', syncProperty);
+  }, []);
 
   const closeAll = () => {
     setIsSwitcherOpen(false);
@@ -117,7 +120,7 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                 }}
                 className={`flex items-center gap-2 px-3 py-1.5 bg-bg-sunken border border-border-subtle rounded-full cursor-pointer hover:bg-white hover:shadow-sm transition-all duration-120 ease-out max-w-[200px] ${isSwitcherOpen ? 'ring-2 ring-accent/10 border-accent bg-white' : ''}`}
               >
-                <span className="text-[13px] font-medium text-ink-secondary truncate max-w-[100px] md:max-w-none">{currentProperty}</span>
+                <span className="text-[13px] font-medium text-ink-secondary truncate max-w-[100px] md:max-w-none">{currentPropertyLabel}</span>
                 <ChevronDown size={14} className={`text-ink-muted transition-transform duration-200 shrink-0 ${isSwitcherOpen ? 'rotate-180' : ''}`} />
               </button>
 
@@ -127,22 +130,19 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                     <p className="text-[10px] font-medium text-ink-muted uppercase tracking-widest pl-2">My Entities</p>
                   </div>
 
-                  <Link 
-                    href="/dashboard"
+                  <button 
                     onClick={() => {
                       closeAll();
-                      const params = new URLSearchParams(window.location.search);
-                      params.delete('propertyId');
-                      router.push(`${pathname}${params.toString() ? '?' + params.toString() : ''}`);
+                      setSelectedProperty(null);
                     }}
-                    className={`flex items-center justify-between px-4 py-3 hover:bg-bg-sunken text-sm font-medium transition-colors ${!(new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('propertyId')) ? 'bg-accent/5 text-accent border-l-2 border-accent' : 'text-ink-secondary'}`}
+                    className={`flex items-center justify-between w-full px-4 py-3 hover:bg-bg-sunken text-sm font-medium transition-colors ${!getSelectedProperty() ? 'bg-accent/5 text-accent border-l-2 border-accent' : 'text-ink-secondary'}`}
                   >
                     <div className="flex items-center gap-3">
-                      <Layout size={16} className={!(new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('propertyId')) ? 'text-accent' : 'text-ink-muted'} />
+                      <Layout size={16} className={!getSelectedProperty() ? 'text-accent' : 'text-ink-muted'} />
                       <span>All Properties</span>
                     </div>
-                    {!(new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('propertyId')) && <Check size={14} className="text-accent" />}
-                  </Link>
+                    {!getSelectedProperty() && <Check size={14} className="text-accent" />}
+                  </button>
                   
                   <div className="h-px bg-border-subtle/30 my-1" />
                   
@@ -151,17 +151,15 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                       key={p.id}
                       onClick={() => {
                         closeAll();
-                        const params = new URLSearchParams(window.location.search);
-                        params.set('propertyId', p.id);
-                        router.push(`${pathname}?${params.toString()}`);
+                        setSelectedProperty(p.id);
                       }}
-                      className={`flex items-center justify-between w-full px-4 py-3 hover:bg-bg-sunken text-sm font-medium transition-colors text-left ${(new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('propertyId') === p.id) ? 'bg-accent/5 text-accent border-l-2 border-accent' : 'text-ink-secondary'}`}
+                      className={`flex items-center justify-between w-full px-4 py-3 hover:bg-bg-sunken text-sm font-medium transition-colors text-left ${(getSelectedProperty() === p.id) ? 'bg-accent/5 text-accent border-l-2 border-accent' : 'text-ink-secondary'}`}
                     >
                       <div className="flex items-center gap-3">
-                        <Home size={16} className={(new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('propertyId') === p.id) ? 'text-accent' : 'text-ink-muted'} />
+                        <Home size={16} className={(getSelectedProperty() === p.id) ? 'text-accent' : 'text-ink-muted'} />
                         <span>{p.name}</span>
                       </div>
-                      {(new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('propertyId') === p.id) ? (
+                      {(getSelectedProperty() === p.id) ? (
                         <Check size={14} className="text-accent" />
                       ) : null}
                     </button>

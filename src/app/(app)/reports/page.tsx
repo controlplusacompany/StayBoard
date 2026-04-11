@@ -10,7 +10,7 @@ import {
   Users,
   Building
 } from 'lucide-react';
-import { getStoredBookings, getStoredInvoices, getStoredRooms } from '@/lib/store';
+import { getBookingsList, getStoredInvoices, getStoredRooms, getSelectedProperty } from '@/lib/store';
 import { Booking, Invoice, Room } from '@/types';
 import { format, subDays, isWithinInterval, isSameDay, parseISO } from 'date-fns';
 import { useSearchParams } from 'next/navigation';
@@ -36,21 +36,33 @@ export default function ReportsPage() {
   useEffect(() => {
     const fetchData = async () => {
       // Fetch live cloud data
+      const currentProperty = getSelectedProperty();
       const [bookingsRaw, invoicesRaw, roomsRaw] = await Promise.all([
         getBookingsList(),
         getStoredInvoices(),
         getStoredRooms()
       ]);
 
-      const allBookings = bookingsRaw || [];
-      const allInvoices = invoicesRaw || [];
-      const allRooms = roomsRaw || [];
+      let allBookings = bookingsRaw || [];
+      let allInvoices = invoicesRaw || [];
+      let allRooms = roomsRaw || [];
+
+      // Global property filter logic
+      if (currentProperty && currentProperty !== 'all') {
+        allBookings = allBookings.filter(b => b.property_id === currentProperty);
+        allInvoices = allInvoices.filter(i => {
+          // Find booking to get its property_id if invoice doesn't have it
+          const booking = allBookings.find(b => b.id === i.booking_id);
+          return booking?.property_id === currentProperty;
+        });
+        allRooms = allRooms.filter(r => r.property_id === currentProperty);
+      }
       
-      // Compute Metrics from LIVE Data
+      // Compute Metrics from Filtered Data
       const totalRev = allInvoices.reduce((sum, inv) => sum + (Number(inv.amount_paid) || 0), 0);
       const activeBookings = allBookings.filter(b => b.status !== 'cancelled' && b.status !== 'no_show');
       
-      // Filter list for display
+      // Filter list for display based on local tab filter
       let list = [...allBookings];
       const now = new Date();
       
@@ -65,8 +77,8 @@ export default function ReportsPage() {
       setFilteredBookings(list);
 
       // Real Occupancy Calculation
-      const roomNights = activeBookings.length; // Approximate for MVP
-      const totalCapacity = allRooms.length * 30 || 300; 
+      const roomNights = activeBookings.length; 
+      const totalCapacity = (allRooms.length > 0 ? allRooms.length : 10) * 30; 
       const realOccupancy = Math.min((roomNights / totalCapacity) * 100, 100);
       
       const calculatedAdr = activeBookings.length > 0 
@@ -80,6 +92,8 @@ export default function ReportsPage() {
     };
 
     fetchData();
+    window.addEventListener('storage', fetchData);
+    return () => window.removeEventListener('storage', fetchData);
   }, [dateRange, filter]);
 
   const handleExportCSV = () => {
@@ -112,10 +126,10 @@ export default function ReportsPage() {
 
   return (
     <div className="p-6 md:p-10 flex flex-col gap-8 animate-slide-up bg-bg-canvas min-h-full">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl md:text-4xl font-display text-ink-primary tracking-tight font-bold">Performance Reports</h1>
-          <p className="text-base text-ink-secondary">Analyze revenue, occupancy, and business metrics.</p>
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+        <div className="flex flex-col gap-3">
+          <span className="text-[10px] font-medium text-accent uppercase tracking-[0.3em] font-sans">Business Intelligence</span>
+          <h1 className="text-4xl md:text-5xl font-display text-ink-primary tracking-tighter font-medium text-balance">Performance Reports</h1>
         </div>
         
         <div className="flex items-center gap-3 w-full sm:w-auto">

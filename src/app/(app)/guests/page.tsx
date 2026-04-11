@@ -18,11 +18,17 @@ import {
   X,
   FileSpreadsheet
 } from 'lucide-react';
-import { getStoredGuests } from '@/lib/store';
-import { Guest } from '@/types';
-import Badge from '@/components/ui/Badge';
-import Modal from '@/components/ui/Modal';
 import { format } from 'date-fns';
+import { useToast } from '@/components/ui/Toast';
+import Modal from '@/components/ui/Modal';
+import Badge from '@/components/ui/Badge';
+import { Booking, Guest } from '@/types';
+import { 
+  getStoredGuests, 
+  getSelectedProperty, 
+  getBookingsList,
+  toggleVipStatus 
+} from '@/lib/store';
 
 export default function GuestsPage() {
   const [guests, setGuests] = useState<Guest[]>([]);
@@ -33,10 +39,24 @@ export default function GuestsPage() {
   const [columnFilters, setColumnFilters] = useState<Partial<Record<keyof Guest, string>>>({});
   const [showColumnFilters, setShowColumnFilters] = useState(false);
 
+  const [propertyFilter, setPropertyFilter] = useState<string | null>(null);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const { toast } = useToast();
+  const [dataLoaded, setDataLoaded] = useState(false);
+
   useEffect(() => {
     const loadData = async () => {
-      const rawGuests = await getStoredGuests();
+      const currentFilter = getSelectedProperty();
+      setPropertyFilter(currentFilter);
+
+      const [rawGuests, rawBookings] = await Promise.all([
+        getStoredGuests(),
+        getBookingsList()
+      ]);
+      
       setGuests(rawGuests);
+      setBookings(rawBookings);
+      setDataLoaded(true);
     };
     loadData();
     window.addEventListener('storage', loadData);
@@ -44,8 +64,14 @@ export default function GuestsPage() {
   }, []);
 
   const handleToggleVip = async (guestId: string) => {
-    await toggleVipStatus(guestId);
-    toast("VIP status updated", "success");
+    try {
+      await toggleVipStatus(guestId);
+      const updatedGuests = await getStoredGuests();
+      setGuests(updatedGuests);
+      toast("VIP status updated", "success");
+    } catch (error) {
+      toast("Failed to update VIP status", "danger");
+    }
   };
 
   const handleSort = (key: keyof Guest | 'last_stay_date') => {
@@ -57,14 +83,23 @@ export default function GuestsPage() {
   };
 
   const filteredGuests = guests.filter(g => {
-    // Global Search
+    // 1. Property Filter logic:
+    // If a property is selected, only show guests who have a booking at that property
+    if (propertyFilter) {
+      const hasBookingAtProperty = bookings.some(b => 
+        b.property_id === propertyFilter && b.guest_phone === g.phone
+      );
+      if (!hasBookingAtProperty) return false;
+    }
+
+    // 2. Global Search
     const matchesGlobal = 
       !searchQuery ||
       g.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       g.phone.includes(searchQuery) ||
       g.id_number.toLowerCase().includes(searchQuery.toLowerCase());
       
-    // Column Filters
+    // 3. Column Filters
     const matchesColumn = Object.entries(columnFilters).every(([key, value]) => {
       if (!value) return true;
       const guestValue = g[key as keyof Guest];
@@ -130,12 +165,23 @@ export default function GuestsPage() {
     return sortConfig.direction === 'asc' ? <ArrowUp size={12} className="text-accent" /> : <ArrowDown size={12} className="text-accent" />;
   };
 
+  if (!dataLoaded) return (
+    <div className="p-6 md:p-10 flex flex-col gap-6 animate-pulse bg-bg-canvas min-h-full">
+      <div className="flex flex-col gap-3">
+        <div className="h-3 w-36 bg-bg-sunken rounded" />
+        <div className="h-10 w-56 bg-bg-sunken rounded" />
+      </div>
+      <div className="h-14 bg-bg-sunken rounded-xl" />
+      <div className="h-72 bg-bg-sunken rounded-xl" />
+    </div>
+  );
+
   return (
     <div className="p-6 md:p-10 flex flex-col gap-8 animate-slide-up bg-bg-canvas min-h-full">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl md:text-4xl font-display text-ink-primary tracking-tight font-medium">Guest Directory</h1>
-          <p className="text-ink-secondary">Manage relationships and viewing loyal customers.</p>
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+        <div className="flex flex-col gap-3">
+          <span className="text-[10px] font-medium text-accent uppercase tracking-[0.3em] font-sans">Relationships & Loyalty</span>
+          <h1 className="text-4xl md:text-5xl font-display text-ink-primary tracking-tighter font-medium text-balance">Guest Directory</h1>
         </div>
         
         {/* Metric Summaries */}
@@ -392,7 +438,7 @@ export default function GuestsPage() {
                </div>
                <div className="flex flex-col">
                   <div className="flex items-center gap-2">
-                    <h2 className="text-xl font-display font-medium leading-none">{selectedGuest.name}</h2>
+                    <h2 className="text-xl font-sans font-semibold leading-none tracking-tight">{selectedGuest.name}</h2>
                     {selectedGuest.is_vip && <Star size={16} className="fill-current text-white" />}
                   </div>
                   <span className={`text-sm mt-1 font-mono ${selectedGuest.is_vip ? 'text-white/80' : 'text-ink-secondary'}`}>

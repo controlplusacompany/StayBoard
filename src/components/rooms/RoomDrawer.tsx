@@ -15,7 +15,7 @@ import Badge from '../ui/Badge';
 import Modal from '../ui/Modal';
 import { useToast } from '../ui/Toast';
 import { formatINR, formatDate } from '@/lib/formatting';
-import { updateRoomStatus, getBookingsForRoom, finalCheckout, shiftRoom, getVacantRooms } from '@/lib/store';
+import { updateRoomStatus, getBookingsForRoom, finalCheckout, shiftRoom, getVacantRooms, updateBookingStatus } from '@/lib/store';
 import { format, addDays, isSameDay, parseISO, eachDayOfInterval } from 'date-fns';
 
 interface RoomDrawerProps {
@@ -114,12 +114,16 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
     setTimeout(() => window.location.reload(), 500);
   };
 
-  const handleCheckIn = () => {
+  const handleCheckIn = async () => {
     const hasBalance = room.booking && (room.booking.total_amount - room.booking.amount_paid > 0);
     if (hasBalance) {
       setModalOpen('checkout');
-    } else {
-      handleStatusUpdate('occupied', `Guest ${room.booking?.guest_name} checked in`);
+    } else if (room.booking) {
+      await updateBookingStatus(room.booking.id, 'checked_in');
+      toast(`Guest ${room.booking.guest_name} checked in`, 'success');
+      onClose();
+      // Simulate real-time update
+      setTimeout(() => window.location.reload(), 500);
     }
   };
 
@@ -321,7 +325,6 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
             <div className="flex flex-col gap-1">
               <div className="flex items-baseline gap-2">
                  <h2 className="text-[32px] font-display text-ink-primary leading-tight">Room {room.room_number}</h2>
-                 <span className="text-[10px] font-medium text-ink-muted uppercase tracking-[0.1em]">{room.room_type}</span>
               </div>
               <div className="flex items-center gap-3">
                 <Badge type={room.status} label={room.status.replace('_', ' ')} />
@@ -509,7 +512,7 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
                 <p className="text-sm text-ink-muted mb-6 relative z-10">Ready for immediate check-in or future booking.</p>
                 <button 
                   onClick={() => router.push(`/booking/new?room=${room.room_number}&property=${room.property_id}`)}
-                  className="btn btn-accent btn--sm flex items-center gap-2 group px-6 py-6 shadow-lg shadow-accent/20 relative z-10"
+                  className="btn btn-accent flex items-center gap-2 group shadow-lg shadow-accent/20 relative z-10"
                 >
                   <Plus size={16} className="group-hover:rotate-90 transition-transform" />
                   <span>Start New Booking</span>
@@ -535,7 +538,7 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
                 }).map((date, i) => {
                   // Fallback for async timeline
                   const bookingLine = (room.bookings || [])
-                    .filter(b => b.status === 'checked_in' || b.status === 'confirmed' || b.status === 'issued')
+                    .filter(b => ['confirmed', 'issued', 'arriving_today', 'checked_in', 'checkout_today'].includes(b.status))
                     .find(b => {
                       const startDay = parseISO(b.check_in_date);
                       const endDay = parseISO(b.check_out_date);
@@ -551,28 +554,19 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
                 })}
               </div>
               
-              {(() => {
-                const nextBookingLine = (room.bookings || [])
-                  .filter(b => (b.status === 'confirmed' || b.status === 'issued') && parseISO(b.check_in_date) > new Date())
-                  .sort((a, b) => parseISO(a.check_in_date).getTime() - parseISO(b.check_in_date).getTime())[0];
-                
-                if (nextBookingLine) {
-                  return (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-accent/5 rounded-lg border border-accent/10">
-                      <Info size={12} className="text-accent" />
-                      <p className="text-[11px] font-medium text-ink-secondary">
-                        Next booking: <span className="font-bold">{format(parseISO(nextBookingLine.check_in_date), 'd MMM')}</span> ({nextBookingLine.guest_name})
-                      </p>
-                    </div>
-                  );
-                }
-                return (
-                  <div className="flex items-center gap-2 px-3 py-2 bg-green-500/5 rounded-lg border border-green-500/10">
-                    <Check size={12} className="text-green-600" />
-                    <p className="text-[11px] font-medium text-ink-secondary">Available for the next 30 days</p>
-                  </div>
-                );
-              })()}
+              { (room as any).future_booking ? (
+                <div className="flex items-center gap-2 px-3 py-2 bg-accent/5 rounded-lg border border-accent/10">
+                  <Info size={12} className="text-accent" />
+                  <p className="text-[11px] font-medium text-ink-secondary">
+                    {(room as any).future_booking}
+                  </p>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 px-3 py-2 bg-green-500/5 rounded-lg border border-green-500/10">
+                  <Check size={12} className="text-green-600" />
+                  <p className="text-[11px] font-medium text-ink-secondary">Available for the next 30 days</p>
+                </div>
+              )}
             </div>
           </section>
 
@@ -945,7 +939,7 @@ export default function RoomDrawer({ isOpen, onClose, room }: RoomDrawerProps) {
                        {vRoom.room_number}
                      </div>
                      <div className="flex flex-col text-left">
-                       <span className="text-sm font-bold text-ink-primary">{vRoom.room_type}</span>
+                       
                         <span className="text-[10px] text-ink-muted font-medium">Floor {vRoom.floor} • Max {vRoom.max_occupancy} Guests</span>
                      </div>
                    </div>

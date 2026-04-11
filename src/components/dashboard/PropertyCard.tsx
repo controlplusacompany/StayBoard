@@ -45,7 +45,7 @@ export default function PropertyCard({ property, summary }: PropertyCardProps) {
             {floors.map(floor => (
               <div key={floor} className="flex items-center gap-4">
                 <div className="flex flex-col min-w-[32px]">
-                   <span className="text-[10px] font-semibold text-ink-muted/50 uppercase tracking-widest leading-none">F{floor}</span>
+                   <span className="text-[10px] font-medium text-ink-muted/50 uppercase tracking-widest leading-none">F{floor}</span>
                 </div>
                 <div className="flex-1">
                    <MiniRoomGrid rooms={roomStatusList.filter(r => (r.floor || 1) === floor)} />
@@ -58,7 +58,9 @@ export default function PropertyCard({ property, summary }: PropertyCardProps) {
 
       <footer className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0 text-xs font-sans text-ink-muted mt-2 pt-1 border-t border-border-subtle/30">
         <div className="flex flex-wrap gap-2.5 items-center">
-          <span>{summary.occupied} / {property.total_rooms} occupied</span>
+          <span className="font-bold text-ink-primary">{Math.round((summary.occupied / Math.max(1, property.total_rooms)) * 100)}% Occupancy</span>
+          <span className="text-ink-muted/60">•</span>
+          <span>{summary.occupied} / {property.total_rooms} rooms occupied</span>
           {summary.checkout_today > 0 && (
             <span className="text-warning flex items-center gap-1">
               • {summary.checkout_today} checking out today

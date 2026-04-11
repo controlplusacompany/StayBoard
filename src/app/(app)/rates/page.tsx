@@ -15,7 +15,7 @@ import {
   Tent
 } from 'lucide-react';
 import Select from '@/components/ui/Select';
-import { getStoredRateRules, addRateRule, deleteRateRule } from '@/lib/store';
+import { getStoredRateRules, addRateRule, deleteRateRule, getSelectedProperty } from '@/lib/store';
 import { RateRule, PropertyType } from '@/types';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
@@ -35,11 +35,13 @@ export default function RatesPage() {
       setUserEmail(localStorage.getItem('stayboard_user_email'));
     }
     refreshRules();
+    
+    window.addEventListener('storage', refreshRules);
+    return () => window.removeEventListener('storage', refreshRules);
   }, []);
   
   const canManageRates = userEmail === 'dhagamonish00@gmail.com' || (userRole !== 'owner' && userRole !== 'reception' && userRole !== null && userRole !== 'staff');
   const [ruleName, setRuleName] = useState('');
-  const [roomType, setRoomType] = useState<RateRule['room_type']>('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [adjustmentType, setAdjustmentType] = useState<'percentage' | 'fixed'>('percentage');
@@ -52,7 +54,13 @@ export default function RatesPage() {
   }, []);
 
   const refreshRules = async () => {
-    const raw = await getStoredRateRules();
+    const currentProperty = getSelectedProperty();
+    let raw = await getStoredRateRules();
+    
+    if (currentProperty && currentProperty !== 'all') {
+      raw = raw.filter(r => r.property_id === currentProperty);
+    }
+    
     setRules(raw.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
   };
 
@@ -62,11 +70,12 @@ export default function RatesPage() {
       return;
     }
 
+    const currentProperty = getSelectedProperty();
+    
     try {
       await addRateRule({
-        property_id: '010', // Hardcoded to Peace Hotel for demo
+        property_id: (currentProperty && currentProperty !== 'all') ? currentProperty : '010', 
         name: ruleName,
-        room_type: roomType,
         plan: mealPlan,
         include_tax: includeTax,
         start_date: startDate,
@@ -75,7 +84,7 @@ export default function RatesPage() {
         adjustment_value: parseFloat(adjustmentValue),
         days_of_week: [], // apply everyday for this simplified version
         is_active: true
-      });
+      } as any);
 
       toast("Pricing rule successfully created.", "success");
       setShowAddModal(false);
@@ -97,10 +106,10 @@ export default function RatesPage() {
 
   return (
     <div className="p-6 md:p-10 flex flex-col gap-8 animate-slide-up bg-bg-canvas min-h-full">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl md:text-4xl font-display text-ink-primary tracking-tight">Rates & Inventory</h1>
-          <p className="text-base text-ink-secondary">Manage dynamic pricing and seasonal adjustments.</p>
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+        <div className="flex flex-col gap-3">
+          <span className="text-[10px] font-medium text-accent uppercase tracking-[0.3em] font-sans">Revenue Management</span>
+          <h1 className="text-4xl md:text-5xl font-display text-ink-primary tracking-tighter font-medium text-balance">Rates & Pricing</h1>
         </div>
         
         {canManageRates && (
@@ -116,34 +125,39 @@ export default function RatesPage() {
 
       {/* Base Rates Display */}
       <section className="flex flex-col gap-4">
-        <h2 className="text-lg sm:text-xl font-semibold text-ink-primary font-display">Standard Base Rates</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white border border-border-subtle p-5 rounded-xl shadow-sm flex flex-col gap-2">
-            <span className="text-[10px] uppercase font-semibold text-ink-muted tracking-wide">Default Single</span>
-            <span className="text-2xl font-mono font-semibold text-ink-primary">₹1,500<span className="text-sm font-sans text-ink-muted font-normal">/nt</span></span>
-          </div>
-          <div className="bg-white border border-border-subtle p-5 rounded-xl shadow-sm flex flex-col gap-2">
-            <span className="text-[10px] uppercase font-semibold text-ink-muted tracking-wide">Default Double</span>
-            <span className="text-2xl font-mono font-semibold text-ink-primary">₹2,800<span className="text-sm font-sans text-ink-muted font-normal">/nt</span></span>
-          </div>
-          <div className="bg-white border border-border-subtle p-5 rounded-xl shadow-sm flex flex-col gap-2">
-            <span className="text-[10px] uppercase font-semibold text-ink-muted tracking-wide">Default Dorm</span>
-            <span className="text-2xl font-mono font-semibold text-ink-primary">₹800<span className="text-sm font-sans text-ink-muted font-normal">/bed</span></span>
-          </div>
-          {canManageRates && (
-            <div className="bg-white border border-border-subtle p-5 rounded-xl shadow-sm flex flex-col justify-center items-center gap-2 border-dashed group cursor-pointer hover:border-accent hover:bg-accent/5 transition-colors">
-              <Plus size={24} className="text-ink-muted group-hover:text-accent transition-colors" />
-              <span className="text-sm font-semibold text-ink-secondary group-hover:text-accent transition-colors">Add Room Type Rate</span>
+        <h2 className="text-lg sm:text-xl font-semibold text-ink-primary font-display">Standard Property Rates</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="bg-white border border-border-subtle p-6 rounded-2xl shadow-sm flex flex-col gap-3 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+               <Layers size={60} strokeWidth={1} />
             </div>
-          )}
+            <span className="text-[10px] uppercase font-bold text-accent tracking-widest">Base Occupancy Rate</span>
+            <div className="flex flex-col">
+              <span className="text-3xl font-mono font-bold text-ink-primary">₹1,500</span>
+              <span className="text-xs text-ink-muted">Standard rate applied to all vacant rooms.</span>
+            </div>
+            <div className="h-px bg-border-subtle my-2" />
+            <div className="flex justify-between items-center text-[10px] font-bold text-ink-muted uppercase">
+              <span>Managed by Admin</span>
+              <button className="text-accent hover:underline">Edit Rate</button>
+            </div>
+          </div>
+
+          <div className="bg-white border border-border-subtle p-6 rounded-2xl shadow-sm flex flex-col gap-3 relative overflow-hidden group border-dashed">
+            <div className="flex flex-col items-center justify-center h-full py-4 text-center gap-2">
+               <Plus size={24} className="text-ink-muted" />
+               <span className="text-xs font-semibold text-ink-secondary">Configurable Add-ons</span>
+               <p className="text-[10px] text-ink-muted max-w-[200px]">Define additional plans like Breakfast, Meals, or Extended Stay.</p>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Active Rules List */}
       <section className="flex flex-col gap-4 mt-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-ink-primary font-display">Dynamic Pricing Rules</h2>
-          <span className="text-xs font-semibold text-accent bg-accent/10 px-3 py-1 rounded-full uppercase tracking-wider">{rules.length} Active Rules</span>
+          <h2 className="text-xl font-semibold text-ink-primary font-display">Active Adjustments</h2>
+          <span className="text-xs font-semibold text-accent bg-accent/10 px-3 py-1 rounded-full uppercase tracking-wider">{rules.length} Rule{rules.length !== 1 ? 's' : ''}</span>
         </div>
 
         {rules.length > 0 ? (
@@ -177,13 +191,10 @@ export default function RatesPage() {
                    </div>
                 </div>
 
-                <div className="flex flex-col gap-2 mt-auto pt-2">
-                  <div className="flex items-center gap-2 text-sm text-ink-secondary">
+                <div className="flex flex-col gap-2 mt-auto pt-2 text-sm text-ink-secondary">
+                  <div className="flex items-center gap-2">
                     <Calendar size={14} className="text-ink-muted" />
                     <span className="font-mono">{format(new Date(rule.start_date), 'dd MMM')} - {format(new Date(rule.end_date), 'dd MMM yyyy')}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2 mt-2">
-                    <span className="text-[10px] text-ink-muted font-semibold tracking-wider uppercase">{rule.room_type} rooms</span>
                   </div>
                 </div>
               </div>
@@ -222,19 +233,19 @@ export default function RatesPage() {
       >
         <div className="flex flex-col gap-5">
            <div className="field">
-              <label className="label">Rule Name</label>
+              <label className="label">Rule Name*</label>
               <input 
                 type="text" 
                 className="input" 
-                placeholder={ruleName ? "" : "e.g. Diwali Weekend Surge"}
+                placeholder="e.g. Weekend Surge"
                 value={ruleName}
                 onChange={e => setRuleName(e.target.value)}
               />
            </div>
 
-           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+           <div className="grid grid-cols-2 gap-4">
               <div className="field">
-                <label className="label">Start Date</label>
+                <label className="label">Start Date*</label>
                 <input 
                   type="date" 
                   className="input font-mono h-11" 
@@ -243,7 +254,7 @@ export default function RatesPage() {
                 />
               </div>
               <div className="field">
-                <label className="label">End Date</label>
+                <label className="label">End Date*</label>
                 <input 
                   type="date" 
                   className="input font-mono h-11" 
@@ -253,57 +264,44 @@ export default function RatesPage() {
               </div>
            </div>
 
-            <Select 
-              options={[
-                { id: 'all', label: 'All Room Types', icon: Layers, description: 'Universal Rule' },
-                { id: 'single', label: 'Single Rooms', icon: Bed, description: 'Solo occupancy' },
-                { id: 'double', label: 'Double Rooms', icon: Users, description: 'Duo / Couple occupancy' },
-                { id: 'dormitory', label: 'Dormitory Beds', icon: Tent, description: 'Shared accommodation' }
-              ]}
-              value={roomType}
-              onChange={(val) => setRoomType(val as any)}
-              label="Applies To"
-            />
-
            <div className="flex gap-4 items-end">
               <div className="field flex-1">
                 <label className="label">Adjustment Type</label>
                 <div className="flex bg-bg-sunken p-1 rounded-lg border border-border-subtle">
                   <button 
-                    className={`flex-1 py-2 text-sm font-semibold rounded-md transition-colors ${adjustmentType === 'percentage' ? 'bg-white shadow-sm text-ink-primary' : 'text-ink-muted hover:text-ink-primary'}`}
+                    className={`flex-1 py-2 text-xs font-bold rounded-md transition-colors ${adjustmentType === 'percentage' ? 'bg-white shadow-sm text-ink-primary' : 'text-ink-muted'}`}
                     onClick={() => setAdjustmentType('percentage')}
                   >
-                    Percentage (%)
+                    (%)
                   </button>
                   <button 
-                    className={`flex-1 py-2 text-sm font-semibold rounded-md transition-colors ${adjustmentType === 'fixed' ? 'bg-white shadow-sm text-ink-primary' : 'text-ink-muted hover:text-ink-primary'}`}
+                    className={`flex-1 py-2 text-xs font-bold rounded-md transition-colors ${adjustmentType === 'fixed' ? 'bg-white shadow-sm text-ink-primary' : 'text-ink-muted'}`}
                     onClick={() => setAdjustmentType('fixed')}
                   >
-                    Fixed Amount (₹)
+                    (₹)
                   </button>
                 </div>
               </div>
               <div className="field w-1/3">
-                <label className="label">Value (+/-)</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-mono text-ink-muted">
-                    {adjustmentType === 'percentage' ? '%' : '₹'}
-                  </span>
-                  <input 
-                    type="number" 
-                    className="input pl-8 font-mono" 
-                    placeholder={adjustmentValue ? "" : "e.g. 15 or -10"}
-                    value={adjustmentValue}
-                    onChange={e => setAdjustmentValue(e.target.value)}
-                  />
-                </div>
+                <label className="label">Value (+/-)*</label>
+                <input 
+                  type="number" 
+                  className="input font-mono" 
+                  placeholder="e.g. 15"
+                  value={adjustmentValue}
+                  onChange={e => setAdjustmentValue(e.target.value)}
+                />
               </div>
            </div>
            
-           <Badge type="info" label="Negative values decrease the price, positive values increase the price." />
+           <div className="p-3 bg-accent/5 border border-accent/20 rounded-lg flex items-center gap-3">
+              <TrendingUp size={16} className="text-accent" />
+              <p className="text-[10px] text-ink-muted italic font-medium">New rate = Base Rate + {adjustmentValue || '0'}{adjustmentType === 'percentage' ? '%' : ' ₹'}</p>
+           </div>
         </div>
       </Modal>
-
     </div>
   );
 }
+
+

@@ -73,17 +73,14 @@ export default function RoomCard({
         </div>
         <div className="flex flex-col items-end gap-1.5">
           <Badge type={effectiveStatus} label={getStatusLabel(effectiveStatus)} />
-          {futureBooking && (
-            <div className="flex items-center gap-1 bg-accent/10 px-1.5 py-0.5 rounded text-[9px] font-medium text-accent uppercase tracking-tight">
-              <span>{futureBooking}</span>
-            </div>
-          )}
         </div>
       </div>
 
       <div className="mt-auto pt-2">
         {effectiveStatus === 'vacant' ? (
-          <span className="text-xs text-ink-muted">₹{room.base_price} / night</span>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-xs text-ink-muted">₹{room.base_price} / night</span>
+          </div>
         ) : displayGuest ? (
           <div className="flex flex-col gap-0.5 overflow-hidden">
             <span className="room-card__guest text-[12px] font-sans font-medium text-ink-primary truncate">
@@ -104,6 +101,18 @@ export default function RoomCard({
             {effectiveStatus === 'cleaning' ? 'Being cleaned' : 
              effectiveStatus === 'maintenance' ? 'Out of service' : ''}
           </span>
+        )}
+        
+        {futureBooking && (
+          <div className="mt-1.5 pt-1.5 border-t border-accent/5 overflow-hidden">
+            <span 
+              className="text-[10px] font-bold text-accent uppercase tracking-wider flex items-center gap-1.5 truncate"
+              title={futureBooking}
+            >
+              <span className="w-1 h-1 rounded-full bg-accent animate-pulse shrink-0" />
+              <span className="truncate">{futureBooking}</span>
+            </span>
+          </div>
         )}
       </div>
 

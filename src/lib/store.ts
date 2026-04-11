@@ -18,32 +18,30 @@ import { supabase } from './supabase';
 // NATIVE CLOUD STORE - SOURCE OF TRUTH: SUPABASE
 // --------------------------------------------------
 
-export const APP_DEFAULT_ROOMS: Room[] = [
-  // The Peace (010) - 8 Rooms
-  { id: '010-101', property_id: '010', room_number: '101', room_type: 'double', status: 'vacant', base_price: 1500, floor: 1, max_occupancy: 2 },
-  { id: '010-102', property_id: '010', room_number: '102', room_type: 'double', status: 'vacant', base_price: 1500, floor: 1, max_occupancy: 2 },
-  { id: '010-201', property_id: '010', room_number: '201', room_type: 'deluxe', status: 'vacant', base_price: 2500, floor: 2, max_occupancy: 2 },
-  { id: '010-202', property_id: '010', room_number: '202', room_type: 'deluxe', status: 'vacant', base_price: 2500, floor: 2, max_occupancy: 2 },
-  { id: '010-203', property_id: '010', room_number: '203', room_type: 'deluxe', status: 'vacant', base_price: 2500, floor: 2, max_occupancy: 2 },
-  { id: '010-301', property_id: '010', room_number: '301', room_type: 'suite', status: 'vacant', base_price: 3500, floor: 3, max_occupancy: 4 },
-  { id: '010-302', property_id: '010', room_number: '302', room_type: 'suite', status: 'vacant', base_price: 3500, floor: 3, max_occupancy: 4 },
-  { id: '010-303', property_id: '010', room_number: '303', room_type: 'suite', status: 'vacant', base_price: 3500, floor: 3, max_occupancy: 4 },
+// GLOBAL FILTERS (Stored in LocalStorage for persistence)
+export const getSelectedProperty = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('stayboard_master_property');
+};
 
-  // Starry Nights (011) - 6 Rooms
-  { id: '011-1', property_id: '011', room_number: '1', room_type: 'dorm', status: 'vacant', base_price: 800, floor: 1, max_occupancy: 1 },
-  { id: '011-2', property_id: '011', room_number: '2', room_type: 'dorm', status: 'vacant', base_price: 800, floor: 1, max_occupancy: 1 },
-  { id: '011-3', property_id: '011', room_number: '3', room_type: 'private', status: 'vacant', base_price: 1800, floor: 2, max_occupancy: 2 },
-  { id: '011-4', property_id: '011', room_number: '4', room_type: 'private', status: 'vacant', base_price: 1800, floor: 2, max_occupancy: 2 },
-  { id: '011-5', property_id: '011', room_number: '5', room_type: 'private', status: 'vacant', base_price: 1800, floor: 2, max_occupancy: 2 },
-  { id: '011-6', property_id: '011', room_number: '6', room_type: 'private', status: 'vacant', base_price: 1800, floor: 2, max_occupancy: 2 }
-];
+export const setSelectedProperty = (propertyId: string | null) => {
+  if (typeof window === 'undefined') return;
+  if (propertyId) {
+    localStorage.setItem('stayboard_master_property', propertyId);
+  } else {
+    localStorage.removeItem('stayboard_master_property');
+  }
+  // Broadcast change for other components/tabs
+  window.dispatchEvent(new Event('storage'));
+};
 
-const MASTER_OWNER_ID = '00000000-0000-0000-0000-000000000000';
-
-// CORE FETCHERS
-export const getStoredRooms = async (defaultRooms: Room[] = APP_DEFAULT_ROOMS): Promise<Room[]> => {
+export const getStoredRooms = async (): Promise<Room[]> => {
   const { data, error } = await supabase.from('rooms').select('*').order('room_number');
-  return error || !data || data.length === 0 ? defaultRooms : data as Room[];
+  if (error) {
+    console.error('Error fetching rooms:', error);
+    return [];
+  }
+  return (data as Room[]) || [];
 };
 
 export const getBookingsList = async (): Promise<Booking[]> => {
@@ -51,25 +49,24 @@ export const getBookingsList = async (): Promise<Booking[]> => {
   return error ? [] : data as Booking[];
 };
 
-export const getStoredBookings = async (fallback: any = {}): Promise<Record<string, Booking>> => {
+export const getStoredBookings = async (): Promise<Record<string, Booking>> => {
   const list = await getBookingsList();
   const map: Record<string, Booking> = {};
   list.forEach(b => map[b.id] = b);
-  return Object.keys(map).length > 0 ? map : fallback;
+  return map;
 };
 
 // ENRICHMENT (The magic that sets room colors)
-export const getEnrichedRooms = async (defaultRooms: Room[] = APP_DEFAULT_ROOMS): Promise<Room[]> => {
-  const rooms = await getStoredRooms(defaultRooms);
+export const getEnrichedRooms = async (): Promise<Room[]> => {
+  const rooms = await getStoredRooms();
   const bookings = await getBookingsList();
   
-  // Get Today in local timezone (India)
   const now = new Date();
   const offset = now.getTimezoneOffset() * 60000;
   const localToday = new Date(now.getTime() - offset).toISOString().split('T')[0];
 
   return rooms.map(room => {
-    // 1. ACTIVE OCCUPANCY: Must be "checked_in" AND occurring TODAY
+    // 1. ACTIVE OCCUPANCY: status === 'checked_in'
     const currentGuest = bookings.find(b => 
       b.room_id === room.id && 
       b.status === 'checked_in' &&
@@ -80,7 +77,7 @@ export const getEnrichedRooms = async (defaultRooms: Room[] = APP_DEFAULT_ROOMS)
     // 2. Scheduled logic
     const arrivingToday = bookings.find(b => 
       b.room_id === room.id && 
-      b.status === 'confirmed' && 
+      (b.status === 'assigned' || b.status === 'unassigned') && 
       b.check_in_date.split('T')[0] === localToday
     );
 
@@ -90,18 +87,26 @@ export const getEnrichedRooms = async (defaultRooms: Room[] = APP_DEFAULT_ROOMS)
       b.check_out_date.split('T')[0] === localToday
     );
 
-    // 3. NEXT FUTURE BOOKING (for Vacant Rooms)
+    // 3. OVERDUE check
+    const isOverdue = !!(currentGuest && currentGuest.check_out_date.split('T')[0] < localToday);
+
+    // 4. NEXT FUTURE BOOKING
     const futureBookings = bookings
-      .filter(b => b.room_id === room.id && (b.status === 'confirmed' || b.status === 'issued') && b.check_in_date.split('T')[0] > localToday)
+      .filter(b => 
+        b.room_id === room.id && 
+        ['assigned', 'unassigned'].includes(b.status) && 
+        b.check_in_date.split('T')[0] >= localToday &&
+        b.id !== arrivingToday?.id
+      )
       .sort((a, b) => a.check_in_date.localeCompare(b.check_in_date));
     
-    const nextBooking = futureBookings[0];
     let futureBookingStr = '';
+    const nextBooking = futureBookings[0];
     
     if (nextBooking) {
-      const d = new Date(nextBooking.check_in_date);
+      const d = parseISO(nextBooking.check_in_date);
       const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      futureBookingStr = `Next: ${d.getDate()} ${months[d.getMonth()]}`;
+      futureBookingStr = `Next: ${d.getDate()} ${months[d.getMonth()]} (${nextBooking.guest_name})`;
     }
 
     let calculatedStatus = room.status;
@@ -113,17 +118,16 @@ export const getEnrichedRooms = async (defaultRooms: Room[] = APP_DEFAULT_ROOMS)
     } else if (checkoutToday) {
       calculatedStatus = 'checkout_today';
     } else if (room.status === 'occupied') {
-      // ONLY correct to vacant if it was occupied in DB but we see no active guest
       calculatedStatus = 'vacant';
     }
-    // Note: If room.status is 'cleaning' or 'maintenance', it stays that way.
 
     return { 
       ...room, 
       status: calculatedStatus as RoomStatus,
+      is_overdue: isOverdue,
       future_booking: futureBookingStr,
-      guest_name: currentGuest?.guest_name || arrivingToday?.guest_name || '',
-      checkout_date: currentGuest?.check_out_date || arrivingToday?.check_out_date || ''
+      guest_name: currentGuest?.guest_name || arrivingToday?.guest_name || checkoutToday?.guest_name || '',
+      checkout_date: currentGuest?.check_out_date || arrivingToday?.check_out_date || checkoutToday?.check_out_date || ''
     };
   });
 };
@@ -134,9 +138,14 @@ export const finalCheckout = async (bookingId: string, paymentAmount: number) =>
   const { data: booking } = await supabase.from('bookings').select('*').eq('id', bookingId).single();
   if (!booking) return;
 
-  // 2. Update Booking Status
+  // 2. Update Booking Status & Actual Checkout Date
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000;
+  const localToday = new Date(now.getTime() - offset).toISOString().split('T')[0];
+
   await supabase.from('bookings').update({ 
     status: 'checked_out',
+    check_out_date: localToday, // Released for next guest!
     amount_paid: (Number(booking.amount_paid) || 0) + paymentAmount
   }).eq('id', bookingId);
 
@@ -163,7 +172,15 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
   const { data: booking, error: fetchErr } = await supabase.from('bookings').select('*').eq('id', bookingId).single();
   if (fetchErr || !booking) return;
 
-  const { error } = await supabase.from('bookings').update({ status }).eq('id', bookingId);
+  const updateData: any = { status };
+  if (status === 'checked_out') {
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+    const localToday = new Date(now.getTime() - offset).toISOString().split('T')[0];
+    updateData.check_out_date = localToday;
+  }
+
+  const { error } = await supabase.from('bookings').update(updateData).eq('id', bookingId);
   if (error) throw error;
   
   // SYNC GUEST: Ensure guest info is always up to date on status change
@@ -179,8 +196,10 @@ export const addBooking = async (booking: Booking) => {
   const { data, error } = await supabase.from('bookings').insert([{ ...booking, owner_id: MASTER_OWNER_ID }]).select();
   if (error) throw error;
 
-  // Auto-Update Room
-  if (booking.status === 'checked_in') await updateRoomStatus(booking.room_id, 'occupied');
+  // Auto-Update Room for Walk-ins
+  if (booking.status === 'checked_in' && booking.room_id) {
+    await updateRoomStatus(booking.room_id, 'occupied');
+  }
   
   // Create Initial Invoice
   await addInvoice({
@@ -367,15 +386,61 @@ export const getRoomBlockedDates = async (roomId: string): Promise<string[]> => 
   return [...new Set(blockedDates)]; // Return unique dates
 };
 
-export const getAvailableRoomTypeCount = async (propertyId: string, type: string, from: string, to: string) => {
+export const getAvailableRoomCount = async (propertyId: string, from: string, to: string) => {
   const rooms = await getStoredRooms();
-  const typeRooms = rooms.filter(r => r.property_id === propertyId && r.room_type === type);
+  const propertyRooms = rooms.filter(r => r.property_id === propertyId);
+  
+  const fromDay = from.split('T')[0];
+  const toDay = to.split('T')[0];
+  
   const bookings = await getBookingsList();
-  const conflict = bookings.filter(b => b.property_id === propertyId && b.status !== 'cancelled' && from < b.check_out_date && to > b.check_in_date);
-  return typeRooms.length - conflict.length;
+  
+  const conflict = bookings.filter(b => {
+    if (b.property_id !== propertyId) return false;
+    if (['cancelled', 'checked_out'].includes(b.status)) return false;
+    
+    const bStart = b.check_in_date.split('T')[0];
+    const bEnd = b.check_out_date.split('T')[0];
+    
+    return fromDay < bEnd && toDay > bStart;
+  });
+  
+  return propertyRooms.length - conflict.length;
+};
+
+export const getArrivalsToday = async (propertyId?: string): Promise<Booking[]> => {
+  const bookings = await getBookingsList();
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000;
+  const localToday = new Date(now.getTime() - offset).toISOString().split('T')[0];
+
+  return bookings.filter(b => 
+    (!propertyId || b.property_id === propertyId) &&
+    ['unassigned', 'assigned'].includes(b.status) &&
+    b.check_in_date.split('T')[0] === localToday
+  );
 };
 
 export const getVacantRooms = async (propertyId?: string): Promise<Room[]> => {
   const enriched = await getEnrichedRooms();
-  return enriched.filter(r => r.status === 'vacant' && (!propertyId || r.property_id === propertyId));
+  // Allow picking Vacant OR Cleaning rooms for new bookings to enable same-day turnover
+  return enriched.filter(r => (r.status === 'vacant' || r.status === 'cleaning') && (!propertyId || r.property_id === propertyId));
+};
+
+export const getStoredProperties = async () => {
+  const { data } = await supabase.from('properties').select('*').order('name');
+  return data || [];
+};
+
+export const shiftRoom = async (bookingId: string, sourceRoomId: string, targetRoomId: string) => {
+  // 1. Update Booking
+  await supabase.from('bookings').update({ room_id: targetRoomId }).eq('id', bookingId);
+  
+  // 2. Mark old room for cleaning
+  await updateRoomStatus(sourceRoomId, 'cleaning');
+  
+  // 3. Mark new room occupied
+  await updateRoomStatus(targetRoomId, 'occupied');
+  
+  window.dispatchEvent(new Event('storage'));
 };

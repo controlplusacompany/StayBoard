@@ -75,10 +75,10 @@ export default function ChannelsPage() {
 
   return (
     <div className="p-6 md:p-10 flex flex-col gap-8 animate-slide-up bg-bg-canvas min-h-full">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl md:text-4xl font-display text-ink-primary tracking-tight font-extrabold">Channel Manager</h1>
-          <p className="text-ink-secondary">Sync your inventory and rates across multiple OTAs in real-time.</p>
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+        <div className="flex flex-col gap-3">
+          <span className="text-[10px] font-medium text-accent uppercase tracking-[0.3em] font-sans">Distribution Network</span>
+          <h1 className="text-4xl md:text-5xl font-display text-ink-primary tracking-tighter font-medium text-balance">Channel Manager</h1>
         </div>
         
         <div className="flex flex-col sm:flex-row gap-4">

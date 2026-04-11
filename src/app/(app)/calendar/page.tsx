@@ -11,7 +11,7 @@ import {
   MoreHorizontal
 } from 'lucide-react';
 import { format, addDays, startOfDay, isSameDay, parseISO, eachDayOfInterval } from 'date-fns';
-import { getEnrichedRooms, getBookingsList } from '@/lib/store';
+import { getEnrichedRooms, getBookingsList, getSelectedProperty } from '@/lib/store';
 import { Room, Booking } from '@/types';
 import Badge from '@/components/ui/Badge';
 import RoomDrawer from '@/components/rooms/RoomDrawer';
@@ -20,8 +20,7 @@ import { useNewBooking } from '@/components/booking/NewBookingProvider';
 
 export default function CalendarPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const propertyId = searchParams.get('propertyId');
+  const [propertyId, setPropertyId] = useState<string | null>(null);
   const { open: openNewBooking } = useNewBooking();
   const [isMounted, setIsMounted] = useState(false);
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -42,6 +41,9 @@ export default function CalendarPage() {
     
     const fetchData = async () => {
       try {
+        const currentProperty = getSelectedProperty();
+        setPropertyId(currentProperty);
+
         const [fetchedRooms, fetchedBookings] = await Promise.all([
           getEnrichedRooms(),
           getBookingsList()
@@ -62,14 +64,13 @@ export default function CalendarPage() {
     fetchData();
     window.addEventListener('storage', fetchData);
     return () => window.removeEventListener('storage', fetchData);
-  }, [propertyId]);
+  }, []);
 
   if (!isMounted) return <div className="p-20 text-center text-ink-muted">Loading calendar...</div>;
 
   const filteredRooms = rooms.filter(r => {
     const matchesSearch = 
-      r.room_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.room_type.toLowerCase().includes(searchQuery.toLowerCase());
+      r.room_number.toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesProperty = !propertyId || propertyId === 'all' || r.property_id === propertyId;
     
@@ -204,7 +205,7 @@ export default function CalendarPage() {
                     <div className={`w-1.5 h-8 rounded-full shadow-sm bg-status-${(room.status || 'vacant').toLowerCase()}-fg`} />
                     <div className="flex flex-col">
                         <span className="text-sm font-medium text-ink-primary group-hover:text-accent transition-colors">Room {room.room_number}</span>
-                        <span className="text-[10px] text-ink-muted uppercase tracking-wider font-light">{room.room_type}</span>
+                        <span className="text-[10px] text-ink-muted uppercase tracking-wider font-light">Unit</span>
                     </div>
                   </div>
                 </td>
@@ -218,18 +219,29 @@ export default function CalendarPage() {
                     
                     if (booking) {
                       // Calculate how many days of this booking are visible from this point
-                      const checkOutDate = parseISO(booking.check_out_date);
+                      let checkOutDate;
+                      try {
+                        checkOutDate = parseISO(booking.check_out_date);
+                      } catch (e) {
+                        checkOutDate = addDays(date, 1);
+                      }
+
                       let duration = 0;
                       let tempDi = di;
                       while (tempDi < days.length) {
                         const d = days[tempDi];
+                        // Safeguard: Stop if we hit check-out date OR if we've looped but haven't advanced (impossible stay)
                         if (isSameDay(d, checkOutDate) || d >= checkOutDate) break;
                         duration++;
                         tempDi++;
                       }
                       
-                      segments.push({ type: 'booked', duration, date, booking });
-                      di = tempDi;
+                      // CRITICAL FIX: Ensure di always advances even for logically impossible 0-night stays
+                      const finalDi = Math.max(tempDi, di + 1);
+                      const finalDuration = Math.max(duration, 1);
+
+                      segments.push({ type: 'booked', duration: finalDuration, date, booking });
+                      di = finalDi;
                     } else {
                       segments.push({ type: 'empty', duration: 1, date });
                       di++;
@@ -241,46 +253,49 @@ export default function CalendarPage() {
                     const isWeekend = seg.date.getDay() === 0 || seg.date.getDay() === 6;
 
                     if (seg.type === 'booked' && seg.booking) {
-                      const isBookingStart = isSameDay(seg.date, parseISO(seg.booking.check_in_date));
-                      return (
-                        <td 
-                          key={si}
-                          colSpan={seg.duration}
-                          onClick={() => handleCellClick(room, seg.date, seg.booking)}
-                          className={`
-                            border-b border-r border-border-subtle p-1 h-16 relative cursor-pointer
-                            hover:bg-bg-sunken transition-colors group/cell
-                          `}
-                        >
-                          <div 
-                            className={`
-                              w-full h-full rounded-lg shadow-sm flex flex-col justify-center px-3 py-1 overflow-hidden transition-all duration-300 transform active:scale-[0.98]
-                              ${seg.booking.status === 'confirmed' ? 'bg-accent text-white' : 
-                                seg.booking.status === 'checked_in' ? 'bg-success text-white' : 
-                                'bg-ink-muted text-white'}
-                              ${!isBookingStart ? 'rounded-l-none' : ''}
-                            `}
-                            title={`${seg.booking.guest_name} • ${formatDate(seg.booking.check_in_date)} - ${formatDate(seg.booking.check_out_date)}`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10px] font-medium leading-none truncate whitespace-nowrap">
-                                {seg.booking.guest_name}
-                              </span>
-                              {seg.duration > 1 && (
-                                <span className="text-[8px] font-medium opacity-70 uppercase whitespace-nowrap bg-white/10 px-1.5 py-0.5 rounded ml-2">
-                                  {seg.duration} Nights
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1.5 mt-1">
-                              <div className={`w-1.5 h-1.5 rounded-full bg-white ${seg.booking.status === 'checked_in' ? 'animate-pulse' : ''}`} />
-                              <span className="text-[8px] font-semibold uppercase tracking-widest opacity-80">
-                                {seg.booking.status.replace('_', ' ')}
-                              </span>
-                            </div>
-                          </div>
-                        </td>
-                      );
+                          const isBookingStart = isSameDay(seg.date, parseISO(seg.booking.check_in_date));
+                          const isFutureBooking = parseISO(seg.booking.check_in_date) > new Date();
+                          const displayStatus = isFutureBooking ? 'confirmed' : seg.booking.status;
+                          
+                          return (
+                            <td 
+                              key={si}
+                              colSpan={seg.duration}
+                              onClick={() => handleCellClick(room, seg.date, seg.booking)}
+                              className={`
+                                border-b border-r border-border-subtle p-1 h-16 relative cursor-pointer
+                                hover:bg-bg-sunken transition-colors group/cell
+                              `}
+                            >
+                              <div 
+                                className={`
+                                  w-full h-full rounded-lg shadow-sm flex flex-col justify-center px-3 py-1 overflow-hidden transition-all duration-300 transform active:scale-[0.98]
+                                  ${displayStatus === 'confirmed' ? 'bg-accent text-white' : 
+                                    displayStatus === 'checked_in' ? 'bg-success text-white' : 
+                                    'bg-ink-muted text-white'}
+                                  ${!isBookingStart ? 'rounded-l-none' : ''}
+                                `}
+                                title={`${seg.booking.guest_name} • ${formatDate(seg.booking.check_in_date)} - ${formatDate(seg.booking.check_out_date)}`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-medium leading-none truncate whitespace-nowrap">
+                                    {seg.booking.guest_name}
+                                  </span>
+                                  {seg.duration > 1 && (
+                                    <span className="text-[8px] font-medium opacity-70 uppercase whitespace-nowrap bg-white/10 px-1.5 py-0.5 rounded ml-2">
+                                      {seg.duration} Nights
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1.5 mt-1">
+                                  <div className={`w-1.5 h-1.5 rounded-full bg-white ${displayStatus === 'checked_in' ? 'animate-pulse' : ''}`} />
+                                  <span className="text-[8px] font-semibold uppercase tracking-widest opacity-80">
+                                    {displayStatus.replace('_', ' ')}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+                          );
                     }
 
                     return (

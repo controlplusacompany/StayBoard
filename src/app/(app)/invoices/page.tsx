@@ -22,7 +22,8 @@ import Select from '@/components/ui/Select';
 import { 
   getStoredInvoices,
   getStoredBookings,
-  processPayment
+  processPayment,
+  getSelectedProperty
 } from '@/lib/store';
 import { Invoice, Booking, PaymentMethod, InvoiceStatus } from '@/types';
 import Badge from '@/components/ui/Badge';
@@ -36,19 +37,25 @@ export default function InvoicesPage() {
   const [bookings, setBookings] = useState<Record<string, Booking>>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [propertyFilter, setPropertyFilter] = useState<string | null>(null);
   
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('upi');
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
+      const currentProperty = getSelectedProperty();
+      setPropertyFilter(currentProperty);
+
       const rawInvoices = await getStoredInvoices();
       const rawBookings = await getStoredBookings({});
       setInvoices(rawInvoices.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
       setBookings(rawBookings);
+      setDataLoaded(true);
     };
     loadData();
     window.addEventListener('storage', loadData);
@@ -110,6 +117,10 @@ export default function InvoicesPage() {
   };
 
   const filteredInvoices = invoices.filter(inv => {
+    // 1. Property Filter
+    if (propertyFilter && inv.property_id !== propertyFilter) return false;
+
+    // 2. Search & Status
     const booking = bookings[inv.booking_id];
     const matchesSearch = 
       inv.invoice_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -132,12 +143,23 @@ export default function InvoicesPage() {
   
   const AdjustmentsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-info"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>;
 
+  if (!dataLoaded) return (
+    <div className="p-6 md:p-10 flex flex-col gap-6 animate-pulse bg-bg-canvas min-h-full">
+      <div className="flex flex-col gap-3">
+        <div className="h-3 w-32 bg-bg-sunken rounded" />
+        <div className="h-10 w-64 bg-bg-sunken rounded" />
+      </div>
+      <div className="h-14 bg-bg-sunken rounded-xl" />
+      <div className="h-64 bg-bg-sunken rounded-xl" />
+    </div>
+  );
+
   return (
     <div className="p-6 md:p-10 flex flex-col gap-8 animate-slide-up bg-bg-canvas min-h-full">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl md:text-4xl font-display text-ink-primary tracking-tight font-medium">Invoices & Payments</h1>
-          <p className="text-sm text-ink-secondary">Manage billing and track revenue</p>
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+        <div className="flex flex-col gap-3">
+          <span className="text-[10px] font-medium text-accent uppercase tracking-[0.3em] font-sans">Billing & Ledger</span>
+          <h1 className="text-4xl md:text-5xl font-display text-ink-primary tracking-tighter font-medium text-balance">Invoices & Payments</h1>
         </div>
       </header>
 
@@ -266,8 +288,8 @@ export default function InvoicesPage() {
         title="Record Payment"
         footer={
           <div className="flex gap-3 w-full">
-            <button className="btn btn-ghost flex-1 font-medium" onClick={() => setShowPaymentModal(false)}>Cancel</button>
-            <button className="btn btn-accent flex-1 font-medium" onClick={handleRecordPayment}>Confirm Payment</button>
+            <button className="btn btn-ghost flex-1" onClick={() => setShowPaymentModal(false)}>Cancel</button>
+            <button className="btn btn-accent flex-1" onClick={handleRecordPayment}>Confirm Payment</button>
           </div>
         }
       >

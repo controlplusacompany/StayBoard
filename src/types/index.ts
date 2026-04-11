@@ -12,7 +12,7 @@ export type PropertyType =
 export type PaymentMethod = 'upi' | 'cash' | 'card' | 'online' | 'mixed'
 
 export type BookingStatus =
-  | 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled' | 'no_show'
+  | 'unassigned' | 'assigned' | 'checked_in' | 'checked_out' | 'cancelled'
 
 export interface Owner {
   id: string
@@ -42,7 +42,6 @@ export interface Room {
   id: string
   property_id: string
   room_number: string
-  room_type: 'single' | 'double' | 'triple' | 'dormitory' | 'suite' | 'deluxe'
   floor: number
   max_occupancy: number
   base_price: number
@@ -50,18 +49,18 @@ export interface Room {
   staff_notes?: string
   last_status_change: string
   updated_at: string
+  is_overdue?: boolean
 }
 
 export interface Booking {
   id: string
-  room_id?: string // Optional now for unassigned online bookings
-  room_type?: string // To track type for unassigned bookings
+  room_id?: string 
   property_id: string
   owner_id: string
   guest_name: string
   guest_phone: string
-  guest_id_type: 'aadhaar' | 'passport' | 'driving_license' | 'voter_id' | 'other'
-  guest_id_number: string
+  guest_id_type?: 'aadhaar' | 'passport' | 'driving_license' | 'voter_id' | 'other'
+  guest_id_number?: string
   check_in_date: string
   check_out_date: string
   num_guests: number
@@ -70,7 +69,7 @@ export interface Booking {
   amount_paid: number
   payment_method?: PaymentMethod
   upi_ref?: string
-  booking_source?: 'walk_in' | 'airbnb' | 'booking_com' | 'phone' | 'direct' | 'other'
+  booking_source?: 'walk_in' | 'booking_com' | 'makemytrip' | 'cleartrip' | 'airbnb' | 'phone_call' | 'other'
   status: BookingStatus;
   special_requests?: string;
   created_at: string;
@@ -110,6 +109,7 @@ export interface PaymentEntry {
 export interface Invoice {
   id: string;
   booking_id: string;
+  property_id: string;
   owner_id: string;
   invoice_number: string;
   amount_total: number;
@@ -138,7 +138,6 @@ export interface Guest {
 export interface RateRule {
   id: string;
   property_id: string;
-  room_type: 'single' | 'double' | 'triple' | 'dormitory' | 'suite' | 'deluxe' | 'all';
   name: string;
   plan: 'room_only' | 'breakfast' | 'meals' | 'all_inclusive';
   include_tax: boolean;

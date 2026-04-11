@@ -12,12 +12,14 @@ import {
   BarChart3, 
   Wifi, 
   Settings,
-  CalendarDays
+  CalendarDays,
+  ClipboardList
 } from 'lucide-react';
 
 const NAV_ITEMS = [
   { label: 'Dashboard', href: '/dashboard', icon: Layout },
   { label: 'Availability', href: '/calendar', icon: CalendarDays },
+  { label: 'Reservations', href: '/reservations', icon: ClipboardList },
   { label: 'Housekeeping', href: '/housekeeping', icon: Sparkles },
   { label: 'Invoices', href: '/invoices', icon: ReceiptText },
   { label: 'Rates', href: '/rates', icon: Tag },
@@ -26,7 +28,7 @@ const NAV_ITEMS = [
   { label: 'Channels', icon: Wifi },
 ];
 
-const RECEPTION_NAV_ITEMS = ['Dashboard', 'Availability', 'Housekeeping', 'Invoices', 'Guests'];
+const RECEPTION_NAV_ITEMS = ['Dashboard', 'Availability', 'Reservations', 'Housekeeping', 'Invoices', 'Guests'];
 
 
 export default function Sidebar({ isMobileOpen, onCloseMobile }: { isMobileOpen?: boolean; onCloseMobile?: () => void }) {

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, ChevronRight, Plus, X, Bed, Layers, IndianRupee, Users, Tent, Coffee } from 'lucide-react';
 import Select from '@/components/ui/Select';
 import RoomCard from '@/components/rooms/RoomCard';
@@ -12,17 +12,34 @@ import RoomDrawer from '@/components/rooms/RoomDrawer';
 import Modal from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 
-import { getEnrichedRooms, getStoredBookings, getBookingsForRoom } from '@/lib/store';
+import { getEnrichedRooms, getStoredBookings, getBookingsForRoom, getSelectedProperty } from '@/lib/store';
 import { format, parseISO, isWithinInterval, isSameDay } from 'date-fns';
 
 export default function PropertyDetailPage({ params }: { params: { id: string } }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
   
-  const [activeTab, setActiveTab] = useState<RoomStatus | 'all' | 'dorms' | 'private'>('all');
+  const [activeTab, setActiveTab] = useState<RoomStatus | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+
+  // Auto-Redirect logic for Master Property sync
+  useEffect(() => {
+    const checkRedirect = () => {
+      const globalPropId = getSelectedProperty();
+      // Only redirect if a SPECIFIC property is selected globally and it's NOT this one.
+      // If 'All Properties' (null) is selected, stay on this page to allow 'drill down' viewing.
+      if (globalPropId && globalPropId !== params.id) {
+        router.push(`/property/${globalPropId}`);
+      }
+    };
+    
+    checkRedirect();
+    window.addEventListener('storage', checkRedirect);
+    return () => window.removeEventListener('storage', checkRedirect);
+  }, [params.id, router]);
   
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -43,39 +60,20 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
     bed: ''
   });
 
-  const defaultRooms: Room[] = params.id === '010' ? [
-    { id: '010-101', property_id: '010', room_number: '101', room_type: 'double', status: 'vacant', base_price: 1500, floor: 1, max_occupancy: 2, last_status_change: '', updated_at: '' },
-    { id: '010-102', property_id: '010', room_number: '102', room_type: 'double', status: 'vacant', base_price: 1500, floor: 1, max_occupancy: 2, last_status_change: '', updated_at: '' },
-    { id: '010-201', property_id: '010', room_number: '201', room_type: 'double', status: 'vacant', base_price: 1500, floor: 2, max_occupancy: 2, last_status_change: '', updated_at: '' },
-    { id: '010-202', property_id: '010', room_number: '202', room_type: 'double', status: 'vacant', base_price: 1500, floor: 2, max_occupancy: 2, last_status_change: '', updated_at: '' },
-    { id: '010-203', property_id: '010', room_number: '203', room_type: 'double', status: 'vacant', base_price: 1500, floor: 2, max_occupancy: 2, last_status_change: '', updated_at: '' },
-    { id: '010-301', property_id: '010', room_number: '301', room_type: 'double', status: 'vacant', base_price: 1500, floor: 3, max_occupancy: 2, last_status_change: '', updated_at: '' },
-    { id: '010-302', property_id: '010', room_number: '302', room_type: 'double', status: 'vacant', base_price: 1500, floor: 3, max_occupancy: 2, last_status_change: '', updated_at: '' },
-    { id: '010-303', property_id: '010', room_number: '303', room_type: 'double', status: 'vacant', base_price: 1500, floor: 3, max_occupancy: 2, last_status_change: '', updated_at: '' },
-  ] : [
-    { id: '011-1', property_id: '011', room_number: '1', room_type: 'single', status: 'vacant', base_price: 800, floor: 1, max_occupancy: 1, last_status_change: '', updated_at: '' },
-    { id: '011-2', property_id: '011', room_number: '2', room_type: 'single', status: 'vacant', base_price: 800, floor: 1, max_occupancy: 1, last_status_change: '', updated_at: '' },
-    { id: '011-3', property_id: '011', room_number: '3', room_type: 'single', status: 'vacant', base_price: 800, floor: 2, max_occupancy: 1, last_status_change: '', updated_at: '' },
-    { id: '011-4', property_id: '011', room_number: '4', room_type: 'single', status: 'vacant', base_price: 800, floor: 2, max_occupancy: 1, last_status_change: '', updated_at: '' },
-    { id: '011-5', property_id: '011', room_number: '5', room_type: 'single', status: 'vacant', base_price: 800, floor: 2, max_occupancy: 1, last_status_change: '', updated_at: '' },
-    { id: '011-6', property_id: '011', room_number: '6', room_type: 'single', status: 'vacant', base_price: 800, floor: 2, max_occupancy: 1, last_status_change: '', updated_at: '' },
-  ];
-
-  const defaultBookings: Record<string, Booking> = {};
-
   const [rooms, setRooms] = useState<Room[]>([]);
   const [mockBookings, setMockBookings] = useState<Record<string, Booking>>({});
-
+  const [dataLoaded, setDataLoaded] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const refreshData = async () => {
-    const allEnrichedRooms = await getEnrichedRooms(defaultRooms);
+    const allEnrichedRooms = await getEnrichedRooms();
     // STRICT FILTER: Only show rooms for this property
     const filteredRooms = allEnrichedRooms.filter(r => r.property_id === params.id);
     
-    const fetchedBookings = await getStoredBookings(defaultBookings);
+    const fetchedBookings = await getStoredBookings();
     setRooms(filteredRooms);
     setMockBookings(fetchedBookings);
+    setDataLoaded(true);
     setRefreshTrigger(prev => prev + 1);
   };
 
@@ -109,8 +107,6 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
     
     let matchesTab = true;
     if (activeTab === 'all') matchesTab = true;
-    else if (activeTab === 'dorms') matchesTab = room.room_type === 'dormitory';
-    else if (activeTab === 'private') matchesTab = room.room_type !== 'dormitory';
     else matchesTab = room.status === activeTab;
 
     const matchesSearch = room.room_number.includes(searchQuery) ||
@@ -120,12 +116,10 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
 
   const getCount = (tabId: string) => {
     if (tabId === 'all') return rooms.length;
-    if (tabId === 'dorms') return rooms.filter(r => r.room_type === 'dormitory').length;
-    if (tabId === 'private') return rooms.filter(r => r.room_type !== 'dormitory').length;
     return rooms.filter(r => r.status === tabId).length;
   };
 
-  const tabs: { id: RoomStatus | 'all' | 'dorms' | 'private'; label: string }[] = [
+  const tabs: { id: RoomStatus | 'all'; label: string }[] = [
     { id: 'all', label: 'All' },
     { id: 'vacant', label: 'Vacant' },
     { id: 'occupied', label: 'Occupied' },
@@ -134,11 +128,6 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
     { id: 'cleaning', label: 'Cleaning' },
     { id: 'maintenance', label: 'Maintenance' },
   ];
-
-  if (isHostel) {
-    tabs.push({ id: 'dorms', label: 'Dorms' });
-    tabs.push({ id: 'private', label: 'Private' });
-  }
 
   const handleRoomClick = (roomId: string) => {
     setSelectedRoomId(roomId);
@@ -169,6 +158,22 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
     booking: activeBooking,
     bookings: selectedBookings // Pass ALL bookings for the 30-day bar
   } : null;
+
+  if (!dataLoaded) return (
+    <div className="p-6 md:p-10 flex flex-col gap-6 animate-pulse bg-bg-canvas min-h-full">
+      <div className="flex flex-col gap-3">
+        <div className="h-3 w-40 bg-bg-sunken rounded" />
+        <div className="h-10 w-64 bg-bg-sunken rounded" />
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-24 bg-bg-sunken rounded-xl" />)}
+      </div>
+      <div className="h-14 bg-bg-sunken rounded-xl mt-4" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-32 bg-bg-sunken rounded-xl" />)}
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -217,10 +222,10 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
               </div>
             </div>
             <div className="flex items-center gap-3 w-full sm:w-auto">
-            {!isReception && !isOwnerRole && (
+            {!isReception && (
               <button 
                 onClick={() => setIsAddRoomOpen(true)}
-                className="btn btn-accent btn--sm flex-1 sm:flex-none flex items-center justify-center gap-2 group h-10"
+                className="btn btn-accent flex items-center justify-center gap-2 group"
               >
                 <Plus size={16} className="group-hover:rotate-90 transition-transform" />
                 <span>Add Room</span>
@@ -348,42 +353,14 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
         footer={
           <>
             <button className="btn btn-secondary px-8 shadow-sm" onClick={() => setIsAddRoomOpen(false)}>Cancel</button>
-            <button className="btn btn-accent px-10 shadow-lg shadow-accent/20" onClick={handleAddRoom}>Add Room</button>
+            <button className="btn btn-accent shadow-lg shadow-accent/20" onClick={handleAddRoom}>Add Room</button>
           </>
         }
       >
         <div className="flex flex-col gap-5">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">Room Number*</label>
-              <input type="text" placeholder={newRoom.number ? "" : "105"} className="input" value={newRoom.number} onChange={e => setNewRoom({...newRoom, number: e.target.value})} />
-            </div>
-            <Select 
-              options={[
-                { id: 'Single', label: 'Single Room', icon: Bed, description: '1 Person' },
-                { id: 'Double', label: 'Double Room', icon: Users, description: '2 Persons' },
-                { id: 'Suite', label: 'Suite Room', icon: Layers, description: 'Premium Space' },
-                { id: 'Dormitory Bed', label: 'Dormitory Bed', icon: Tent, description: 'Hostel Style' }
-              ]}
-              value={newRoom.bed} // reusing bed field as a proxy or I should add a type field to newRoom
-              onChange={(val) => setNewRoom({...newRoom, bed: val})}
-              label="Room Type*"
-              className="flex-1"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">Floor</label>
-              <div className="relative">
-                <Layers size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
-                <input type="number" placeholder={newRoom.floor ? "" : "1"} className="input pl-10" value={newRoom.floor} onChange={e => setNewRoom({...newRoom, floor: e.target.value})} />
-              </div>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">Max Occupancy</label>
-              <input type="number" placeholder={newRoom.occupancy ? "" : "2"} className="input" value={newRoom.occupancy} onChange={e => setNewRoom({...newRoom, occupancy: e.target.value})} />
-            </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">Room Number*</label>
+            <input type="text" placeholder={newRoom.number ? "" : "105"} className="input" value={newRoom.number} onChange={e => setNewRoom({...newRoom, number: e.target.value})} />
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -393,16 +370,6 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
               <input type="number" placeholder={newRoom.price ? "" : "1200"} className="input pl-10" value={newRoom.price} onChange={e => setNewRoom({...newRoom, price: e.target.value})} />
             </div>
           </div>
-
-          {isHostel && (
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-ink-muted uppercase tracking-wider">Bed Number (Dorms Only)</label>
-              <div className="relative">
-                <Bed size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
-                <input type="text" placeholder={newRoom.bed ? "" : "A1"} className="input pl-10" value={newRoom.bed} onChange={e => setNewRoom({...newRoom, bed: e.target.value})} />
-              </div>
-            </div>
-          )}
         </div>
       </Modal>
 

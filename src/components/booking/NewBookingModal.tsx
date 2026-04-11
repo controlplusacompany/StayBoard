@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Modal from '../ui/Modal';
-import { getStoredRooms, getBookingsList } from '@/lib/store';
-import { Room, Booking } from '@/types';
+import { getStoredRooms, getBookingsList, getStoredProperties } from '@/lib/store';
+import { Room, Booking, Property } from '@/types';
 import { Bed, Search, Home, ChevronRight, X } from 'lucide-react';
 
 interface NewBookingModalProps {
@@ -13,27 +13,25 @@ interface NewBookingModalProps {
   propertyId?: string | null;
 }
 
-const PROPERTIES = [
-  { id: '010', name: 'The Peace' },
-  { id: '011', name: 'The Starry Nights' }
-];
-
 export default function NewBookingModal({ isOpen, onClose, propertyId }: NewBookingModalProps) {
   const router = useRouter();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [properties, setProperties] = useState<Property[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | 'all'>(propertyId || 'all');
 
 
   useEffect(() => {
     const fetchData = async () => {
-      const [fetchedRooms, fetchedBookings] = await Promise.all([
-        getStoredRooms([]),
-        getBookingsList()
+      const [fetchedRooms, fetchedBookings, fetchedProps] = await Promise.all([
+        getStoredRooms(),
+        getBookingsList(),
+        getStoredProperties()
       ]);
       setRooms(Array.isArray(fetchedRooms) ? fetchedRooms : []);
       setBookings(Array.isArray(fetchedBookings) ? fetchedBookings : []);
+      setProperties(fetchedProps as Property[]);
     };
     if (isOpen) {
       fetchData();
@@ -44,22 +42,18 @@ export default function NewBookingModal({ isOpen, onClose, propertyId }: NewBook
   const vacantRooms = rooms.filter(r => {
     const isVacant = r.status === 'vacant';
     const matchesProperty = selectedPropertyId === 'all' || r.property_id === selectedPropertyId;
-    const matchesSearch = r.room_number.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          r.room_type.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = r.room_number.toLowerCase().includes(searchQuery.toLowerCase());
     
     if (!isVacant || !matchesProperty || !matchesSearch) return false;
 
-    // INVENTORY PROTECTION: Check if this room type has actual available count for today.
+    // PROPERTY-WIDE INVENTORY PROTECTION
     const today = new Date().toISOString().split('T')[0];
     const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
     
-    const propertyRoomsCount = rooms.filter(room => room.property_id === r.property_id && room.room_type === r.room_type).length;
+    const propertyRoomsCount = rooms.filter(room => room.property_id === r.property_id).length;
     const activeBookingsCount = bookings.filter(b => {
         if (b.property_id !== r.property_id) return false;
         if (b.status === 'cancelled' || b.status === 'no_show' || b.status === 'checked_out') return false;
-        
-        const bType = b.room_type || rooms.find(room => room.id === b.room_id)?.room_type;
-        if (bType !== r.room_type) return false;
         
         const bStartStr = b.check_in_date.split('T')[0];
         const bEndStr = b.check_out_date.split('T')[0];
@@ -88,7 +82,7 @@ export default function NewBookingModal({ isOpen, onClose, propertyId }: NewBook
               >
                 All
               </button>
-              {PROPERTIES.map(p => (
+              {properties.map(p => (
                 <button 
                   key={p.id}
                   onClick={() => setSelectedPropertyId(p.id)}
@@ -108,7 +102,7 @@ export default function NewBookingModal({ isOpen, onClose, propertyId }: NewBook
               <input 
                 type="text" 
                 className="input pl-9 py-2 text-xs" 
-                placeholder="Ex. 101, Deluxe..."
+                placeholder="Ex. 101, 202..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
               />
@@ -130,9 +124,8 @@ export default function NewBookingModal({ isOpen, onClose, propertyId }: NewBook
                   </div>
                   <div className="flex flex-col">
                     <span className="text-sm font-bold text-ink-primary">Room {room.room_number}</span>
-                    <span className="text-[10px] text-ink-muted uppercase tracking-tight">{room.room_type}</span>
                     <span className="text-[9px] text-accent font-semibold mt-1">
-                      {PROPERTIES.find(p => p.id === room.property_id)?.name}
+                      {properties.find(p => p.id === room.property_id)?.name}
                     </span>
                   </div>
                 </button>

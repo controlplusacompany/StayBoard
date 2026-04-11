@@ -3,17 +3,18 @@
 import React, { useState, useEffect } from 'react';
 import StatCard from '@/components/dashboard/StatCard';
 import PropertyCard from '@/components/dashboard/PropertyCard';
-import { Plus, Building2, MapPin, Bed, ExternalLink, Search, Home, GraduationCap, Warehouse, Coffee } from 'lucide-react';
+import { Plus, Building2, MapPin, Bed, ExternalLink, Search, Home, GraduationCap, Warehouse, Coffee, ArrowRight, User, CreditCard } from 'lucide-react';
 import Select from '@/components/ui/Select';
 import { Property, RoomStatus } from '@/types';
 import Modal from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import Link from 'next/link';
-import { getEnrichedRooms, getStoredBookings } from '@/lib/store';
+import { getEnrichedRooms, getStoredBookings, getSelectedProperty, getArrivalsToday, updateRoomStatus, getVacantRooms, getStoredProperties, updateBookingStatus } from '@/lib/store';
 import { Room, Booking } from '@/types';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useNewBooking } from '@/components/booking/NewBookingProvider';
 import { parseISO, format, isSameDay } from 'date-fns';
+import Badge from '@/components/ui/Badge';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -50,6 +51,13 @@ export default function DashboardPage() {
     plan: 'pro' 
   };
 
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [storedRooms, setStoredRooms] = useState<Room[]>([]);
+  const [storedBookings, setStoredBookings] = useState<Record<string, Booking>>({});
+  const [arrivals, setArrivals] = useState<Booking[]>([]);
+  const [dataLoaded, setDataLoaded] = useState(false);
+  const [propertyFilter, setPropertyFilter] = useState<string | null>(null);
+
   const [isAddPropertyOpen, setIsAddPropertyOpen] = useState(false);
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -59,63 +67,35 @@ export default function DashboardPage() {
     address: ''
   });
 
-  const propertyConfig = [
-    { id: '010', name: 'The Peace', type: 'bnb' as const },
-    { id: '011', name: 'The Starry Nights', type: 'hostel' as const },
-  ];
-
-  const initialRooms: Room[] = [
-    // The Peace (010)
-    { id: '010-101', property_id: '010', room_number: '101', room_type: 'double', status: 'vacant', base_price: 1500, floor: 1, max_occupancy: 2, last_status_change: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: '010-102', property_id: '010', room_number: '102', room_type: 'double', status: 'vacant', base_price: 1500, floor: 1, max_occupancy: 2, last_status_change: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: '010-201', property_id: '010', room_number: '201', room_type: 'double', status: 'vacant', base_price: 1500, floor: 2, max_occupancy: 2, last_status_change: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: '010-202', property_id: '010', room_number: '202', room_type: 'double', status: 'vacant', base_price: 1500, floor: 2, max_occupancy: 2, last_status_change: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: '010-203', property_id: '010', room_number: '203', room_type: 'double', status: 'vacant', base_price: 1500, floor: 2, max_occupancy: 2, last_status_change: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: '010-301', property_id: '010', room_number: '301', room_type: 'double', status: 'vacant', base_price: 1500, floor: 3, max_occupancy: 2, last_status_change: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: '010-302', property_id: '010', room_number: '302', room_type: 'double', status: 'vacant', base_price: 1500, floor: 3, max_occupancy: 2, last_status_change: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: '010-303', property_id: '010', room_number: '303', room_type: 'double', status: 'vacant', base_price: 1500, floor: 3, max_occupancy: 2, last_status_change: new Date().toISOString(), updated_at: new Date().toISOString() },
-    
-    // The Starry Nights (011)
-    { id: '011-1', property_id: '011', room_number: '1', room_type: 'single', status: 'vacant', base_price: 800, floor: 1, max_occupancy: 1, last_status_change: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: '011-2', property_id: '011', room_number: '2', room_type: 'single', status: 'vacant', base_price: 800, floor: 1, max_occupancy: 1, last_status_change: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: '011-3', property_id: '011', room_number: '3', room_type: 'single', status: 'vacant', base_price: 800, floor: 2, max_occupancy: 1, last_status_change: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: '011-4', property_id: '011', room_number: '4', room_type: 'single', status: 'vacant', base_price: 800, floor: 2, max_occupancy: 1, last_status_change: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: '011-5', property_id: '011', room_number: '5', room_type: 'single', status: 'vacant', base_price: 800, floor: 2, max_occupancy: 1, last_status_change: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: '011-6', property_id: '011', room_number: '6', room_type: 'single', status: 'vacant', base_price: 800, floor: 2, max_occupancy: 1, last_status_change: new Date().toISOString(), updated_at: new Date().toISOString() },
-  ];
-
-  const [storedRooms, setStoredRooms] = useState<Room[]>(initialRooms);
-  const [storedBookings, setStoredBookings] = useState<Record<string, Booking>>({});
-
   useEffect(() => {
     const loadCache = async () => {
-      const enrichedRooms = await getEnrichedRooms(initialRooms);
-      const bookings = await getStoredBookings();
+      const currentFilter = getSelectedProperty();
+      setPropertyFilter(currentFilter);
+      
+      const [enrichedRooms, bookings, arrivalsToday, fetchedProps] = await Promise.all([
+        getEnrichedRooms(),
+        getStoredBookings(),
+        getArrivalsToday(),
+        getStoredProperties()
+      ]);
+      
       setStoredRooms(enrichedRooms);
       setStoredBookings(bookings);
+      setArrivals(arrivalsToday);
+      setProperties(fetchedProps as Property[]);
+      setDataLoaded(true);
     };
     loadCache();
     window.addEventListener('storage', loadCache);
     return () => window.removeEventListener('storage', loadCache);
   }, []);
 
-  const mergedRooms = [...storedRooms];
-  propertyConfig.forEach(p => {
-    if (!mergedRooms.some(r => r.property_id === p.id)) {
-      const pRooms = initialRooms.filter(r => r.property_id === p.id);
-      mergedRooms.push(...pRooms);
-    }
-  });
-
-  const searchParams = useSearchParams();
-  const propertyFilter = searchParams.get('propertyId');
-
   const allRooms = propertyFilter 
-    ? mergedRooms.filter(r => r.property_id === propertyFilter)
-    : mergedRooms;
+    ? storedRooms.filter(r => r.property_id === propertyFilter)
+    : storedRooms;
 
   const getPropertySummary = (propertyId: string) => {
-    const propertyRooms = allRooms.filter(r => r.property_id === propertyId);
+    const propertyRooms = storedRooms.filter(r => r.property_id === propertyId);
     
     return {
       occupied: propertyRooms.filter(r => r.status === 'occupied').length,
@@ -124,21 +104,9 @@ export default function DashboardPage() {
     };
   };
 
-  const propertySummaries: Record<string, any> = {
-    '010': getPropertySummary('010'),
-    '011': getPropertySummary('011'),
-  };
-
-  const totalVacant = allRooms.filter(r => r.status === 'vacant').length;
-
-  const properties: Property[] = [
-    { id: '010', owner_id: '001', name: 'The Peace', type: 'bnb', city: 'Varanasi', state: 'UP', total_rooms: 8, is_active: true, created_at: '2026-03-10T10:00:00Z' },
-    { id: '011', owner_id: '001', name: 'The Starry Nights', type: 'hostel', total_rooms: 6, city: 'Varanasi', state: 'UP', is_active: true, created_at: '2025-11-20' },
-  ];
-
   const filteredProperties = properties.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          p.city.toLowerCase().includes(searchQuery.toLowerCase());
+                          (p.city?.toLowerCase() || '').includes(searchQuery.toLowerCase());
     const matchesPropertyFilter = propertyFilter ? p.id === propertyFilter : true;
     
     // STAFF RESTRICTION: Staff only sees their assigned property
@@ -163,7 +131,27 @@ export default function DashboardPage() {
 
   const currentDateTime = format(currentTime, 'EEEE, dd MMM yyyy');
 
-  if (!isMounted) return <div className="p-20 text-center text-ink-muted">Loading dashboard...</div>;
+  if (!isMounted || !dataLoaded) return (
+    <div className="p-6 md:p-8 flex flex-col gap-10 animate-pulse bg-bg-canvas min-h-screen">
+      <div className="flex flex-col gap-4">
+        <div className="h-4 w-32 bg-bg-sunken rounded opacity-60" />
+        <div className="h-12 w-80 bg-bg-sunken rounded" />
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="flex flex-col gap-3">
+            <div className="h-28 bg-bg-sunken rounded-2xl" />
+            <div className="h-4 w-2/3 bg-bg-sunken rounded opacity-40 mx-auto" />
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="h-64 bg-bg-sunken rounded-3xl" />
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div className="p-4 md:p-6 lg:p-8 flex flex-col gap-6 animate-slide-up bg-bg-canvas min-h-screen">
@@ -177,48 +165,24 @@ export default function DashboardPage() {
             <h1 className="text-3xl md:text-4xl font-display text-ink-primary tracking-tighter font-medium text-balance">
               {getGreeting()}
             </h1>
-            
-            <div className="flex flex-wrap gap-x-6 gap-y-2 text-ink-secondary text-[11px] font-sans">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-status-vacant-fg" />
-                <span><span className="font-semibold text-ink-primary">{totalVacant}</span> Vacant</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-status-occupied-fg" />
-                <span><span className="font-semibold text-ink-primary">{allRooms.filter(r => r.status === 'occupied').length}</span> Occupied</span>
-              </div>
-              <div className="flex items-center gap-2 text-nowrap">
-                <div className="w-2 h-2 rounded-full bg-status-arriving-fg" />
-                <span><span className="font-semibold text-ink-primary">{allRooms.filter(r => r.status === 'arriving_today').length}</span> Arriving Today</span>
-              </div>
-              <div className="flex items-center gap-2 text-nowrap">
-                <div className="w-2 h-2 rounded-full bg-status-checkout-fg" />
-                <span><span className="font-semibold text-ink-primary">{allRooms.filter(r => r.status === 'checkout_today').length}</span> Checking Out</span>
-              </div>
-              <div className="flex items-center gap-2 text-nowrap">
-                <div className="w-2 h-2 rounded-full bg-status-cleaning-fg" />
-                <span><span className="font-semibold text-ink-primary">{allRooms.filter(r => r.status === 'cleaning').length}</span> Cleaning</span>
-              </div>
-              <div className="flex items-center gap-2 text-nowrap">
-                <div className="w-2 h-2 rounded-full bg-status-maintenance-fg" />
-                <span><span className="font-semibold text-ink-primary">{allRooms.filter(r => r.status === 'maintenance').length}</span> Maint.</span>
-              </div>
-            </div>
           </div>
         </div>
 
         {!isReception && (
           <div className="flex items-center gap-8 md:text-right shrink-0">
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-ink-muted">Occupancy</span>
+              <span className="text-[10px] font-medium uppercase tracking-widest text-ink-muted">Occupancy</span>
               <span className="text-xl sm:text-2xl font-mono font-medium tracking-tight text-ink-primary">
                 {Math.round((allRooms.filter(r => r.status === 'occupied').length / Math.max(1, allRooms.length)) * 100)}%
               </span>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-ink-muted">Revenue</span>
+              <span className="text-[10px] font-medium uppercase tracking-widest text-ink-muted">Revenue</span>
               <span className="text-xl sm:text-2xl font-mono font-medium tracking-tight text-ink-primary">
-                ₹{Object.values(storedBookings).filter(b => isSameDay(parseISO(b.check_in_date), new Date())).reduce((sum, b) => sum + (Number(b.amount_paid) || 0), 0)}
+                ₹{Object.values(storedBookings)
+                  .filter(b => isSameDay(parseISO(b.check_in_date), new Date()))
+                  .filter(b => !propertyFilter || b.property_id === propertyFilter)
+                  .reduce((sum, b) => sum + (Number(b.amount_paid) || 0), 0)}
               </span>
             </div>
           </div>
@@ -226,25 +190,134 @@ export default function DashboardPage() {
       </header>
 
       {/* GLOBAL KPI DASHBOARD */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-2">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-2">
         {[
-          { label: 'Total Occupied', value: allRooms.filter(r => r.status === 'occupied').length, sub: `of ${allRooms.length} rooms`, border: 'border-l-[#2563EB]' },
-          { label: 'Checking In', value: allRooms.filter(r => r.status === 'arriving_today').length, sub: 'arrivals today', border: 'border-l-[#A855F7]' },
-          { label: 'Checking Out', value: allRooms.filter(r => r.status === 'checkout_today').length, sub: 'departures today', border: 'border-l-[#F97316]' },
-          { label: 'Vacant Tonight', value: totalVacant, sub: 'available', border: 'border-l-[#22C55E]' },
-          { label: "Today's Revenue", value: `₹${Object.values(storedBookings).filter(b => isSameDay(parseISO(b.check_in_date), new Date())).reduce((sum, b) => sum + (Number(b.amount_paid) || 0), 0)}`, sub: 'UPI + Cash', border: 'border-l-[#2563EB]', isRevenue: true }
+          { 
+            label: 'Vacant Rooms', 
+            value: allRooms.filter(r => r.status === 'vacant').length, 
+            sub: 'Available tonight', 
+            border: 'border-l-success' 
+          },
+          { 
+            label: 'Occupied Rooms', 
+            value: allRooms.filter(r => r.status === 'occupied').length, 
+            sub: 'Currently in-stay', 
+            border: 'border-l-accent' 
+          },
+          { 
+            label: 'Check-ins Today', 
+            value: Object.values(storedBookings)
+              .filter(b => isSameDay(parseISO(b.check_in_date), new Date()))
+              .filter(b => !propertyFilter || b.property_id === propertyFilter)
+              .length, 
+            sub: 'Arriving guests', 
+            border: 'border-l-info' 
+          },
+          { 
+            label: 'Check-outs Today', 
+            value: Object.values(storedBookings)
+              .filter(b => isSameDay(parseISO(b.check_out_date), new Date()))
+              .filter(b => !propertyFilter || b.property_id === propertyFilter)
+              .length, 
+            sub: 'Departing guests', 
+            border: 'border-l-warning' 
+          },
+          { 
+            label: "Revenue Today", 
+            value: `₹${Object.values(storedBookings)
+              .filter(b => isSameDay(parseISO(b.check_in_date), new Date()))
+              .filter(b => !propertyFilter || b.property_id === propertyFilter)
+              .reduce((sum, b) => sum + (Number(b.amount_paid) || 0), 0).toLocaleString()}`, 
+            sub: 'Collected today', 
+            border: 'border-l-primary', 
+            isRevenue: true 
+          }
         ].map((kpi, i) => (
           <div key={i} className={`bg-white border border-border-subtle rounded-lg p-3 sm:p-4 shadow-xs border-l-4 ${kpi.border} flex flex-col gap-1 sm:gap-2 transition-all hover:shadow-md duration-300`}>
-            <span className="text-[9px] sm:text-[10px] font-bold text-ink-muted uppercase tracking-widest">{kpi.label}</span>
+            <span className="text-[9px] sm:text-[10px] font-medium text-ink-muted uppercase tracking-widest">{kpi.label}</span>
             <div className="flex flex-col">
-              <span className={`text-xl sm:text-2xl font-display font-bold text-ink-primary ${kpi.isRevenue ? 'font-mono' : ''}`}>{kpi.value}</span>
+              <span className={`text-xl sm:text-2xl font-display font-medium text-ink-primary ${kpi.isRevenue ? 'font-mono' : ''}`}>{kpi.value}</span>
               <span className="text-[10px] text-ink-muted font-medium mt-0.5">
-                {kpi.sub} {kpi.isRevenue && <span className="text-success font-bold ml-1">↗ 0%</span>}
+                {kpi.sub} {kpi.isRevenue && <span className="text-success font-medium ml-1">↗ 0%</span>}
               </span>
             </div>
           </div>
         ))}
       </div>
+
+      {/* ARRIVALS TODAY SECTION */}
+      {arrivals.length > 0 && (
+        <section className="flex flex-col gap-4">
+          <div className="flex items-center justify-between font-sans">
+            <h2 className="text-xl font-display text-ink-primary font-medium flex items-center gap-2">
+              Arrivals Today
+              <span className="w-5 h-5 rounded-full bg-accent text-[10px] text-white flex items-center justify-center font-bold">
+                {arrivals.length}
+              </span>
+            </h2>
+            <Link href="/reservations" className="text-xs font-bold text-accent uppercase tracking-widest hover:underline flex items-center gap-1.5 group">
+              View Guest List <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+            </Link>
+          </div>
+          <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 custom-scrollbar">
+            {arrivals.map(booking => (
+              <div key={booking.id} className="min-w-[280px] sm:min-w-[320px] bg-white border border-border-subtle rounded-2xl p-4 shadow-sm flex flex-col gap-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex flex-col">
+                    <span className="text-xs font-medium text-ink-muted uppercase tracking-wider">
+                      {booking.status === 'unassigned' ? 'Unassigned' : `Room ${storedRooms.find(r => r.id === booking.room_id)?.room_number}`}
+                    </span>
+                    <h3 className="text-base font-semibold text-ink-primary">{booking.guest_name}</h3>
+                  </div>
+                  <Badge variant={booking.status === 'assigned' ? 'success' : 'warning'}>
+                    {booking.status === 'assigned' ? 'Assigned' : 'Reserved'}
+                  </Badge>
+                </div>
+                
+                <div className="flex items-center gap-4 text-xs text-ink-muted">
+                  <div className="flex items-center gap-1.5">
+                    <User size={14} />
+                    <span>{booking.num_guests} Guests</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <CreditCard size={14} />
+                    <span>{booking.amount_paid > 0 ? 'Paid' : 'Unpaid'}</span>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 mt-auto">
+                  {booking.status === 'unassigned' ? (
+                    <button 
+                      onClick={() => openNewBooking()}
+                      className="flex-1 py-2 bg-accent text-white rounded-lg text-xs font-bold hover:bg-accent/90 transition-all"
+                    >
+                      Assign Room
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={async () => {
+                        if (booking.room_id) {
+                          await updateBookingStatus(booking.id, 'checked_in');
+                          toast(`Guest ${booking.guest_name} checked in!`, 'success');
+                          // Refresh arrivals after check-in
+                          const updatedArrivals = await getArrivalsToday(propertyFilter || undefined);
+                          setArrivals(updatedArrivals);
+                        }
+                      }}
+                      className="flex-1 py-2 bg-success text-white rounded-lg text-xs font-bold hover:bg-success/90 transition-all font-mono"
+                    >
+                      CHECK IN
+                    </button>
+                  )}
+                  <button className="p-2 border border-border-subtle rounded-lg text-ink-muted hover:bg-bg-sunken">
+                    <ExternalLink size={16} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Properties Section */}
       <section className="flex flex-col gap-4 mt-2">
@@ -262,10 +335,10 @@ export default function DashboardPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
              </div>
-             {!isReception && !isOwnerRole && (
+             {!isReception && (
                <button 
                   onClick={handleAddPropertyClick}
-                  className="btn btn-accent btn--sm flex items-center gap-2 group whitespace-nowrap h-9 px-4 text-xs font-semibold"
+                  className="btn btn-accent flex items-center gap-2 group whitespace-nowrap"
                 >
                   <Plus size={14} className="group-hover:rotate-90 transition-transform" />
                   <span>Add Property</span>
@@ -279,14 +352,14 @@ export default function DashboardPage() {
             <div key={property.id} className="stagger-item visible" style={{ animationDelay: `${idx * 40}ms` }}>
               <PropertyCard
                 property={property}
-                summary={propertySummaries[property.id as keyof typeof propertySummaries]}
+                summary={getPropertySummary(property.id)}
               />
             </div>
           ))}
           {filteredProperties.length === 0 && (
             <div className="col-span-full py-16 bg-bg-sunken/40 rounded-2xl border border-dashed border-border-subtle flex flex-col items-center justify-center text-center">
                <Building2 size={40} strokeWidth={1} className="text-ink-muted/30 mb-3" />
-               <h3 className="text-sm font-semibold text-ink-primary mb-1">No properties found</h3>
+               <h3 className="text-sm font-medium text-ink-primary mb-1">No properties found</h3>
                <p className="text-xs text-ink-muted">Try adjusting your search query</p>
             </div>
           )}
@@ -300,14 +373,14 @@ export default function DashboardPage() {
         title="Add New Property"
         footer={
           <div className="flex gap-2 w-full">
-            <button className="btn btn-secondary flex-1 font-semibold" onClick={() => setIsAddPropertyOpen(false)}>Cancel</button>
-            <button className="btn btn-accent flex-1 font-semibold" onClick={confirmAddProperty}>Add Property</button>
+            <button className="btn btn-secondary flex-1 font-medium" onClick={() => setIsAddPropertyOpen(false)}>Cancel</button>
+            <button className="btn btn-accent flex-1 font-medium" onClick={confirmAddProperty}>Add Property</button>
           </div>
         }
       >
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider">Property Name*</label>
+            <label className="text-[10px] font-medium text-ink-muted uppercase tracking-wider">Property Name*</label>
             <div className="relative">
               <Building2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
               <input type="text" placeholder="e.g. Peace Hotel" className="input pl-10" value={newProperty.name} onChange={e => setNewProperty({...newProperty, name: e.target.value})} />
@@ -326,7 +399,7 @@ export default function DashboardPage() {
               label="Property Type*"
             />
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider">Total Rooms*</label>
+              <label className="text-[10px] font-medium text-ink-muted uppercase tracking-wider">Total Rooms*</label>
               <div className="relative">
                 <Bed size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
                 <input type="number" placeholder="20" className="input pl-10" value={newProperty.rooms} onChange={e => setNewProperty({...newProperty, rooms: e.target.value})} />
@@ -335,7 +408,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] font-semibold text-ink-muted uppercase tracking-wider">Address</label>
+            <label className="text-[10px] font-medium text-ink-muted uppercase tracking-wider">Address</label>
             <div className="relative">
               <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
               <input type="text" placeholder="Location details..." className="input pl-10" value={newProperty.address} onChange={e => setNewProperty({...newProperty, address: e.target.value})} />
@@ -352,7 +425,7 @@ export default function DashboardPage() {
           </div>
           <h3 className="text-lg font-medium">Upgrade to Pro</h3>
           <p className="text-xs text-ink-muted px-6">Manage multiple properties and unlock premium analytics.</p>
-          <button className="btn btn-accent w-full font-semibold mt-2" onClick={() => setIsUpgradeOpen(false)}>View Plans</button>
+          <button className="btn btn-accent w-full mt-2" onClick={() => setIsUpgradeOpen(false)}>View Plans</button>
         </div>
       </Modal>
     </div>

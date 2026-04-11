@@ -28,7 +28,9 @@ import {
   addTask, 
   updateTaskStatus, 
   reassignTask,
-  getEnrichedRooms 
+  getEnrichedRooms,
+  getSelectedProperty,
+  getStoredProperties
 } from '@/lib/store';
 import { 
   HousekeepingTask, 
@@ -42,11 +44,6 @@ import { useToast } from '@/components/ui/Toast';
 import RoomCard from '@/components/rooms/RoomCard';
 import { format } from 'date-fns';
 
-const PROPERTIES = [
-  { id: '010', name: 'The Peace' },
-  { id: '011', name: 'The Starry Nights' }
-];
-
 const TASK_STATUSES: { label: string; value: HousekeepingTask['status'] }[] = [
   { label: 'Pending', value: 'pending' },
   { label: 'In Progress', value: 'in_progress' },
@@ -57,9 +54,8 @@ export default function HousekeepingPage() {
   const { toast } = useToast();
   const [tasks, setTasks] = useState<HousekeepingTask[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
-  const searchParams = useSearchParams();
-  const globalPropertyId = searchParams.get('propertyId') || 'all';
-  const filterProperty = globalPropertyId;
+  const [filterProperty, setFilterProperty] = useState<string | null>(null);
+  const [availableProperties, setAvailableProperties] = useState<{id: string, name: string}[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'tasks' | 'rooms'>('tasks');
   const [isLoading, setIsLoading] = useState(true);
@@ -75,10 +71,22 @@ export default function HousekeepingPage() {
     const loadStore = async () => {
       setIsLoading(true);
       try {
-        const fetchedTasks = await getStoredTasks();
-        const fetchedRooms = await getEnrichedRooms();
+        const currentProperty = getSelectedProperty();
+        setFilterProperty(currentProperty);
+
+        const [fetchedTasks, fetchedRooms, fetchedProperties] = await Promise.all([
+          getStoredTasks(),
+          getEnrichedRooms(),
+          getStoredProperties()
+        ]);
         setTasks(fetchedTasks);
         setRooms(fetchedRooms);
+        setAvailableProperties(fetchedProperties.map(p => ({ id: p.id, name: p.name })));
+
+        // Sync form default if needed
+        if (currentProperty && currentProperty !== 'all') {
+           setNewTask(prev => ({ ...prev, property_id: currentProperty }));
+        }
       } catch (error) {
         console.error("Error loading housekeeping data:", error);
       } finally {
@@ -150,7 +158,7 @@ export default function HousekeepingPage() {
   };
 
   const filteredTasks = tasks.filter(t => {
-    const isPropertyMatch = filterProperty === 'all' || t.property_id === filterProperty;
+    const isPropertyMatch = !filterProperty || filterProperty === 'all' || t.property_id === filterProperty;
     if (!isPropertyMatch) return false;
 
     // FEATURE 1: Hide checkout_clean tasks until checkout date
@@ -164,7 +172,7 @@ export default function HousekeepingPage() {
   });
 
   const filteredRooms = rooms.filter(r => 
-    (filterProperty === 'all' || r.property_id === filterProperty) &&
+    (!filterProperty || filterProperty === 'all' || r.property_id === filterProperty) &&
     ['cleaning', 'maintenance', 'vacant'].includes(r.status)
   );
 
@@ -186,9 +194,9 @@ export default function HousekeepingPage() {
         <div className="flex justify-between items-start">
           <div className="flex flex-col">
             <h4 className="font-display text-lg text-ink-primary leading-tight font-medium">Room {room?.room_number || '??'}</h4>
-            {filterProperty === 'all' && (
+            {(filterProperty === 'all' || !filterProperty) && (
               <span className="text-[9px] font-medium text-accent font-sans uppercase tracking-[0.1em] -mt-0.5 opacity-80 decoration-accent/50 underline-offset-2">
-                {PROPERTIES.find(p => p.id === task.property_id)?.name}
+                {availableProperties.find(p => p.id === task.property_id)?.name}
               </span>
             )}
             <span className="text-[10px] font-normal text-ink-muted uppercase tracking-wider mt-1">{task.task_type.replace('_', ' ')}</span>
@@ -239,6 +247,25 @@ export default function HousekeepingPage() {
     );
   };
 
+  if (isLoading) return (
+    <div className="p-6 md:p-10 flex flex-col gap-6 animate-pulse bg-bg-canvas min-h-full">
+      <div className="flex flex-col gap-3">
+        <div className="h-3 w-40 bg-bg-sunken rounded" />
+        <div className="h-10 w-56 bg-bg-sunken rounded" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
+        <div className="md:col-span-4 flex flex-col gap-4">
+          {Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-28 bg-bg-sunken rounded-xl" />)}
+        </div>
+        <div className="md:col-span-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-24 bg-bg-sunken rounded-xl" />)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="p-6 md:p-10 flex flex-col gap-10 bg-bg-canvas min-h-full">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">
@@ -249,7 +276,7 @@ export default function HousekeepingPage() {
         {!isOwnerRole && (
           <button 
             onClick={() => setShowCreateModal(true)}
-            className="btn btn-accent px-6 py-4 rounded-full flex items-center justify-center gap-2 shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] w-full sm:w-auto font-medium"
+            className="btn btn-accent flex items-center justify-center gap-2 shadow-lg shadow-accent/20"
           >
             <Plus size={20} />
             <span>Create Task</span>
@@ -335,7 +362,7 @@ export default function HousekeepingPage() {
           
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {filteredRooms.map(room => {
-              const propName = PROPERTIES.find(p => p.id === room.property_id)?.name;
+              const propName = availableProperties.find(p => p.id === room.property_id)?.name;
               return (
                 <RoomCard 
                   key={room.id} 
@@ -366,7 +393,7 @@ export default function HousekeepingPage() {
       >
         <div className="flex flex-col gap-6">
           <Select 
-            options={PROPERTIES.map(p => ({ id: p.id, label: p.name, icon: Building2 }))}
+            options={availableProperties.map(p => ({ id: p.id, label: p.name, icon: Building2 }))}
             value={newTask.property_id}
             onChange={(val) => setNewTask({ ...newTask, property_id: val, room_id: '' })}
             label="Property"

@@ -35,8 +35,8 @@ export default function CalendarPicker({ startDate, endDate, blockedDates, onCha
   const renderHeader = () => {
     return (
       <div className="flex items-center justify-between mb-4 px-2">
-        <h3 className="text-sm font-bold text-ink-primary font-display flex items-center gap-2">
-           <span className="w-1.5 h-6 bg-accent rounded-full" />
+        <h3 className="text-sm font-semibold text-ink-primary font-display flex items-center gap-2">
+           <span className="w-1.5 h-6 bg-accent/80 rounded-full" />
            {format(currentMonth, 'MMMM yyyy')}
         </h3>
         <div className="flex gap-1">
@@ -62,7 +62,7 @@ export default function CalendarPicker({ startDate, endDate, blockedDates, onCha
     return (
       <div className="grid grid-cols-7 mb-2">
         {days.map((day, i) => (
-          <div key={i} className="text-[10px] font-bold text-ink-muted uppercase tracking-widest text-center py-2">
+          <div key={i} className="text-[10px] font-medium text-ink-muted/70 uppercase tracking-widest text-center py-2">
             {day}
           </div>
         ))}
@@ -150,7 +150,7 @@ export default function CalendarPicker({ startDate, endDate, blockedDates, onCha
               />
             )}
 
-            <span className={`relative z-20 text-xs font-bold font-mono transition-colors duration-200 ${
+            <span className={`relative z-20 text-xs font-medium font-mono transition-colors duration-200 ${
               (isSelectedStart || isSelectedEnd || (isInRange && !isBlocked)) && isCurrentMonth ? "text-white" : 
               isBlocked ? "text-ink-muted line-through opacity-30" : 
               isPast ? "text-ink-muted/30" :
@@ -185,13 +185,13 @@ export default function CalendarPicker({ startDate, endDate, blockedDates, onCha
       <div className="mt-4 pt-4 border-t border-border-subtle flex flex-col gap-3">
         <div className="flex justify-between items-center px-1">
           <div className="flex flex-col">
-            <span className="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Plan Your Stay</span>
-            <span className="text-xs font-bold text-accent">
+            <span className="text-[10px] font-medium text-ink-muted uppercase tracking-wider">Plan Your Stay</span>
+            <span className="text-xs font-semibold text-accent/90">
               {format(parseISO(startDate), 'dd MMM')} — {format(parseISO(endDate), 'dd MMM')}
             </span>
           </div>
           <div className="flex items-center gap-1.5 bg-accent/5 px-2 py-1 rounded-md border border-accent/10">
-            <span className="text-[11px] font-bold text-accent">
+            <span className="text-[11px] font-semibold text-accent/90">
                {selectionType === 'start' ? 'Select Check-in' : 'Select Check-out'}
             </span>
           </div>
