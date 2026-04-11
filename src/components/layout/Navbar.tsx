@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Bell, ChevronDown, Check, Building2, Layout, Home, Plus, Settings, LogOut, X, Menu } from 'lucide-react';
+import { Bell, ChevronDown, Check, Building2, Layout, Home, Plus, Settings, LogOut, X, Menu, User } from 'lucide-react';
 import Badge from '../ui/Badge';
 import Modal from '../ui/Modal';
 import { useToast } from '../ui/Toast';
@@ -17,7 +17,7 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const { open: openNewBooking } = useNewBooking();
-  
+
   const [userRole, setUserRole] = React.useState<string | null>(null);
   const [userEmail, setUserEmail] = React.useState<string | null>(null);
   const [currentTime, setCurrentTime] = React.useState(new Date());
@@ -45,8 +45,8 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const [isUpgradeOpen, setIsUpgradeOpen] = React.useState(false);
   const [newPropertyName, setNewPropertyName] = React.useState('');
 
-  const userPlan = 'free'; 
-  const propertyCount = 1; 
+  const userPlan = 'free';
+  const propertyCount = 1;
 
   const properties = [
     { id: '010', name: 'Peace Hotel', type: 'Hotel' },
@@ -90,7 +90,7 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
     localStorage.removeItem('stayboard_user_role');
     localStorage.removeItem('stayboard_user_email');
     localStorage.removeItem('stayboard_user_property');
-    
+
     router.push('/login');
     closeAll();
   };
@@ -103,16 +103,16 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
 
       <nav className="navbar fixed top-0 left-0 right-0 z-[100] h-[56px] bg-white/70 backdrop-blur-[12px] border-b border-border-subtle flex items-center justify-between px-4 md:px-6">
         <div className="flex items-center gap-2 md:gap-4">
-          <button 
+          <button
             className="md:hidden flex items-center justify-center p-1.5 -ml-1.5 text-ink-primary hover:bg-bg-sunken rounded-md transition-colors"
             onClick={onMenuClick}
           >
             <Menu size={20} />
           </button>
 
-          <Link 
-            href={isReception ? `/property/${typeof window !== 'undefined' ? localStorage.getItem('stayboard_user_property') || '010' : '010'}` : "/dashboard"} 
-            className="flex items-center gap-2 no-underline group" 
+          <Link
+            href={isReception ? `/property/${typeof window !== 'undefined' ? localStorage.getItem('stayboard_user_property') || '010' : '010'}` : "/dashboard"}
+            className="flex items-center gap-2 no-underline group"
             onClick={() => {
               closeAll();
               if (isOwner) {
@@ -121,13 +121,12 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
               }
             }}
           >
-            <span className="font-display font-bold text-xl text-ink-primary tracking-tighter">StayBoard</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-accent mt-1 animate-pulse" />
+            <img src="/logo.png" alt="StayBoard Logo" className="h-[32px] md:h-[40px] w-auto" />
           </Link>
 
           {!isReception && (
             <div className="relative">
-              <button 
+              <button
                 onClick={() => {
                   const newState = !isSwitcherOpen;
                   closeAll();
@@ -145,7 +144,7 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                     <p className="text-[10px] font-medium text-ink-muted uppercase tracking-widest pl-2">My Entities</p>
                   </div>
 
-                  <button 
+                  <button
                     onClick={() => {
                       closeAll();
                       setSelectedProperty(null);
@@ -158,11 +157,11 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                     </div>
                     {!getSelectedProperty() && <Check size={14} className="text-accent" />}
                   </button>
-                  
+
                   <div className="h-px bg-border-subtle my-1" />
-                  
+
                   {properties.map(p => (
-                    <button 
+                    <button
                       key={p.id}
                       onClick={() => {
                         closeAll();
@@ -181,7 +180,7 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                   ))}
 
                   <div className="mt-2 pt-2 border-t-2 border-border-subtle/30">
-                    <button 
+                    <button
                       onClick={() => {
                         closeAll();
                         openNewBooking();
@@ -212,68 +211,72 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
             )}
           </div>
 
-          <div className="relative">
-            <button 
-              onClick={() => {
-                const newState = !isNotifOpen;
-                closeAll();
-                setIsNotifOpen(newState);
-              }}
-              className={`relative w-9 h-9 flex items-center justify-center rounded-md cursor-pointer hover:bg-bg-sunken transition-colors ${isNotifOpen ? 'bg-bg-sunken' : ''}`}
-            >
-              <Bell size={18} className="text-ink-secondary" />
-              <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 bg-danger text-white font-sans font-medium text-[9px] leading-4 text-center rounded-full">3</span>
-            </button>
+          {!isOwner && !isReception && (
+            <div className="relative">
+              <button
+                onClick={() => {
+                  const newState = !isNotifOpen;
+                  closeAll();
+                  setIsNotifOpen(newState);
+                }}
+                className={`relative w-9 h-9 flex items-center justify-center rounded-md cursor-pointer hover:bg-bg-sunken transition-colors ${isNotifOpen ? 'bg-bg-sunken' : ''}`}
+              >
+                <Bell size={18} className="text-ink-secondary" />
+                <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 bg-danger text-white font-sans font-medium text-[9px] leading-4 text-center rounded-full">3</span>
+              </button>
 
-            {isNotifOpen && (
-              <div className="absolute top-full right-0 mt-2 w-80 bg-white border border-border-subtle rounded-xl shadow-2xl overflow-hidden py-2 animate-in fade-in slide-in-from-top-2 duration-200 z-[100]">
-                <div className="px-4 py-3 border-b border-border-subtle flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-ink-primary">Notifications</h3>
-                  <button className="text-[11px] font-medium text-accent hover:underline">Mark all read</button>
+              {isNotifOpen && (
+                <div className="absolute top-full right-0 mt-2 w-80 bg-white border border-border-subtle rounded-xl shadow-2xl overflow-hidden py-2 animate-in fade-in slide-in-from-top-2 duration-200 z-[100]">
+                  <div className="px-4 py-3 border-b border-border-subtle flex items-center justify-between">
+                    <h3 className="text-sm font-medium text-ink-primary">Notifications</h3>
+                    <button className="text-[11px] font-medium text-accent hover:underline">Mark all read</button>
+                  </div>
+                  <div className="max-h-[320px] overflow-y-auto">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="px-4 py-3 border-b border-border-subtle/30 hover:bg-sunken transition-colors group relative cursor-pointer">
+                        <p className="text-xs text-ink-secondary leading-relaxed pr-4">New booking confirmed for <b>Amit Verma</b></p>
+                        <p className="text-[10px] text-ink-muted mt-1">2 mins ago</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="max-h-[320px] overflow-y-auto">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="px-4 py-3 border-b border-border-subtle/30 hover:bg-sunken transition-colors group relative cursor-pointer">
-                      <p className="text-xs text-ink-secondary leading-relaxed pr-4">New booking confirmed for <b>Amit Verma</b></p>
-                      <p className="text-[10px] text-ink-muted mt-1">2 mins ago</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           <div className="relative">
-            <div 
+            <div
               onClick={() => {
                 const newState = !isUserMenuOpen;
                 closeAll();
                 setIsUserMenuOpen(newState);
               }}
-              className={`w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center text-[12px] font-medium cursor-pointer transition-all ${isUserMenuOpen ? 'ring-2 ring-accent ring-offset-2' : ''}`}
+              className={`w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center cursor-pointer transition-all ${isUserMenuOpen ? 'ring-2 ring-accent ring-offset-2' : ''}`}
             >
-              {userInitials}
+              <User size={16} />
             </div>
 
             {isUserMenuOpen && (
               <div className="absolute top-full right-0 mt-2 w-48 bg-white border border-border-subtle rounded-xl shadow-2xl overflow-hidden py-1 animate-in fade-in slide-in-from-top-2 duration-200 z-[100]">
                 <div className="px-4 py-3 border-b border-border-subtle mb-1">
                   <p className="text-xs font-medium text-ink-primary">
-                    {isReception ? 'Reception' : isSuperAdmin ? 'Monish Dhaga' : 'Operations Manager'}
+                    {isReception ? 'Reception' : isSuperAdmin ? 'Monish Dhaga' : userRole === 'admin' ? 'System Administrator' : 'Operations Manager'}
                   </p>
                   <p className="text-[10px] text-ink-muted">
-                    {isReception ? 'Front Desk' : isSuperAdmin ? 'Super Admin' : 'Property Owner'}
+                    {isReception ? 'Front Desk' : isSuperAdmin ? 'Super Admin' : userRole === 'admin' ? 'Admin' : 'Property Owner'}
                   </p>
                 </div>
-                <Link 
-                  href="/settings" 
-                  onClick={closeAll}
-                  className="flex items-center gap-3 px-4 py-2 text-sm text-ink-secondary hover:bg-sunken transition-colors"
-                >
-                  <Settings size={14} />
-                  <span>Settings</span>
-                </Link>
-                <button 
+                {(userRole === 'admin' || userRole === 'owner') && (
+                  <Link
+                    href="/settings"
+                    onClick={closeAll}
+                    className="flex items-center gap-3 px-4 py-2 text-sm text-ink-secondary hover:bg-sunken transition-colors"
+                  >
+                    <Settings size={14} />
+                    <span>Settings</span>
+                  </Link>
+                )}
+                <button
                   onClick={handleSignOut}
                   className="w-full flex items-center gap-3 px-4 py-2 text-sm text-danger hover:bg-danger/5 transition-colors"
                 >
@@ -293,8 +296,8 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
         footer={
           <>
             <button className="btn btn-secondary px-8" onClick={() => setIsAddPropertyOpen(false)}>Cancel</button>
-            <button 
-              className="btn btn-accent px-10 shadow-lg shadow-accent/20" 
+            <button
+              className="btn btn-accent px-10 shadow-lg shadow-accent/20"
               onClick={() => {
                 toast("Property added successfully", "success");
                 setIsAddPropertyOpen(false);
@@ -308,9 +311,9 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
         <div className="flex flex-col gap-6">
           <div className="field">
             <label className="label">Property Name</label>
-            <input 
-              type="text" 
-              className="input" 
+            <input
+              type="text"
+              className="input"
               placeholder="e.g. Blue Lagoon Resort"
               value={newPropertyName}
               onChange={(e) => setNewPropertyName(e.target.value)}
@@ -332,7 +335,7 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
             <h3 className="text-xl font-display text-ink-primary">Add multiple properties</h3>
             <p className="text-sm text-ink-muted px-4">The free plan only supports 1 property. Upgrade to Pro to manage up to 5 properties with advanced analytics.</p>
           </div>
-          <button 
+          <button
             className="btn btn-accent w-full py-4 mt-4"
             onClick={() => {
               toast("Redirecting to pricing...", "info");

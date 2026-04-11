@@ -17,7 +17,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { format, parseISO, isAfter, startOfDay, isToday } from 'date-fns';
-import { getBookingsList, getSelectedProperty, getStoredRooms, updateBookingStatus } from '@/lib/store';
+import { getBookingsList, getSelectedProperty, getStoredRooms, updateBookingStatus, deleteBooking } from '@/lib/store';
 import { Booking, Room } from '@/types';
 import Badge from '@/components/ui/Badge';
 import { useNewBooking } from '@/components/booking/NewBookingProvider';
@@ -37,6 +37,7 @@ export default function ReservationsPage() {
   const { open: openNewBooking } = useNewBooking();
   const [propertyId, setPropertyId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [bookingToDelete, setBookingToDelete] = useState<string | null>(null);
 
   const handleCheckInNow = (booking: Booking) => {
     setSelectedBooking(null);
@@ -53,6 +54,23 @@ export default function ReservationsPage() {
       } catch (err) {
         toast('Failed to cancel reservation', 'error');
       }
+    }
+  };
+
+  const handleDeleteBooking = (e: React.MouseEvent, bookingId: string) => {
+    e.stopPropagation(); // Don't open the detail modal
+    setBookingToDelete(bookingId);
+  };
+
+  const confirmDelete = async () => {
+    if (!bookingToDelete) return;
+    try {
+      await deleteBooking(bookingToDelete);
+      toast('Reservation deleted permanently', 'success');
+    } catch (err) {
+      toast('Failed to delete reservation', 'error');
+    } finally {
+      setBookingToDelete(null);
     }
   };
 
@@ -91,15 +109,14 @@ export default function ReservationsPage() {
     // 2. Base Exclusion: Don't show completed, cancelled, or no-show bookings in this view
     if (['checked_out', 'cancelled', 'no_show'].includes(b.status)) return false;
 
-    // 3. Status Tab Filtering
-    if (statusFilter === 'all') {
-      // "Only show guests who are booked for future dates or havent been checked in yet"
-      if (b.status === 'checked_in') return false;
-      const checkIn = parseISO(b.check_in_date);
-      if (!isAfter(checkIn, today) && !isToday(checkIn)) return false;
-    } else if (statusFilter === 'in_house') {
-      if (b.status !== 'checked_in') return false;
-    }
+    // 3. Status Filtering: Only show bookings that are NOT completed/cancelled
+    // The user wants all future and currently in-house bookings together
+    if (b.status === 'checked_in') return true;
+    
+    const checkIn = parseISO(b.check_in_date);
+    if (!isAfter(checkIn, today) && !isToday(checkIn)) return false;
+    
+    return true;
 
     // 5. Search
     const matchesSearch = 
@@ -157,15 +174,9 @@ export default function ReservationsPage() {
         </div>
         
         <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto no-scrollbar py-1">
-          {(['all', 'in_house'] as const).map((status) => (
-            <button
-              key={status}
-              onClick={() => setStatusFilter(status)}
-              className={`px-4 py-2 rounded-full text-xs font-bold transition-all uppercase tracking-wider whitespace-nowrap ${statusFilter === status ? 'bg-accent text-white shadow-md' : 'bg-bg-sunken text-ink-muted hover:text-ink-primary border border-border-subtle'}`}
-            >
-              {status === 'all' ? 'Future Bookings' : 'In House'}
-            </button>
-          ))}
+          <div className="px-5 py-2.5 rounded-full text-xs font-bold bg-accent/10 text-accent border border-accent/20 uppercase tracking-widest whitespace-nowrap">
+            Upcoming & Active Reservations
+          </div>
         </div>
       </div>
 
@@ -218,9 +229,18 @@ export default function ReservationsPage() {
                   </div>
 
                   {!isReception && (
-                    <div className="bg-bg-sunken/50 px-4 py-2 rounded-lg border border-border-subtle flex flex-col items-end">
-                      <span className="text-[10px] uppercase font-bold text-ink-muted tracking-widest">Total Amount</span>
-                      <span className="text-lg font-mono font-semibold text-ink-primary">₹{booking.total_amount.toLocaleString()}</span>
+                    <div className="flex items-center gap-3">
+                      <div className="bg-bg-sunken/50 px-4 py-2 rounded-lg border border-border-subtle flex flex-col items-end">
+                        <span className="text-[10px] uppercase font-bold text-ink-muted tracking-widest">Total Amount</span>
+                        <span className="text-lg font-mono font-semibold text-ink-primary">₹{booking.total_amount.toLocaleString()}</span>
+                      </div>
+                      <button 
+                        onClick={(e) => handleDeleteBooking(e, booking.id)}
+                        className="w-10 h-10 rounded-lg border border-red-50 flex items-center justify-center text-red-400 hover:bg-red-50 hover:text-red-600 transition-all"
+                        title="Delete Reservation"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
                   )}
                 </div>
@@ -332,6 +352,39 @@ export default function ReservationsPage() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Custom Delete Confirmation Popup */}
+      <Modal
+        isOpen={!!bookingToDelete}
+        onClose={() => setBookingToDelete(null)}
+        title="Confirm Deletion"
+        size="sm"
+      >
+        <div className="flex flex-col gap-6 py-2">
+          <div className="flex flex-col gap-2">
+            <p className="text-sm text-ink-primary font-medium">Are you absolutely sure?</p>
+            <p className="text-xs text-ink-muted leading-relaxed">
+              This will permanently remove the reservation and all associated financial records. 
+              This action <span className="text-red-600 font-bold uppercase">cannot be undone</span>.
+            </p>
+          </div>
+          
+          <div className="flex gap-3">
+            <button 
+              onClick={() => setBookingToDelete(null)}
+              className="btn btn-primary flex-1 py-3 text-[11px]"
+            >
+              No, Keep it
+            </button>
+            <button 
+              onClick={confirmDelete}
+              className="btn btn-danger flex-1 py-3 text-[11px]"
+            >
+              Yes, Delete
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

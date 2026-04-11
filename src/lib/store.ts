@@ -272,6 +272,17 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
   window.dispatchEvent(new Event('storage'));
 };
 
+export const deleteBooking = async (bookingId: string) => {
+  const { error } = await supabase.from('bookings').delete().eq('id', bookingId);
+  if (error) throw error;
+  
+  // Also try to clean up invoice
+  await supabase.from('invoices').delete().eq('booking_id', bookingId);
+  
+  window.dispatchEvent(new Event('storage'));
+  window.dispatchEvent(new Event('stayboard_update'));
+};
+
 export const logActivity = async (bookingId: string, action: string, details: any) => {
   try {
     await supabase.from('booking_activities').insert({

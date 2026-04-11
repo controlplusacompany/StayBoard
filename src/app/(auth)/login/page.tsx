@@ -23,13 +23,13 @@ function setSession(role: string, email: string, propertyId?: string) {
 // ── Component ─────────────────────────────────────────────────────
 export default function LoginPage() {
   const router = useRouter();
-  const [role, setRole] = useState<'owner' | 'staff'>('owner');
+  const [role, setRole] = useState<'owner' | 'admin' | 'staff'>('owner');
   const [step, setStep] = useState<'credentials' | 'pin'>('credentials');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
   // Step 1: Credentials
-  const [email, setEmail] = useState('starrynightsroomandhostel@gmail.com');
+  const [email, setEmail] = useState('starrynightroomandhostel@gmail.com');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
@@ -52,7 +52,7 @@ export default function LoginPage() {
     setIsLoading(true);
     setError('');
 
-    if (role === 'owner') {
+    if (role === 'owner' || role === 'admin') {
       try {
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
           email: email.trim().toLowerCase(),
@@ -71,11 +71,11 @@ export default function LoginPage() {
           return;
         }
 
-        // Success: Store role in metadata or profiles if needed, but for now we trust the owner role
-        setSession('owner', authData.user.email || email);
+        // Success: Store role
+        setSession(role, authData.user.email || email);
         router.push('/dashboard');
       } catch (err: any) {
-        setError('An unexpected error occurred during owner login.');
+        setError('An unexpected error occurred during login.');
       } finally {
         setIsLoading(false);
       }
@@ -86,7 +86,7 @@ export default function LoginPage() {
         setIsLoading(false);
         return;
       }
-      
+
       // Moving to PIN step
       setStep('pin');
       setIsLoading(false);
@@ -144,35 +144,42 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="h-screen w-full flex items-center justify-center bg-[#011432] p-4 md:p-10 select-none overflow-hidden">
-      <div className="w-full max-w-[1240px] h-[86vh] min-h-[640px] bg-white rounded-[48px] overflow-hidden flex shadow-[0_40px_100px_rgba(0,0,0,0.5)] relative">
-        
-        {/* ── Left: Form Section ── */}
-        <div className="w-full md:w-[45%] p-10 md:p-16 flex flex-col relative z-20 bg-white">
-          
-          {/* Logo */}
-          <div className="flex items-center gap-1 mb-10">
-            <span className="text-[20px] font-serif font-medium text-[#011432] tracking-tight">StayBoard.</span>
-            <div className="w-1.5 h-1.5 rounded-full bg-[#C8A96E] mt-1" />
-          </div>
+    <div className="h-screen w-full bg-white select-none overflow-hidden font-sans flex items-center justify-center">
+      <div className="w-full h-full flex relative">
 
-          <header className="mb-10">
-            <h1 className="text-4xl font-serif font-normal text-[#011432] mb-2">Sign In</h1>
-            <p className="text-sm text-gray-400 font-medium italic">Manage properties with ease</p>
-          </header>
+        {/* ── Left: Form Section ── */}
+        <div className="w-full md:w-[50%] p-6 md:p-12 lg:p-16 flex flex-col relative z-20 bg-white h-full transition-all duration-700">
+
+          <div className="flex-1 flex flex-col justify-center max-h-full">
+            {/* Logo */}
+            <div className="flex items-center justify-center md:justify-start mb-6">
+              <img src="/logo-final.png" alt="StayBoard Logo" className="h-[56px] md:h-[68px] w-auto" />
+            </div>
+
+            <header className="mb-6 text-center md:text-left">
+              <h1 className="text-3xl md:text-5xl font-serif font-normal text-[#011432] mb-2 tracking-tight">Sign In</h1>
+              <p className="text-sm md:text-base text-gray-400 font-medium italic opacity-80">Manage properties with ease</p>
+            </header>
 
           {/* Role Toggles */}
-          <div className="flex bg-[#F3F4F6] p-1 rounded-2xl mb-12 gap-1 h-12">
+          <div className="flex bg-white border border-gray-100 p-1 rounded-2xl mb-6 md:mb-8 gap-1 h-11">
             {(['owner', 'admin', 'reception'] as const).map((r) => (
               <button
                 key={r}
                 type="button"
-                onClick={() => { setRole(r === 'reception' ? 'staff' : 'owner'); setError(''); }}
-                className={`flex-1 flex items-center justify-center rounded-xl text-[12px] font-bold transition-all duration-300 ${
-                  (r === 'owner' && role === 'owner') || (r === 'reception' && role === 'staff')
-                    ? 'bg-white text-[#011432] shadow-sm'
-                    : 'text-gray-400 hover:text-gray-600'
-                }`}
+                onClick={() => {
+                  if (r === 'reception') setRole('staff');
+                  else if (r === 'admin') setRole('admin');
+                  else setRole('owner');
+                  setError('');
+                }}
+                className={`flex-1 flex items-center justify-center rounded-2xl text-[12px] font-bold transition-all duration-300 ${
+                  (r === 'owner' && role === 'owner') ||
+                  (r === 'admin' && role === 'admin') ||
+                  (r === 'reception' && role === 'staff')
+                    ? 'bg-accent text-white shadow-lg shadow-accent/25 scale-[1.02]'
+                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50/50'
+                  }`}
               >
                 {r.charAt(0).toUpperCase() + r.slice(1)}
               </button>
@@ -180,8 +187,8 @@ export default function LoginPage() {
           </div>
 
           {step === 'credentials' ? (
-            <div className="flex flex-col flex-1 animate-in fade-in duration-700">
-              <form onSubmit={handleInitialSubmit} className="flex flex-col gap-6">
+            <div className="flex flex-col animate-in fade-in duration-700">
+              <form onSubmit={handleInitialSubmit} className="flex flex-col gap-4 md:gap-5">
                 <div className="flex flex-col gap-2">
                   <label className="text-[10px] font-bold tracking-[0.2em] text-gray-400 uppercase ml-1">EMAIL ADDRESS</label>
                   <input
@@ -189,7 +196,7 @@ export default function LoginPage() {
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     placeholder="owner@example.com"
-                    className="w-full h-14 bg-[#FCFCFD] border border-gray-100 rounded-2xl px-6 text-sm font-medium text-[#011432] focus:border-[#4B8EFB] focus:bg-white transition-all outline-none"
+                    className="w-full h-14 bg-white border border-gray-100 rounded-2xl px-6 text-[15px] font-medium text-[#011432] focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all"
                     required
                   />
                 </div>
@@ -202,13 +209,13 @@ export default function LoginPage() {
                       value={password}
                       onChange={e => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full h-14 bg-[#FCFCFD] border border-gray-100 rounded-2xl px-6 text-sm font-medium text-[#011432] focus:border-[#4B8EFB] focus:bg-white transition-all outline-none"
+                      className="w-full h-14 bg-white border border-gray-100 rounded-2xl px-6 text-[15px] font-medium text-[#011432] focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all"
                       required
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-6 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-300 uppercase tracking-widest hover:text-[#4B8EFB]"
+                      className="absolute right-6 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-300 uppercase tracking-widest hover:text-accent"
                     >
                       {showPassword ? 'Hide' : 'Show'}
                     </button>
@@ -222,7 +229,7 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full h-16 bg-gradient-to-r from-[#599BFB] to-[#2563EB] text-white rounded-[24px] font-bold text-sm flex items-center justify-center gap-2 shadow-xl shadow-blue-500/20 hover:scale-[1.01] active:scale-[0.98] transition-all"
+                  className="w-full h-16 bg-accent hover:bg-accent-dark text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-accent/20 active:scale-[0.98] transition-all"
                 >
                   {isLoading ? (
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -234,39 +241,24 @@ export default function LoginPage() {
                   )}
                 </button>
 
-                <div className="relative flex items-center justify-center py-2">
-                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div>
-                  <span className="relative px-4 bg-white text-[9px] font-bold text-gray-300 uppercase tracking-[0.2em]">OR</span>
-                </div>
 
-                <button
-                  type="button"
-                  className="w-full h-14 bg-white border border-gray-100 rounded-2xl flex items-center justify-center gap-3 text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all shadow-sm"
-                >
-                  <img src="https://www.google.com/favicon.ico" alt="Google" className="w-4 h-4" />
-                  Continue with Google
-                </button>
-
-                <p className="text-center text-[11px] font-medium text-gray-400 mt-2">
-                  New to StayBoard? <Link href="#" className="text-[#2563EB] font-bold hover:underline">Get started</Link>
-                </p>
               </form>
             </div>
           ) : (
             <div className="flex flex-col flex-1 animate-in fade-in slide-in-from-right-4 duration-500">
-               <button 
+              <button
                 onClick={() => setStep('credentials')}
-                className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest hover:text-[#2563EB] mb-10 transition-colors"
-               >
-                 <ArrowLeft size={14} />
-                 Back to login
-               </button>
+                className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest hover:text-accent mb-6 transition-colors"
+              >
+                <ArrowLeft size={14} />
+                Back to login
+              </button>
 
-               <form onSubmit={handlePinVerification} className="flex flex-col gap-8">
-                 <div className="flex flex-col gap-2">
+              <form onSubmit={handlePinVerification} className="flex flex-col gap-6">
+                <div className="flex flex-col gap-2">
                   <label className="text-[10px] font-bold tracking-[0.2em] text-gray-400 uppercase ml-1">PROPERTY</label>
                   <select
-                    className="w-full h-14 bg-[#FCFCFD] border border-gray-100 rounded-2xl px-6 text-sm font-medium text-[#011432] focus:border-[#4B8EFB] focus:bg-white transition-all outline-none cursor-pointer appearance-none"
+                    className="w-full h-14 bg-[#FCFCFD] border border-gray-100 rounded-2xl px-6 text-sm font-medium text-[#011432] focus:border-accent focus:bg-white transition-all outline-none cursor-pointer appearance-none"
                     value={selectedProperty}
                     onChange={e => setSelectedProperty(e.target.value)}
                     required
@@ -277,7 +269,7 @@ export default function LoginPage() {
                   </select>
                 </div>
 
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-3">
                   <label className="text-[10px] font-bold tracking-[0.2em] text-gray-400 uppercase text-center">6-digit Security Pin</label>
                   <div className="flex gap-2 justify-center">
                     {pin.map((digit, i) => (
@@ -290,7 +282,7 @@ export default function LoginPage() {
                         value={digit}
                         onChange={e => handlePinInput(i, e.target.value)}
                         onKeyDown={e => handlePinKeyDown(i, e)}
-                        className="w-12 h-14 text-center text-xl font-bold bg-[#FCFCFD] border border-gray-100 rounded-xl focus:border-[#4B8EFB] focus:bg-white focus:ring-4 focus:ring-blue-500/5 outline-none transition-all shadow-sm"
+                        className="w-12 h-14 text-center text-xl font-bold bg-[#FCFCFD] border border-gray-100 rounded-xl focus:border-accent focus:bg-white focus:ring-4 focus:ring-accent/5 outline-none transition-all shadow-sm"
                       />
                     ))}
                   </div>
@@ -301,41 +293,42 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={isLoading || !selectedProperty || pin.join('').length < 6}
-                  className="w-full h-16 bg-gradient-to-r from-[#599BFB] to-[#2563EB] text-white rounded-[24px] font-bold text-sm flex items-center justify-center gap-2 shadow-xl shadow-blue-500/20 active:scale-[0.98] transition-all disabled:opacity-50"
+                  className="w-full h-16 bg-accent hover:bg-accent-dark text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-accent/20 active:scale-[0.98] transition-all disabled:opacity-50"
                 >
                   Unlock Access
                 </button>
-               </form>
+              </form>
             </div>
           )}
 
-          {/* Footer Information */}
-          <div className="mt-auto pt-8 flex items-center justify-between border-t border-gray-50">
-            <div className="flex items-center gap-1.5 opacity-40">
-              <p className="text-[9px] font-bold text-[#011432] uppercase tracking-wider">Property Management •</p>
-              <span className="text-[9px] font-medium text-gray-500">Secure Login</span>
-            </div>
-            <div className="flex gap-4">
-              <Link href="#" className="text-[10px] font-bold text-gray-300 hover:text-gray-500 uppercase tracking-widest transition-colors">Support</Link>
-              <Link href="#" className="text-[10px] font-bold text-gray-300 hover:text-gray-500 uppercase tracking-widest transition-colors">Privacy</Link>
-            </div>
+          </div>
+        </div>
+
+        {/* Global Footer (Centered Metadata + Right Utility Links) */}
+        <div className="fixed bottom-6 left-0 right-0 px-6 md:px-12 grid grid-cols-1 md:grid-cols-3 items-center z-[100] pointer-events-none">
+          {/* Left: Empty for balance */}
+          <div className="hidden md:block" />
+
+          {/* Center: Metadata */}
+          <div className="flex items-center justify-center gap-1.5 opacity-40 pointer-events-auto">
+            <p className="text-[9px] font-bold text-[#011432] uppercase tracking-wider whitespace-nowrap">Property Management •</p>
+            <span className="text-[9px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Secure Login</span>
+          </div>
+
+          {/* Right: Utility Links */}
+          <div className="flex items-center justify-center md:justify-end gap-6 md:gap-8 mt-4 md:mt-0 pointer-events-auto">
+            <Link href="mailto:team@bycontrolplusa.co.in" className="text-[9px] font-bold text-gray-400 hover:text-accent uppercase tracking-wider transition-all whitespace-nowrap">Support</Link>
+            <Link href="#" className="text-[9px] font-bold text-gray-400 hover:text-accent uppercase tracking-wider transition-all whitespace-nowrap">Privacy</Link>
           </div>
         </div>
 
         {/* ── Right: Illustration Section ── */}
-        <div className="hidden md:flex md:w-[55%] bg-[#F8FAFC] relative overflow-hidden items-center justify-center">
-          {/* Subtle Geometric Textures */}
-          <div className="absolute inset-0 opacity-[0.4] pointer-events-none" 
-            style={{ 
-              backgroundImage: 'radial-gradient(#E2E8F0 1.5px, transparent 1.5px)', 
-              backgroundSize: '40px 40px' 
-            }} 
-          />
-          
-          <img 
-            src="/login-illustration.png" 
-            alt="StayBoard Illustration" 
-            className="w-full h-full object-cover object-left opacity-[0.9] mix-blend-multiply"
+        <div className="hidden md:flex md:w-[50%] bg-white relative overflow-hidden items-center justify-center">
+
+          <img
+            src="/login-illustration.png"
+            alt="StayBoard Illustration"
+            className="w-full h-full object-cover object-left opacity-100 mix-blend-multiply"
           />
 
           {/* Light Overlay for fading effect if needed */}
