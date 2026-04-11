@@ -185,8 +185,9 @@ function BookingFlow() {
     let status: BookingStatus = 'unassigned';
     if (bookingType === 'walk-in') {
       status = 'checked_in';
-    } else if (formData.selectedRoomId) {
-      status = 'assigned';
+    } else {
+      // Future reservations are always unassigned until arrival
+      status = 'unassigned';
     }
 
     const newBooking = {
@@ -302,7 +303,12 @@ function BookingFlow() {
           </button>
           <button 
             type="button"
-            onClick={() => !bookingId && setBookingType('reservation')}
+            onClick={() => {
+              if (!bookingId) {
+                setBookingType('reservation');
+                updateField('selectedRoomId', ''); // Clear room for future reservations
+              }
+            }}
             className={`px-6 py-2 rounded-full text-xs font-semibold transition-all ${bookingType === 'reservation' ? 'bg-accent text-white shadow-md' : 'text-ink-muted hover:text-ink-secondary'}`}
           >
             Future reservation
