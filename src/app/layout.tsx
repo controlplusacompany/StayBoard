@@ -12,14 +12,21 @@ const jakarta = Plus_Jakarta_Sans({
 const displayFontVariable = jakarta.variable;
 const monoFontVariable = jakarta.variable;
 
-export const metadata: Metadata = {
-  title: "StayBoard",
-  description: "Multi-property hotel operations dashboard",
-};
-
 import { ToastProvider } from "@/components/ui/Toast";
 import { Suspense } from "react";
 import RouteProgressBar from "@/components/ui/RouteProgressBar";
+import PWAScripts from "@/components/pwa/PWAScripts";
+
+export const metadata: Metadata = {
+  title: "StayBoard",
+  description: "Multi-property hotel operations dashboard",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "StayBoard",
+  },
+};
 
 export default function RootLayout({
   children,
@@ -28,9 +35,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <meta name="theme-color" content="#6366f1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+      </head>
       <body
         className={`${jakarta.variable} antialiased font-sans text-ink-primary overflow-x-hidden`}
       >
+        <PWAScripts />
         <Suspense fallback={null}>
           <RouteProgressBar />
         </Suspense>
