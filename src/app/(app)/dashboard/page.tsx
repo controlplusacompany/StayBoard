@@ -269,7 +269,7 @@ export default function DashboardPage() {
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
-                          const url = `/booking/new?name=${encodeURIComponent(booking.guest_name)}&phone=${encodeURIComponent(booking.guest_phone)}&property=${booking.property_id}`;
+                          const url = `/booking/new?booking_id=${booking.id}&property=${booking.property_id}`;
                           router.push(url);
                         }}
                         className="btn btn-accent btn--sm px-5 text-sm shadow-md"
