@@ -20,6 +20,21 @@ export default function NewBookingModal({ isOpen, onClose, propertyId }: NewBook
   const [properties, setProperties] = useState<Property[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | 'all'>(propertyId || 'all');
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [staffPropertyId, setStaffPropertyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const role = localStorage.getItem('stayboard_user_role');
+      const propId = localStorage.getItem('stayboard_user_property');
+      setUserRole(role);
+      setStaffPropertyId(propId);
+      
+      if (role === 'reception' && propId) {
+        setSelectedPropertyId(propId);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -71,27 +86,29 @@ export default function NewBookingModal({ isOpen, onClose, propertyId }: NewBook
     <Modal isOpen={isOpen} onClose={onClose} title="Select a Vacant Room" size="lg">
       <div className="flex flex-col gap-6 py-2">
         <div className="flex flex-col md:flex-row gap-4">
-          {/* Property Filter */}
-          <div className="flex-1">
-            <label className="text-[10px] font-bold text-ink-muted uppercase tracking-wider mb-1.5 block">Filter Property</label>
-            <div className="flex flex-wrap gap-2">
-              <button 
-                onClick={() => setSelectedPropertyId('all')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${selectedPropertyId === 'all' ? 'bg-accent text-white' : 'bg-bg-sunken text-ink-secondary hover:bg-border-subtle'}`}
-              >
-                All
-              </button>
-              {properties.map(p => (
+          {/* Property Filter - Hidden for Staff */}
+          {userRole !== 'reception' && (
+            <div className="flex-1">
+              <label className="text-[10px] font-bold text-ink-muted uppercase tracking-wider mb-1.5 block">Filter Property</label>
+              <div className="flex flex-wrap gap-2">
                 <button 
-                  key={p.id}
-                  onClick={() => setSelectedPropertyId(p.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${selectedPropertyId === p.id ? 'bg-accent text-white' : 'bg-bg-sunken text-ink-secondary hover:bg-border-subtle'}`}
+                  onClick={() => setSelectedPropertyId('all')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${selectedPropertyId === 'all' ? 'bg-accent text-white' : 'bg-bg-sunken text-ink-secondary hover:bg-border-subtle'}`}
                 >
-                  {p.name}
+                  All
                 </button>
-              ))}
+                {properties.map(p => (
+                  <button 
+                    key={p.id}
+                    onClick={() => setSelectedPropertyId(p.id)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${selectedPropertyId === p.id ? 'bg-accent text-white' : 'bg-bg-sunken text-ink-secondary hover:bg-border-subtle'}`}
+                  >
+                    {p.name}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Search */}
           <div className="w-full md:w-48">
