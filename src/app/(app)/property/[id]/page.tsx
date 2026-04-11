@@ -15,11 +15,13 @@ import { useToast } from '@/components/ui/Toast';
 import { getEnrichedRooms, getStoredBookings, getBookingsForRoom, getSelectedProperty, getArrivalsToday } from '@/lib/store';
 import { format, parseISO, isWithinInterval, isSameDay, differenceInDays } from 'date-fns';
 import { useRealtime } from '@/hooks/useRealtime';
+import { useNewBooking } from '@/components/booking/NewBookingProvider';
 
 export default function PropertyDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
+  const { open: openNewBooking } = useNewBooking();
 
   const [activeTab, setActiveTab] = useState<RoomStatus | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -217,12 +219,22 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
       <div className={`transition-all duration-350 ease-out h-full overflow-hidden ${isDrawerOpen ? 'drawer-scale-content drawer-scale-content--active' : 'drawer-scale-content'}`}>
         <div className="max-w-[1600px] mx-auto p-4 md:p-6 flex flex-col h-full gap-4">
 
-          {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-[12px] font-sans text-ink-muted">
-            <Link href="/dashboard" className="hover:text-accent transition-colors">Dashboard</Link>
-            <ChevronRight size={14} />
-            <span className="text-ink-secondary font-medium">{property.name}</span>
-          </nav>
+          {/* Breadcrumb & Global Actions */}
+          <div className="flex items-center justify-between">
+            <nav className="flex items-center gap-2 text-[12px] font-sans text-ink-muted">
+              <Link href="/dashboard" className="hover:text-accent transition-colors">Dashboard</Link>
+              <ChevronRight size={14} />
+              <span className="text-ink-secondary font-medium">{property.name}</span>
+            </nav>
+
+            <button 
+              onClick={openNewBooking}
+              className="btn btn-accent flex items-center gap-2 px-6 py-2.5 rounded-full font-semibold shadow-lg shadow-accent/20 animate-in slide-in-from-right-4 duration-500"
+            >
+              <Plus size={18} />
+              <span>New Booking</span>
+            </button>
+          </div>
 
           {/* KPI DASHBOARD */}
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-2">
