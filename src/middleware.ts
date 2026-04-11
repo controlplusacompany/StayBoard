@@ -26,28 +26,33 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // 4. Role-Based Access Control
+  // 4. Role-Based Access Control (RBAC) - Lockdown for Staff
   if (authToken) {
-    // Prevent staff from accessing Screen 3 (Dashboard Overview)
-    if (userRole === 'reception' && pathname === '/dashboard') {
-      const targetProperty = userProperty || '010'; // Fallback
-      return NextResponse.redirect(new URL(`/property/${targetProperty}`, request.url));
-    }
+    if (userRole === 'reception') {
+      // 🔒 HARD LOCKDOWN: Staff cannot access these sections
+      const restrictedForStaff = ['/dashboard', '/reports', '/rates', '/channels', '/settings', '/invoices'];
+      const isRestricted = restrictedForStaff.some(path => pathname.startsWith(path));
 
-    // Prevent staff from accessing other properties
-    if (userRole === 'reception' && pathname.startsWith('/property/')) {
+      if (isRestricted) {
+        const targetProperty = userProperty || '010'; 
+        return NextResponse.redirect(new URL(`/property/${targetProperty}`, request.url));
+      }
+
+      // 🔒 PROPERTY LOCK: Prevent staff from accessing other properties
+      if (pathname.startsWith('/property/')) {
         const id = pathname.split('/')[2];
         if (id && userProperty && id !== userProperty) {
-            return NextResponse.redirect(new URL(`/property/${userProperty}`, request.url));
+          return NextResponse.redirect(new URL(`/property/${userProperty}`, request.url));
         }
+      }
     }
 
     // Prevent authenticated users from visiting login
     if (pathname === '/login') {
-        const target = (userRole === 'reception' && userProperty) 
-          ? `/property/${userProperty}` 
-          : '/dashboard';
-        return NextResponse.redirect(new URL(target, request.url));
+      const target = (userRole === 'reception' && userProperty) 
+        ? `/property/${userProperty}` 
+        : '/dashboard';
+      return NextResponse.redirect(new URL(target, request.url));
     }
   }
 

@@ -30,6 +30,7 @@ import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { format } from 'date-fns';
+import { useRealtime } from '@/hooks/useRealtime';
 
 export default function InvoicesPage() {
   const { toast } = useToast();
@@ -61,6 +62,9 @@ export default function InvoicesPage() {
     window.addEventListener('storage', loadData);
     return () => window.removeEventListener('storage', loadData);
   }, []);
+
+  // Supabase Realtime Sync
+  useRealtime(loadData, ['invoices', 'bookings']);
 
   const handleDownloadInvoice = (invoice: Invoice) => {
     toast(`Preparing ${invoice.invoice_number} download...`, "success");

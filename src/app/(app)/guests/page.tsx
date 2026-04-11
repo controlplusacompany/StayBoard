@@ -24,11 +24,10 @@ import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
 import { Booking, Guest } from '@/types';
 import { 
-  getStoredGuests, 
-  getSelectedProperty, 
   getBookingsList,
   toggleVipStatus 
 } from '@/lib/store';
+import { useRealtime } from '@/hooks/useRealtime';
 
 export default function GuestsPage() {
   const [guests, setGuests] = useState<Guest[]>([]);
@@ -40,6 +39,7 @@ export default function GuestsPage() {
   const [showColumnFilters, setShowColumnFilters] = useState(false);
 
   const [propertyFilter, setPropertyFilter] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const { toast } = useToast();
   const [dataLoaded, setDataLoaded] = useState(false);
@@ -48,6 +48,9 @@ export default function GuestsPage() {
     const loadData = async () => {
       const currentFilter = getSelectedProperty();
       setPropertyFilter(currentFilter);
+      if (typeof window !== 'undefined') {
+        setUserRole(localStorage.getItem('stayboard_user_role'));
+      }
 
       try {
         const [rawGuests, rawBookings] = await Promise.all([
@@ -94,6 +97,9 @@ export default function GuestsPage() {
     window.addEventListener('storage', loadData);
     return () => window.removeEventListener('storage', loadData);
   }, []);
+
+  // Supabase Realtime Sync
+  useRealtime(loadData, ['guests', 'bookings']);
 
   const handleToggleVip = async (guestId: string) => {
     try {
@@ -145,13 +151,13 @@ export default function GuestsPage() {
   const handleExportCSV = () => {
     if (sortedGuests.length === 0) return;
     
-    const headers = ['Name', 'Phone', 'ID Number', 'ID Type', 'Value', 'Stays', 'Check In', 'Check Out', 'Duration', 'Last Visit'];
+    const headers = ['Name', 'Phone', 'ID Number', 'ID Type', ...(!isReception ? ['Value'] : []), 'Stays', 'Check In', 'Check Out', 'Duration', 'Last Visit'];
     const rows = sortedGuests.map(g => [
       g.name,
       g.phone,
       g.id_number,
       g.id_type,
-      g.total_spent,
+      ...(!isReception ? [g.total_spent] : []),
       g.total_stays,
       (g as any).check_in_date ? format(new Date((g as any).check_in_date), 'yyyy-MM-dd HH:mm') : '--',
       (g as any).check_out_date ? format(new Date((g as any).check_out_date), 'yyyy-MM-dd HH:mm') : '--',
@@ -174,6 +180,8 @@ export default function GuestsPage() {
     link.click();
     document.body.removeChild(link);
   };
+
+  const isReception = userRole === 'reception';
 
   const sortedGuests = [...filteredGuests].sort((a, b) => {
     if (!sortConfig) return 0;
@@ -311,14 +319,16 @@ export default function GuestsPage() {
                     ID Info <SortIcon column="id_number" />
                   </div>
                 </th>
-                <th 
-                  className="py-4 px-6 text-[10px] font-semibold text-ink-muted uppercase tracking-[0.1em] cursor-pointer hover:text-accent transition-colors"
-                  onClick={() => handleSort('total_spent')}
-                >
-                  <div className="flex items-center gap-2 text-nowrap">
-                    Value <SortIcon column="total_spent" />
-                  </div>
-                </th>
+                {!isReception && (
+                  <th 
+                    className="py-4 px-6 text-[10px] font-semibold text-ink-muted uppercase tracking-[0.1em] cursor-pointer hover:text-accent transition-colors"
+                    onClick={() => handleSort('total_spent')}
+                  >
+                    <div className="flex items-center gap-2 text-nowrap">
+                      Value <SortIcon column="total_spent" />
+                    </div>
+                  </th>
+                )}
                 <th 
                   className="py-4 px-6 text-[10px] font-semibold text-ink-muted uppercase tracking-[0.1em] cursor-pointer hover:text-accent transition-colors"
                   onClick={() => handleSort('check_in_date')}
@@ -377,15 +387,17 @@ export default function GuestsPage() {
                       onChange={e => setColumnFilters({...columnFilters, id_number: e.target.value})}
                     />
                   </th>
-                  <th className="p-2 px-6">
-                    <input 
-                      type="text" 
-                      className="input py-1 text-xs" 
-                      placeholder="Filter value..."
-                      value={columnFilters.total_spent || ''}
-                      onChange={e => setColumnFilters({...columnFilters, total_spent: e.target.value})}
-                    />
-                  </th>
+                  {!isReception && (
+                    <th className="p-2 px-6">
+                      <input 
+                        type="text" 
+                        className="input py-1 text-xs" 
+                        placeholder="Filter value..."
+                        value={columnFilters.total_spent || ''}
+                        onChange={e => setColumnFilters({...columnFilters, total_spent: e.target.value})}
+                      />
+                    </th>
+                  )}
                   <th className="p-2 px-6">
                     <input 
                       type="text" 
@@ -428,13 +440,15 @@ export default function GuestsPage() {
                   </td>
                   <td className="py-4 px-6">
                     <div className="flex flex-col">
-                      <span className="text-sm font-normal text-ink-primary">{guest.id_number}</span>
-                      <span className="text-[10px] uppercase font-medium text-ink-muted">{guest.id_type}</span>
+                      <span className="text-sm font-normal text-ink-primary">{guest.id_number || '-'}</span>
+                      <span className="text-[10px] uppercase font-medium text-ink-muted">{guest.id_type || '-'}</span>
                     </div>
                   </td>
-                  <td className="py-4 px-6 font-mono font-medium text-success">
-                    ₹{(guest.total_spent || 0).toLocaleString()}
-                  </td>
+                  {!isReception && (
+                    <td className="py-4 px-6 font-mono font-medium text-success">
+                      ₹{(guest.total_spent || 0).toLocaleString()}
+                    </td>
+                  )}
                   <td className="py-4 px-6">
                     <div className="flex flex-col">
                       <span className="text-sm font-medium text-ink-primary">
@@ -506,7 +520,7 @@ export default function GuestsPage() {
                     {selectedGuest.is_vip && <Star size={16} className="fill-current text-white" />}
                   </div>
                   <span className={`text-sm mt-1 font-mono ${selectedGuest.is_vip ? 'text-white/80' : 'text-ink-secondary'}`}>
-                    ID: {selectedGuest.id_type.toUpperCase()} • {selectedGuest.id_number}
+                    ID: {selectedGuest.id_type ? selectedGuest.id_type.toUpperCase() : '-'} • {selectedGuest.id_number || '-'}
                   </span>
                </div>
             </div>
@@ -519,12 +533,14 @@ export default function GuestsPage() {
                 </span>
                 <span className="font-mono text-sm font-medium text-ink-primary">{selectedGuest.phone}</span>
               </div>
-              <div className="border border-border-subtle rounded-lg p-3 flex flex-col gap-1">
-                <span className="text-[10px] uppercase font-medium tracking-wider text-ink-muted flex items-center gap-1.5">
-                  <CreditCard size={12} /> Total Spent
-                </span>
-                <span className="font-mono text-sm font-medium text-success">₹{selectedGuest.total_spent.toLocaleString()}</span>
-              </div>
+              {!isReception && (
+                <div className="border border-border-subtle rounded-lg p-3 flex flex-col gap-1">
+                  <span className="text-[10px] uppercase font-medium tracking-wider text-ink-muted flex items-center gap-1.5">
+                    <CreditCard size={12} /> Total Spent
+                  </span>
+                  <span className="font-mono text-sm font-medium text-success">₹{selectedGuest.total_spent.toLocaleString()}</span>
+                </div>
+              )}
               <div className="border border-border-subtle rounded-lg p-3 flex flex-col gap-1">
                 <span className="text-[10px] uppercase font-medium tracking-wider text-ink-muted flex items-center gap-1.5">
                   <Calendar size={12} /> Total Stays

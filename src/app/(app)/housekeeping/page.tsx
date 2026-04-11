@@ -43,6 +43,7 @@ import Modal from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import RoomCard from '@/components/rooms/RoomCard';
 import { format } from 'date-fns';
+import { useRealtime } from '@/hooks/useRealtime';
 
 const TASK_STATUSES: { label: string; value: HousekeepingTask['status'] }[] = [
   { label: 'Pending', value: 'pending' },
@@ -98,6 +99,9 @@ export default function HousekeepingPage() {
     window.addEventListener('storage', loadStore);
     return () => window.removeEventListener('storage', loadStore);
   }, []);
+
+  // Supabase Realtime Sync
+  useRealtime(loadStore, ['housekeeping_tasks', 'rooms']);
 
   const isOwnerRole = userRole === 'owner';
 
@@ -203,7 +207,7 @@ export default function HousekeepingPage() {
           </div>
           <div className="flex items-center gap-2">
             <div className={`w-2 h-2 rounded-full ${task.priority === 'urgent' ? 'bg-danger animate-pulse' : task.priority === 'high' ? 'bg-warning' : 'bg-ink-muted/20'}`} />
-            <button className="text-ink-muted hover:text-ink-primary p-1 rounded-md hover:bg-bg-sunken">
+            <button className="text-ink-muted hover:text-ink-primary p-1 rounded-full hover:bg-bg-sunken">
               <MoreHorizontal size={16} />
             </button>
           </div>
@@ -224,7 +228,7 @@ export default function HousekeepingPage() {
           {task.status === 'pending' && (
             <button 
               onClick={() => handleStatusChange(task.id, 'in_progress')}
-              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-accent/5 text-accent text-[11px] font-medium uppercase tracking-wider hover:bg-accent hover:text-white transition-all"
+              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-full bg-accent/5 text-accent text-[11px] font-medium uppercase tracking-wider hover:bg-accent hover:text-white transition-all"
             >
               <PlayCircle size={14} />
               <span>Start</span>
@@ -233,13 +237,13 @@ export default function HousekeepingPage() {
           {task.status === 'in_progress' && (
             <button 
               onClick={() => handleStatusChange(task.id, 'done')}
-              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-success/5 text-success text-[11px] font-medium uppercase tracking-wider hover:bg-success hover:text-white transition-all"
+              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-full bg-success/5 text-success text-[11px] font-medium uppercase tracking-wider hover:bg-success hover:text-white transition-all"
             >
               <CheckCircle2 size={14} />
               <span>Done</span>
             </button>
           )}
-          <button className="px-3 py-2 rounded-lg text-ink-muted hover:bg-bg-sunken hover:text-ink-primary transition-all">
+          <button className="px-3 py-2 rounded-full text-ink-muted hover:bg-bg-sunken hover:text-ink-primary transition-all">
             <SkipForward size={14} />
           </button>
         </div>
@@ -289,13 +293,13 @@ export default function HousekeepingPage() {
         <div className="flex w-full md:w-auto items-center p-1 bg-bg-sunken rounded-xl border border-border-subtle">
           <button 
             onClick={() => setActiveTab('tasks')}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'tasks' ? 'bg-white text-ink-primary shadow-sm' : 'text-ink-muted'}`}
+            className={`flex-1 py-2 rounded-full text-sm font-medium transition-all ${activeTab === 'tasks' ? 'bg-white text-ink-primary shadow-sm' : 'text-ink-muted'}`}
           >
             Tasks
           </button>
           <button 
             onClick={() => setActiveTab('rooms')}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'rooms' ? 'bg-white text-ink-primary shadow-sm' : 'text-ink-muted'}`}
+            className={`flex-1 py-2 rounded-full text-sm font-medium transition-all ${activeTab === 'rooms' ? 'bg-white text-ink-primary shadow-sm' : 'text-ink-muted'}`}
           >
             Rooms
           </button>

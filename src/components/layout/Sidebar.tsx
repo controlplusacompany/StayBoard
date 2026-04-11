@@ -13,8 +13,10 @@ import {
   Wifi, 
   Settings,
   CalendarDays,
-  ClipboardList
+  ClipboardList,
+  LogOut
 } from 'lucide-react';
+import { logout } from '@/lib/store';
 
 const NAV_ITEMS = [
   { label: 'Dashboard', href: '/dashboard', icon: Layout },
@@ -28,7 +30,7 @@ const NAV_ITEMS = [
   { label: 'Channels', icon: Wifi },
 ];
 
-const RECEPTION_NAV_ITEMS = ['Dashboard', 'Availability', 'Reservations', 'Housekeeping', 'Invoices', 'Guests'];
+const RECEPTION_NAV_ITEMS = ['Dashboard', 'Availability', 'Reservations', 'Housekeeping', 'Guests'];
 
 
 export default function Sidebar({ isMobileOpen, onCloseMobile }: { isMobileOpen?: boolean; onCloseMobile?: () => void }) {
@@ -128,6 +130,18 @@ export default function Sidebar({ isMobileOpen, onCloseMobile }: { isMobileOpen?
             <span>Settings</span>
           </Link>
         )}
+
+        <button
+          onClick={() => {
+            if (confirm('Are you sure you want to log out?')) {
+              logout();
+            }
+          }}
+          className="w-full flex items-center gap-3 h-10 px-4 rounded-xl mt-2 transition-all duration-220 font-sans font-medium text-[13px] text-danger hover:bg-danger/5"
+        >
+          <LogOut size={16} />
+          <span>Log Out</span>
+        </button>
       </div>
     </aside>
     </>

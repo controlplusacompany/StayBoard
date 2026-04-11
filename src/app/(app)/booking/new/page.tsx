@@ -85,6 +85,20 @@ function BookingFlow() {
     };
     init();
   }, [bookingId, roomId]);
+
+  useEffect(() => {
+    const name = searchParams.get('name');
+    const phone = searchParams.get('phone');
+    if (name || phone) {
+      setFormData(prev => ({
+        ...prev,
+        guestName: name || prev.guestName,
+        guestPhone: phone || prev.guestPhone
+      }));
+      // Auto-switch to walk-in if coming from dashboard check-in
+      if (name) setBookingType('walk-in');
+    }
+  }, [searchParams]);
   
   const [formData, setFormData] = useState({
     guestName: '',
@@ -251,10 +265,10 @@ function BookingFlow() {
         </p>
 
         <div className="flex flex-col w-full max-w-xs gap-3">
-          <Link href={`/property/${propertyId}`} className="btn btn-accent w-full py-4 rounded-xl font-semibold flex items-center justify-center gap-2">
+          <Link href={`/property/${propertyId}`} className="btn btn-accent w-full py-4 rounded-full font-semibold flex items-center justify-center gap-2">
             <Home size={18} /> Back to Property
           </Link>
-          <button onClick={() => router.push('/dashboard')} className="btn btn-secondary w-full py-4 rounded-xl font-semibold border border-border-subtle">
+          <button onClick={() => router.push('/dashboard')} className="btn btn-secondary w-full py-4 rounded-full font-semibold border border-border-subtle">
             Go to Dashboard
           </button>
         </div>
@@ -282,16 +296,16 @@ function BookingFlow() {
           <button 
             type="button"
             onClick={() => !bookingId && setBookingType('walk-in')}
-            className={`px-6 py-2 rounded-lg text-xs font-semibold transition-all uppercase tracking-wider ${bookingType === 'walk-in' ? 'bg-accent text-white shadow-md' : 'text-ink-muted hover:text-ink-secondary'}`}
+            className={`px-6 py-2 rounded-full text-xs font-semibold transition-all ${bookingType === 'walk-in' ? 'bg-accent text-white shadow-md' : 'text-ink-muted hover:text-ink-secondary'}`}
           >
-            Walk-in Now
+            Walk-in now
           </button>
           <button 
             type="button"
             onClick={() => !bookingId && setBookingType('reservation')}
-            className={`px-6 py-2 rounded-lg text-xs font-semibold transition-all uppercase tracking-wider ${bookingType === 'reservation' ? 'bg-accent text-white shadow-md' : 'text-ink-muted hover:text-ink-secondary'}`}
+            className={`px-6 py-2 rounded-full text-xs font-semibold transition-all ${bookingType === 'reservation' ? 'bg-accent text-white shadow-md' : 'text-ink-muted hover:text-ink-secondary'}`}
           >
-            Future Reservation
+            Future reservation
           </button>
         </div>
       </header>
@@ -330,7 +344,7 @@ function BookingFlow() {
                           updateField('selectedRoomId', r.id);
                         }
                       }}
-                      className={`py-2 rounded-lg text-sm font-semibold border transition-all ${
+                      className={`py-2 rounded-full text-sm font-semibold border transition-all ${
                         formData.selectedRoomId === r.id 
                           ? 'bg-accent text-white border-accent shadow-md' 
                           : r.status === 'vacant' || r.status === 'cleaning'
@@ -416,11 +430,11 @@ function BookingFlow() {
                 <div className="flex gap-1 p-1 bg-bg-sunken rounded-lg border border-border-subtle h-[46px]">
                     <button 
                       onClick={() => updateField('nationality', 'indian')}
-                      className={`flex-1 rounded-md text-[10px] font-semibold uppercase transition-all ${formData.nationality === 'indian' ? 'bg-white shadow text-ink-primary' : 'text-ink-muted'}`}
+                      className={`flex-1 rounded-full text-[10px] font-semibold transition-all ${formData.nationality === 'indian' ? 'bg-white shadow text-ink-primary' : 'text-ink-muted'}`}
                     >🇮🇳 Indian</button>
                     <button 
                       onClick={() => updateField('nationality', 'international')}
-                      className={`flex-1 rounded-md text-[10px] font-semibold uppercase transition-all ${formData.nationality === 'international' ? 'bg-white shadow text-ink-primary' : 'text-ink-muted'}`}
+                      className={`flex-1 rounded-full text-[10px] font-semibold transition-all ${formData.nationality === 'international' ? 'bg-white shadow text-ink-primary' : 'text-ink-muted'}`}
                     >🌎 Intl</button>
                 </div>
               </div>
@@ -513,11 +527,11 @@ function BookingFlow() {
                     <button
                       key={m}
                       onClick={() => updateField('paymentMethod', m)}
-                      className={`flex-1 py-3 rounded-xl border text-[10px] font-semibold uppercase transition-all ${
+                      className={`flex-1 py-3 rounded-full border text-[10px] font-semibold transition-all ${
                         formData.paymentMethod === m ? 'bg-ink-primary text-white border-ink-primary' : 'bg-white text-ink-secondary border-border-subtle hover:bg-bg-sunken'
                       }`}
                     >
-                      {m}
+                      {m.charAt(0).toUpperCase() + m.slice(1)}
                     </button>
                   ))}
                 </div>
@@ -565,7 +579,7 @@ function BookingFlow() {
                 <button
                   onClick={handleSubmit}
                   disabled={!isFormValid}
-                  className="btn btn-accent w-full py-4 rounded-xl flex items-center justify-center gap-2 font-semibold shadow-lg shadow-accent/20"
+                  className="btn btn-accent w-full py-4 rounded-full flex items-center justify-center gap-2 font-semibold shadow-lg shadow-accent/20"
                 >
                   {bookingType === 'walk-in' ? 'Perform Check-in' : 'Confirm Reservation'}
                   <ChevronRight size={18} />

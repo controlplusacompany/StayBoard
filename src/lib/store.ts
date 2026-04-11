@@ -18,7 +18,23 @@ import { supabase } from './supabase';
 // NATIVE CLOUD STORE - SOURCE OF TRUTH: SUPABASE
 // --------------------------------------------------
 
-const MASTER_OWNER_ID = '00000000-0000-0000-0000-000000000000';
+export const getCurrentUserId = async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.user?.id || '00000000-0000-0000-0000-000000000000';
+};
+
+export const logout = async () => {
+  await supabase.auth.signOut();
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('stayboard_user_role');
+    localStorage.removeItem('stayboard_user_email');
+    localStorage.removeItem('stayboard_user_property');
+    // Clear cookies
+    document.cookie = "sb_auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+    document.cookie = "sb_user_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+    window.location.href = '/login';
+  }
+};
 
 // GLOBAL FILTERS (Stored in LocalStorage for persistence)
 export const getSelectedProperty = (): string | null => {
@@ -135,7 +151,7 @@ export const getEnrichedRooms = async (): Promise<Room[]> => {
 };
 
 // WRITE OPERATIONS
-export const finalCheckout = async (bookingId: string, paymentAmount: number) => {
+export const finalCheckout = async (bookingId: string, paymentAmount: number, paymentMode: string = 'UPI', notes: string = '') => {
   // 1. Get the booking
   const { data: booking } = await supabase.from('bookings').select('*').eq('id', bookingId).single();
   if (!booking) return;
@@ -147,11 +163,20 @@ export const finalCheckout = async (bookingId: string, paymentAmount: number) =>
 
   await supabase.from('bookings').update({ 
     status: 'checked_out',
-    check_out_date: localToday, // Released for next guest!
+    check_out_date: localToday, 
     amount_paid: (Number(booking.amount_paid) || 0) + paymentAmount
   }).eq('id', bookingId);
 
-  // 3. Find and update the invoice
+  // 3. Log management audit trail
+  await logActivity(bookingId, 'CHECKOUT', {
+    final_settlement: paymentAmount,
+    mode: paymentMode,
+    internal_notes: notes,
+    timestamp: new Date().toISOString(),
+    guest: booking.guest_name
+  });
+
+  // 4. Find and update the invoice
   const { data: invoice } = await supabase.from('invoices').select('*').eq('booking_id', bookingId).single();
   if (invoice) {
     const newPaid = (Number(invoice.amount_paid) || 0) + paymentAmount;
@@ -199,17 +224,66 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
   window.dispatchEvent(new Event('storage'));
 };
 
+export const logActivity = async (bookingId: string, action: string, details: any) => {
+  try {
+    await supabase.from('booking_activities').insert({
+      booking_id: bookingId,
+      action,
+      details,
+      created_at: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('Failed to log activity:', err);
+  }
+};
+
 export const updateBooking = async (bookingId: string, updates: Partial<Booking>) => {
+  // 0. Fetch pre-update state for logging
+  const { data: oldBooking } = await supabase.from('bookings').select('*').eq('id', bookingId).single();
+
   const { error } = await supabase.from('bookings').update(updates).eq('id', bookingId);
   if (error) throw error;
   
-  // Sync guest info if guest details changed
+  // 1. Sync Guest info if guest details changed
   if (updates.guest_name || updates.guest_phone || updates.status) {
-    const { data: booking } = await supabase.from('bookings').select('*').eq('id', bookingId).single();
-    if (booking) await syncGuestFromBooking(booking);
+    if (oldBooking) await syncGuestFromBooking({ ...oldBooking, ...updates });
   }
 
-  // Update room status if status changed
+  // 2. Sync Invoice if financial details changed
+  if (updates.amount_paid !== undefined || updates.total_amount !== undefined) {
+    const { data: invoice } = await supabase.from('invoices').select('*').eq('booking_id', bookingId).single();
+    if (invoice) {
+      const invoiceUpdates: any = {};
+      if (updates.total_amount !== undefined) invoiceUpdates.amount_total = updates.total_amount;
+      if (updates.amount_paid !== undefined) invoiceUpdates.amount_paid = updates.amount_paid;
+      
+      // Update status based on new numbers
+      const finalTotal = updates.total_amount ?? invoice.amount_total;
+      const finalPaid = updates.amount_paid ?? invoice.amount_paid;
+      invoiceUpdates.status = finalPaid >= finalTotal ? 'paid' : (finalPaid > 0 ? 'partially_paid' : 'pending');
+
+      await supabase.from('invoices').update(invoiceUpdates).eq('id', invoice.id);
+    }
+  }
+
+  // 3. Log the activity
+  if (oldBooking) {
+    const changedFields: any = {};
+    Object.keys(updates).forEach(key => {
+      if ((updates as any)[key] !== (oldBooking as any)[key]) {
+        changedFields[key] = {
+          from: (oldBooking as any)[key],
+          to: (updates as any)[key]
+        };
+      }
+    });
+    
+    if (Object.keys(changedFields).length > 0) {
+      await logActivity(bookingId, updates.check_out_date && updates.check_out_date !== oldBooking.check_out_date ? 'EXTENSION' : 'UPDATE', changedFields);
+    }
+  }
+
+  // 4. Update room status if status changed
   if (updates.status === 'checked_in' && updates.room_id) await updateRoomStatus(updates.room_id, 'occupied');
   if (updates.status === 'checked_out' && updates.room_id) await updateRoomStatus(updates.room_id, 'vacant');
 
@@ -217,7 +291,8 @@ export const updateBooking = async (bookingId: string, updates: Partial<Booking>
 };
 
 export const addBooking = async (booking: Booking) => {
-  const { data, error } = await supabase.from('bookings').insert([{ ...booking, owner_id: MASTER_OWNER_ID }]).select();
+  const userId = await getCurrentUserId();
+  const { data, error } = await supabase.from('bookings').insert([{ ...booking, owner_id: userId }]).select();
   if (error) throw error;
 
   // Auto-Update Room for Walk-ins
@@ -230,7 +305,7 @@ export const addBooking = async (booking: Booking) => {
     id: `inv-${Date.now()}`,
     booking_id: booking.id,
     property_id: booking.property_id,
-    owner_id: MASTER_OWNER_ID,
+    owner_id: userId,
     invoice_number: `SB-${Math.floor(1000 + Math.random() * 9000)}`,
     amount_total: Number(booking.total_amount),
     amount_paid: 0,
@@ -319,9 +394,10 @@ export const syncGuestFromBooking = async (booking: Booking) => {
       if (uError) console.error(`Failed to update guest ${booking.guest_name}:`, uError);
     } else {
       console.log(`Creating new guest record: ${booking.guest_name}`);
+      const userId = await getCurrentUserId();
       const { error: iError } = await supabase.from('guests').insert([{
         ...guestData,
-        owner_id: MASTER_OWNER_ID
+        owner_id: userId
       }]);
       if (iError) console.error(`Failed to insert guest ${booking.guest_name}:`, iError);
       else console.log(`Successfully created guest: ${booking.guest_name}`);
@@ -390,7 +466,8 @@ export const getStoredRateRules = async (): Promise<RateRule[]> => {
 };
 
 export const addRateRule = async (rule: any) => {
-  const { data, error } = await supabase.from('rate_rules').insert([{ ...rule, owner_id: MASTER_OWNER_ID }]).select();
+  const userId = await getCurrentUserId();
+  const { data, error } = await supabase.from('rate_rules').insert([{ ...rule, owner_id: userId }]).select();
   if (error) throw error;
   window.dispatchEvent(new Event('storage'));
   return data;

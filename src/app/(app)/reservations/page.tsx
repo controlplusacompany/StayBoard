@@ -22,6 +22,7 @@ import Badge from '@/components/ui/Badge';
 import { useNewBooking } from '@/components/booking/NewBookingProvider';
 import Modal from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
+import { useRealtime } from '@/hooks/useRealtime';
 
 export default function ReservationsPage() {
   const router = useRouter();
@@ -34,6 +35,7 @@ export default function ReservationsPage() {
   const [dataLoaded, setDataLoaded] = useState(false);
   const { open: openNewBooking } = useNewBooking();
   const [propertyId, setPropertyId] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   const handleCheckInNow = (booking: Booking) => {
     setSelectedBooking(null);
@@ -57,6 +59,9 @@ export default function ReservationsPage() {
     const loadData = async () => {
       const currentProperty = getSelectedProperty();
       setPropertyId(currentProperty);
+      if (typeof window !== 'undefined') {
+        setUserRole(localStorage.getItem('stayboard_user_role'));
+      }
 
       const [rawBookings, rawRooms] = await Promise.all([
         getBookingsList(),
@@ -72,28 +77,30 @@ export default function ReservationsPage() {
     return () => window.removeEventListener('storage', loadData);
   }, []);
 
+  // Supabase Realtime Sync
+  useRealtime(loadData);
+
   const today = startOfDay(new Date());
 
   const filteredBookings = bookings.filter(b => {
     // 1. Property Filter
     if (propertyId && propertyId !== 'all' && b.property_id !== propertyId) return false;
 
-    // 2. Future or Current Filter (Only show bookings that haven't checked out yet)
-    const checkOut = parseISO(b.check_out_date);
-    if (!isAfter(checkOut, today) && !isToday(checkOut)) return false;
+    // 2. Base Exclusion: Don't show completed, cancelled, or no-show bookings in this view
+    if (['checked_out', 'cancelled', 'no_show'].includes(b.status)) return false;
 
-    // 3. Status Filter:
-    const isArrival = b.status === 'unassigned' || b.status === 'assigned';
-    const isInHouse = b.status === 'checked_in';
-
+    // 3. Status Tab Filtering
     if (statusFilter === 'all') {
-      if (!isArrival && !isInHouse) return false;
+      // "Only show guests who are booked for future dates or havent been checked in yet"
+      if (b.status === 'checked_in') return false;
+      const checkIn = parseISO(b.check_in_date);
+      if (!isAfter(checkIn, today) && !isToday(checkIn)) return false;
     } else if (statusFilter === 'unassigned') {
       if (b.status !== 'unassigned') return false;
     } else if (statusFilter === 'assigned') {
       if (b.status !== 'assigned') return false;
     } else if (statusFilter === 'in_house') {
-      if (!isInHouse) return false;
+      if (b.status !== 'checked_in') return false;
     }
 
     // 5. Search
@@ -103,11 +110,10 @@ export default function ReservationsPage() {
 
     return matchesSearch;
   }).sort((a, b) => {
-    // In-house guests first if we are in 'all' view, then by date
-    if (a.status === 'checked_in' && b.status !== 'checked_in') return -1;
-    if (a.status !== 'checked_in' && b.status === 'checked_in') return 1;
     return parseISO(a.check_in_date).getTime() - parseISO(b.check_in_date).getTime();
   });
+
+  const isReception = userRole === 'reception';
 
   const getRoomNumber = (roomId: string) => {
     return rooms.find(r => r.id === roomId)?.room_number || 'N/A';
@@ -116,7 +122,6 @@ export default function ReservationsPage() {
   if (!dataLoaded) return (
     <div className="p-6 md:p-10 flex flex-col gap-6 animate-pulse bg-bg-canvas min-h-full">
       <div className="flex flex-col gap-3">
-        <div className="h-3 w-40 bg-bg-sunken rounded" />
         <div className="h-10 w-64 bg-bg-sunken rounded" />
       </div>
       <div className="h-14 bg-bg-sunken rounded-xl" />
@@ -128,7 +133,6 @@ export default function ReservationsPage() {
     <div className="p-6 md:p-10 flex flex-col gap-8 animate-slide-up bg-bg-canvas min-h-full">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">
         <div className="flex flex-col gap-3">
-          <span className="text-[10px] font-medium text-accent uppercase tracking-[0.3em] font-sans">{format(new Date(), 'EEEE, dd MMM yyyy')}</span>
           <h1 className="text-4xl md:text-5xl font-display text-ink-primary tracking-tighter font-medium text-balance">Reservations & Stays</h1>
         </div>
         
@@ -159,7 +163,7 @@ export default function ReservationsPage() {
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all uppercase tracking-wider whitespace-nowrap ${statusFilter === status ? 'bg-accent text-white shadow-md' : 'bg-bg-sunken text-ink-muted hover:text-ink-primary border border-border-subtle'}`}
+              className={`px-4 py-2 rounded-full text-xs font-bold transition-all uppercase tracking-wider whitespace-nowrap ${statusFilter === status ? 'bg-accent text-white shadow-md' : 'bg-bg-sunken text-ink-muted hover:text-ink-primary border border-border-subtle'}`}
             >
               {status.replace('_', ' ')}
             </button>
@@ -215,10 +219,12 @@ export default function ReservationsPage() {
                     </div>
                   </div>
 
-                  <div className="bg-bg-sunken/50 px-4 py-2 rounded-lg border border-border-subtle flex flex-col items-end">
-                    <span className="text-[10px] uppercase font-bold text-ink-muted tracking-widest">Total Amount</span>
-                    <span className="text-lg font-mono font-semibold text-ink-primary">₹{booking.total_amount.toLocaleString()}</span>
-                  </div>
+                  {!isReception && (
+                    <div className="bg-bg-sunken/50 px-4 py-2 rounded-lg border border-border-subtle flex flex-col items-end">
+                      <span className="text-[10px] uppercase font-bold text-ink-muted tracking-widest">Total Amount</span>
+                      <span className="text-lg font-mono font-semibold text-ink-primary">₹{booking.total_amount.toLocaleString()}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -281,16 +287,18 @@ export default function ReservationsPage() {
               </div>
             </div>
 
-            <div className="bg-accent/5 border border-accent/10 rounded-xl p-3 flex items-center justify-between">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[9px] font-semibold text-accent uppercase tracking-widest">Pricing</span>
-                <span className="font-mono text-xs text-ink-primary">Rate: ₹{Math.round(selectedBooking.total_amount / (Math.max(1, (parseISO(selectedBooking.check_out_date).getTime() - parseISO(selectedBooking.check_in_date).getTime()) / (1000 * 60 * 60 * 24))))}</span>
+            {!isReception && (
+              <div className="bg-accent/5 border border-accent/10 rounded-xl p-3 flex items-center justify-between">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[9px] font-semibold text-accent uppercase tracking-widest">Pricing</span>
+                  <span className="font-mono text-xs text-ink-primary">Rate: ₹{Math.round(selectedBooking.total_amount / (Math.max(1, (parseISO(selectedBooking.check_out_date).getTime() - parseISO(selectedBooking.check_in_date).getTime()) / (1000 * 60 * 60 * 24))))}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[9px] font-semibold text-accent uppercase tracking-widest">Total Amount</span>
+                  <div className="text-lg font-mono font-semibold text-ink-primary leading-none">₹{selectedBooking.total_amount.toLocaleString()}</div>
+                </div>
               </div>
-              <div className="text-right">
-                <span className="text-[9px] font-semibold text-accent uppercase tracking-widest">Total Amount</span>
-                <div className="text-lg font-mono font-semibold text-ink-primary leading-none">₹{selectedBooking.total_amount.toLocaleString()}</div>
-              </div>
-            </div>
+            )}
 
             {selectedBooking.status === 'unassigned' && (
               <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg flex items-start gap-2">
@@ -306,7 +314,7 @@ export default function ReservationsPage() {
                 onClick={() => handleCheckInNow(selectedBooking)}
                 className="btn btn-accent w-full py-3 text-[11px]"
               >
-                CHECK IN NOW
+                Check in Now
               </button>
               <div className="flex gap-2">
                 <button 
@@ -314,13 +322,13 @@ export default function ReservationsPage() {
                   className="btn btn-danger flex-1 flex items-center justify-center gap-2 py-2.5 text-[9px]"
                 >
                   <Trash2 size={12} />
-                  CANCEL
+                  Cancel Reservation
                 </button>
                 <button 
                   onClick={() => setSelectedBooking(null)}
                   className="btn btn-primary flex-1 py-2.5 text-[9px]"
                 >
-                  CLOSE
+                  Close
                 </button>
               </div>
             </div>

@@ -15,6 +15,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useNewBooking } from '@/components/booking/NewBookingProvider';
 import { parseISO, format, isSameDay, differenceInDays } from 'date-fns';
 import Badge from '@/components/ui/Badge';
+import { useRealtime } from '@/hooks/useRealtime';
+import RoomDrawer from '@/components/rooms/RoomDrawer';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -61,6 +63,8 @@ export default function DashboardPage() {
   const [isAddPropertyOpen, setIsAddPropertyOpen] = useState(false);
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [newProperty, setNewProperty] = useState({
     name: '',
     rooms: '',
@@ -89,6 +93,9 @@ export default function DashboardPage() {
     window.addEventListener('storage', loadCache);
     return () => window.removeEventListener('storage', loadCache);
   }, []);
+
+  // Supabase Realtime Sync
+  useRealtime(loadCache);
 
   const allRooms = propertyFilter 
     ? storedRooms.filter(r => r.property_id === propertyFilter)
@@ -191,13 +198,13 @@ export default function DashboardPage() {
       {/* GLOBAL KPI DASHBOARD */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-2">
             {[
-              { label: 'Vacant Rooms', value: allRooms.filter(r => r.status === 'vacant').length, sub: 'Available tonight', border: 'border-l-success' },
-              { label: 'Occupied Rooms', value: allRooms.filter(r => r.status === 'occupied').length, sub: 'Currently in-stay', border: 'border-l-accent' },
-              { label: 'Check-ins Today', value: Object.values(storedBookings).filter(b => isSameDay(parseISO(b.check_in_date), new Date())).filter(b => !propertyFilter || b.property_id === propertyFilter).length, sub: 'Arriving guests', border: 'border-l-info' },
-              { label: 'Check-outs Today', value: Object.values(storedBookings).filter(b => isSameDay(parseISO(b.check_out_date), new Date())).filter(b => !propertyFilter || b.property_id === propertyFilter).length, sub: 'Departing guests', border: 'border-l-warning' },
-              { label: "Revenue Today", value: `₹${Object.values(storedBookings).filter(b => isSameDay(parseISO(b.check_in_date), new Date())).filter(b => !propertyFilter || b.property_id === propertyFilter).reduce((sum, b) => sum + (Number(b.amount_paid) || 0), 0).toLocaleString()}`, sub: 'Collected today', border: 'border-l-primary', isRevenue: true }
-            ].map((kpi, i) => (
-              <div key={i} className={`bg-white border border-border-subtle rounded-lg p-3 sm:p-4 shadow-xs border-l-4 ${kpi.border} flex flex-col gap-1 sm:gap-2 transition-all hover:shadow-md duration-300`}>
+              { label: 'Vacant Rooms', value: allRooms.filter(r => r.status === 'vacant').length, sub: 'Available tonight', border: 'var(--status-vacant-border)' },
+              { label: 'Occupied Rooms', value: allRooms.filter(r => r.status === 'occupied').length, sub: 'Currently in-stay', border: 'var(--status-occupied-border)' },
+              { label: 'Check-ins Today', value: Object.values(storedBookings).filter(b => isSameDay(parseISO(b.check_in_date), new Date())).filter(b => !propertyFilter || b.property_id === propertyFilter).length, sub: 'Arriving guests', border: 'var(--status-arriving-border)' },
+              { label: 'Check-outs Today', value: Object.values(storedBookings).filter(b => isSameDay(parseISO(b.check_out_date), new Date())).filter(b => !propertyFilter || b.property_id === propertyFilter).length, sub: 'Departing guests', border: 'var(--status-checkout-border)' },
+              { label: "Revenue Today", value: `₹${Object.values(storedBookings).filter(b => isSameDay(parseISO(b.check_in_date), new Date())).filter(b => !propertyFilter || b.property_id === propertyFilter).reduce((sum, b) => sum + (Number(b.amount_paid) || 0), 0).toLocaleString()}`, sub: 'Collected today', border: 'var(--accent)', isRevenue: true }
+            ].filter(kpi => !isReception || !kpi.isRevenue).map((kpi, i) => (
+              <div key={i} className="bg-white border border-border-subtle rounded-lg p-3 sm:p-4 shadow-xs border-l-4 flex flex-col gap-1 sm:gap-2 transition-all hover:shadow-md duration-300" style={{ borderLeftColor: kpi.border }}>
                 <span className="text-[9px] sm:text-[10px] font-semibold text-ink-muted uppercase tracking-widest">{kpi.label}</span>
                 <div className="flex flex-col">
                   <span className={`text-xl sm:text-2xl font-display font-semibold text-ink-primary ${kpi.isRevenue ? 'font-mono' : ''}`}>{kpi.value}</span>
@@ -214,8 +221,8 @@ export default function DashboardPage() {
         <section className="flex flex-col gap-5">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-display text-ink-primary font-semibold">Arrivals Today</h2>
-            <Link href="/reservations" className="text-xs font-bold text-accent uppercase tracking-widest hover:underline flex items-center gap-1.5 group">
-              View Guest List <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+            <Link href="/reservations" className="text-xs font-semibold text-accent hover:underline flex items-center gap-1.5 group transition-all">
+              View guest list <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
             </Link>
           </div>
           <div className="flex gap-5 overflow-x-auto pb-6 -mx-4 px-4 custom-scrollbar">
@@ -226,14 +233,17 @@ export default function DashboardPage() {
               const room = storedRooms.find(r => r.id === booking.room_id);
               
               return (
-                <div key={booking.id} className="min-w-[340px] bg-white border border-border-subtle rounded-xl shadow-sm overflow-hidden flex flex-col relative group transition-all hover:shadow-md">
-                  <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-accent" />
+                <div 
+                  key={booking.id} 
+                  className="min-w-[340px] bg-white border border-border-subtle rounded-xl shadow-sm overflow-hidden flex flex-col relative group transition-all"
+                >
+                <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: 'var(--status-arriving-border)' }} />
                   <div className="p-5 flex flex-col gap-5">
                     <div className="flex items-start justify-between">
                       <div className="flex flex-col gap-1">
                         <h3 className="text-xl font-bold text-ink-primary tracking-tight leading-tight">{booking.guest_name}</h3>
                         <p className="text-sm font-medium text-ink-secondary">
-                          {room ? `Room ${room.room_number}` : 'Double Room'} • {nights} {nights === 1 ? 'night' : 'nights'}
+                          {(!room || booking.status === 'unassigned') ? 'Double Room (Unassigned)' : `Room ${room.room_number}`} • {nights} {nights === 1 ? 'night' : 'nights'}
                         </p>
                       </div>
                       <div className="bg-blue-50 text-[10px] font-bold text-blue-600 px-2.5 py-1 rounded-md uppercase tracking-wide border border-blue-100">
@@ -242,33 +252,27 @@ export default function DashboardPage() {
                     </div>
 
                     <div className="flex items-end justify-between pt-1">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] font-bold text-ink-muted uppercase tracking-[0.2em]">ADVANCE PAID</span>
-                        <span className="text-2xl font-bold text-ink-primary mt-1 tracking-tight">₹{booking.amount_paid}</span>
-                      </div>
-                      
-                      {booking.status === 'unassigned' ? (
-                        <button 
-                          onClick={() => openNewBooking()}
-                          className="px-6 py-2.5 border-2 border-accent text-accent font-bold rounded-xl text-sm hover:bg-accent/5 transition-all shadow-sm"
-                        >
-                          Assign Room
-                        </button>
+                      {!isReception ? (
+                        <div className="flex flex-col">
+                          <span className="text-[10px] font-bold text-ink-muted uppercase tracking-[0.2em]">ADVANCE PAID</span>
+                          <span className="text-2xl font-bold text-ink-primary mt-1 tracking-tight">₹{booking.amount_paid}</span>
+                        </div>
                       ) : (
-                        <button 
-                          onClick={async () => {
-                            if (booking.room_id) {
-                              await updateBookingStatus(booking.id, 'checked_in');
-                              toast(`Guest ${booking.guest_name} checked in!`, 'success');
-                              const updatedArrivals = await getArrivalsToday(propertyFilter || undefined);
-                              setArrivals(updatedArrivals);
-                            }
-                          }}
-                          className="px-6 py-2.5 border-2 border-success text-success font-bold rounded-xl text-sm hover:bg-success/5 transition-all shadow-sm"
-                        >
-                          Check In
-                        </button>
+                        <div className="flex flex-col">
+                          <span className="text-[10px] font-bold text-ink-muted uppercase tracking-[0.2em]">GUEST PHONE</span>
+                          <span className="text-lg font-mono font-bold text-ink-primary mt-1 tracking-tight">{booking.guest_phone}</span>
+                        </div>
                       )}
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const url = `/booking/new?name=${encodeURIComponent(booking.guest_name)}&phone=${encodeURIComponent(booking.guest_phone)}&property=${booking.property_id}`;
+                          router.push(url);
+                        }}
+                        className="btn btn-accent btn--sm px-5 text-sm shadow-md"
+                      >
+                        Check In
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -388,6 +392,13 @@ export default function DashboardPage() {
           <button className="btn btn-accent w-full mt-2" onClick={() => setIsUpgradeOpen(false)}>View Plans</button>
         </div>
       </Modal>
+
+      {/* ROOM DRAWER */}
+      <RoomDrawer 
+        isOpen={isDrawerOpen} 
+        onClose={() => setIsDrawerOpen(false)} 
+        room={selectedRoom as any} 
+      />
     </div>
   );
 }

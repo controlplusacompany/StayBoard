@@ -21,8 +21,10 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const [userRole, setUserRole] = React.useState<string | null>(null);
   const [userEmail, setUserEmail] = React.useState<string | null>(null);
   const [currentTime, setCurrentTime] = React.useState(new Date());
+  const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
+    setMounted(true);
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     if (typeof window !== 'undefined') {
       setUserRole(localStorage.getItem('stayboard_user_role') || 'owner');
@@ -189,12 +191,16 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
 
         <div className="flex items-center gap-4">
           <div className="hidden lg:flex flex-col items-end mr-2">
-            <span className="text-[13px] font-bold text-ink-primary leading-none mb-1">
-              {format(currentTime, 'HH:mm:ss')}
-            </span>
-            <span className="text-[9px] font-medium text-ink-muted uppercase tracking-wider leading-none">
-              {format(currentTime, 'EEEE, dd MMM yyyy')}
-            </span>
+            {mounted && (
+              <>
+                <span className="text-[13px] font-semibold text-accent leading-none mb-1 uppercase tracking-wider">
+                  {format(currentTime, 'h:mm a')}
+                </span>
+                <span className="text-[10px] font-medium text-accent uppercase tracking-[0.2em] leading-none opacity-80">
+                  {format(currentTime, 'EEEE, dd MMM yyyy')}
+                </span>
+              </>
+            )}
           </div>
 
           <div className="relative">

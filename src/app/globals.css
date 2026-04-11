@@ -53,22 +53,6 @@ html {
   --accent-dark: #0147B1;
   --accent-gradient: linear-gradient(180deg, #87B9FF 0%, #0259DD 100%);
 
-  --status-vacant-bg:           #DCFCE7;
-  --status-vacant-fg:           #14532D;
-  --status-vacant-border:       #86EFAC;
-
-  --status-occupied-bg:         #DBEAFE;
-  --status-occupied-fg:         #1E3A8A;
-  --status-occupied-border:     #93C5FD;
-
-  --status-cleaning-bg:         #FEF9C3;
-  --status-cleaning-fg:         #713F12;
-  --status-cleaning-border:     #FDE047;
-
-  --status-maintenance-bg:      #E5E7EB;
-  --status-maintenance-fg:      #374151;
-  --status-maintenance-border:  #9CA3AF;
-
   --status-checkout-bg:         #FEE2E2;
   --status-checkout-fg:         #991B1B;
   --status-checkout-border:     #FCA5A5;
@@ -76,6 +60,22 @@ html {
   --status-arriving-bg:         #FEF3C7;
   --status-arriving-fg:         #92400E;
   --status-arriving-border:     #FCD34D;
+
+  --status-occupied-bg:         #DBEAFE;
+  --status-occupied-fg:         #1E3A8A;
+  --status-occupied-border:     #93C5FD;
+
+  --status-cleaning-bg:         #FEF08A;
+  --status-cleaning-fg:         #854D0E;
+  --status-cleaning-border:     #EAB308;
+
+  --status-maintenance-bg:      #E5E7EB;
+  --status-maintenance-fg:      #374151;
+  --status-maintenance-border:  #9CA3AF;
+
+  --status-vacant-bg:           #DCFCE7;
+  --status-vacant-fg:           #14532D;
+  --status-vacant-border:       #86EFAC;
 
   /* ── Semantic ── */
   --success: #059669;
@@ -403,6 +403,8 @@ html {
   .room-card--cleaning {
     background: var(--status-cleaning-bg) !important;
     border-color: var(--status-cleaning-border) !important;
+    border-style: dotted !important;
+    border-width: 2px !important;
   }
 
   .room-card--maintenance {
@@ -456,8 +458,7 @@ html {
     height: 48px;
     /* Standardized CTA height */
     padding: 0 24px;
-    border-radius: var(--radius-md);
-    /* 16px - Premium slightly-rounded look */
+    border-radius: var(--radius-full);
     font-family: var(--font-sans);
     font-size: 14px;
     font-weight: 500;
@@ -491,14 +492,14 @@ html {
     height: 36px;
     padding: 0 16px;
     font-size: 13px;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-full);
   }
 
   .btn--lg {
     height: 56px;
     padding: 0 32px;
     font-size: 16px;
-    border-radius: 20px;
+    border-radius: var(--radius-full);
   }
 
   .btn--full {
@@ -527,10 +528,9 @@ html {
   .btn-accent {
     background: var(--accent-gradient);
     color: #FFFFFF;
-    text-transform: uppercase;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    font-size: 14px;
     box-shadow: 0 8px 20px -4px rgba(2, 89, 221, 0.3);
     border-radius: var(--radius-full);
   }
@@ -593,10 +593,9 @@ html {
   .btn-danger {
     background: var(--danger);
     color: #FFFFFF;
-    text-transform: uppercase;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    font-size: 14px;
     box-shadow: 0 8px 20px -4px rgba(220, 38, 38, 0.3);
     border-radius: var(--radius-full);
   }
@@ -610,10 +609,9 @@ html {
   .btn-success {
     background: linear-gradient(180deg, #10B981 0%, #059669 100%);
     color: #FFFFFF;
-    text-transform: uppercase;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    font-size: 14px;
     box-shadow: 0 8px 20px -4px rgba(16, 185, 129, 0.3);
     border-radius: var(--radius-full);
   }

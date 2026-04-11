@@ -30,16 +30,22 @@ const config: Config = {
         // Status colors
         "status-vacant-bg": "var(--status-vacant-bg)",
         "status-vacant-fg": "var(--status-vacant-fg)",
+        "status-vacant-border": "var(--status-vacant-border)",
         "status-occupied-bg": "var(--status-occupied-bg)",
         "status-occupied-fg": "var(--status-occupied-fg)",
+        "status-occupied-border": "var(--status-occupied-border)",
         "status-cleaning-bg": "var(--status-cleaning-bg)",
         "status-cleaning-fg": "var(--status-cleaning-fg)",
+        "status-cleaning-border": "var(--status-cleaning-border)",
         "status-maintenance-bg": "var(--status-maintenance-bg)",
         "status-maintenance-fg": "var(--status-maintenance-fg)",
+        "status-maintenance-border": "var(--status-maintenance-border)",
         "status-checkout-bg": "var(--status-checkout-bg)",
         "status-checkout-fg": "var(--status-checkout-fg)",
+        "status-checkout-border": "var(--status-checkout-border)",
         "status-arriving-bg": "var(--status-arriving-bg)",
         "status-arriving-fg": "var(--status-arriving-fg)",
+        "status-arriving-border": "var(--status-arriving-border)",
         
         // Semantic
         success: "var(--success)",

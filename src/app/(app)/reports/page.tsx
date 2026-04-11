@@ -321,7 +321,7 @@ export default function ReportsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
-              {filteredBookings.length > 0 ? filteredBookings.map(b => (
+              {filteredBookings.length > 0 ? filteredBookings.slice(0, 5).map(b => (
                 <tr key={b.id} className="hover:bg-bg-sunken/40 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex flex-col">

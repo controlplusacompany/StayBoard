@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Search, ChevronRight, Plus, X, Bed, Layers, IndianRupee, Users, Tent, Coffee } from 'lucide-react';
+import { Search, ChevronRight, Plus, X, Bed, Layers, IndianRupee, Users, Tent, Coffee, ArrowRight } from 'lucide-react';
 import Select from '@/components/ui/Select';
 import RoomCard from '@/components/rooms/RoomCard';
 import { Room, RoomStatus, Booking, PropertyType } from '@/types';
@@ -12,8 +12,9 @@ import RoomDrawer from '@/components/rooms/RoomDrawer';
 import Modal from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 
-import { getEnrichedRooms, getStoredBookings, getBookingsForRoom, getSelectedProperty } from '@/lib/store';
-import { format, parseISO, isWithinInterval, isSameDay } from 'date-fns';
+import { getEnrichedRooms, getStoredBookings, getBookingsForRoom, getSelectedProperty, getArrivalsToday } from '@/lib/store';
+import { format, parseISO, isWithinInterval, isSameDay, differenceInDays } from 'date-fns';
+import { useRealtime } from '@/hooks/useRealtime';
 
 export default function PropertyDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -62,18 +63,23 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
 
   const [rooms, setRooms] = useState<Room[]>([]);
   const [mockBookings, setMockBookings] = useState<Record<string, Booking>>({});
+  const [arrivals, setArrivals] = useState<Booking[]>([]);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const refreshData = async () => {
-    const allEnrichedRooms = await getEnrichedRooms();
-    const fetchedBookings = await getStoredBookings();
+    const [allEnrichedRooms, fetchedBookings, arrivalsToday] = await Promise.all([
+      getEnrichedRooms(),
+      getStoredBookings(),
+      getArrivalsToday(params.id)
+    ]);
     
     // Convert both to strings for safety
     const filteredRooms = allEnrichedRooms.filter(r => String(r.property_id) === String(params.id));
     
     setRooms(filteredRooms);
     setMockBookings(fetchedBookings);
+    setArrivals(arrivalsToday);
     setDataLoaded(true);
     setRefreshTrigger(prev => prev + 1);
   };
@@ -91,13 +97,36 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
     return () => window.removeEventListener('storage', refreshData);
   }, [searchParams]);
 
-  const property = {
+  // Supabase Realtime Sync
+  useRealtime(refreshData);
+
+  const [property, setProperty] = useState<{ id: string; name: string; type: PropertyType; city: string; total_rooms: number }>({
     id: params.id,
-    name: params.id === '010' ? 'The Peace' : 'The Starry Nights',
-    type: (params.id === '010' ? 'bnb' : 'hostel') as PropertyType,
-    city: 'Varanasi',
-    total_rooms: params.id === '010' ? 8 : 15
-  };
+    name: '',
+    type: 'hotel',
+    city: '',
+    total_rooms: 0
+  });
+
+  useEffect(() => {
+    const fetchProperty = async () => {
+      const { data } = await (await import('@/lib/supabase')).supabase
+        .from('properties')
+        .select('*')
+        .eq('id', params.id)
+        .single();
+      if (data) {
+        setProperty({
+          id: data.id,
+          name: data.name,
+          type: data.type as PropertyType,
+          city: data.city,
+          total_rooms: data.total_rooms
+        });
+      }
+    };
+    fetchProperty();
+  }, [params.id]);
 
   const isHostel = property.type === 'hostel';
 
@@ -198,13 +227,13 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
           {/* KPI DASHBOARD */}
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-2">
             {[
-              { label: 'Total Occupied', value: getCount('occupied'), sub: `of ${rooms.length} rooms tonight`, border: 'border-l-[#2563EB]' },
-              { label: 'Checking In', value: getCount('arriving_today'), sub: 'arrivals today', border: 'border-l-[#A855F7]' },
-              { label: 'Checking Out', value: getCount('checkout_today'), sub: 'departures today', border: 'border-l-[#F97316]' },
-              { label: 'Vacant Tonight', value: getCount('vacant'), sub: 'available', border: 'border-l-[#22C55E]' },
-              { label: "Today's Revenue", value: `₹${Object.values(mockBookings).filter(b => isSameDay(parseISO(b.check_in_date), new Date())).reduce((sum, b) => sum + (Number(b.amount_paid) || 0), 0)}`, sub: 'UPI + Cash', border: 'border-l-[#2563EB]', isRevenue: true }
-            ].map((kpi, i) => (
-              <div key={i} className={`bg-white border border-border-subtle rounded-lg p-3 sm:p-4 shadow-xs border-l-4 ${kpi.border} flex flex-col gap-1 sm:gap-2 transition-all hover:shadow-md duration-300`}>
+              { label: 'Total Occupied', value: getCount('occupied'), sub: `of ${rooms.length} rooms tonight`, border: 'var(--status-occupied-border)' },
+              { label: 'Checking In', value: getCount('arriving_today'), sub: 'arrivals today', border: 'var(--status-arriving-border)' },
+              { label: 'Checking Out', value: getCount('checkout_today'), sub: 'departures today', border: 'var(--status-checkout-border)' },
+              { label: 'Vacant Tonight', value: getCount('vacant'), sub: 'available', border: 'var(--status-vacant-border)' },
+              { label: "Today's Revenue", value: `₹${Object.values(mockBookings).filter(b => isSameDay(parseISO(b.check_in_date), new Date())).reduce((sum, b) => sum + (Number(b.amount_paid) || 0), 0).toLocaleString()}`, sub: 'UPI + Cash', border: 'var(--accent)', isRevenue: true }
+            ].filter(kpi => !isReception || !kpi.isRevenue).map((kpi, i) => (
+              <div key={i} className="bg-white border border-border-subtle rounded-lg p-3 sm:p-4 shadow-xs border-l-4 flex flex-col gap-1 sm:gap-2 transition-all hover:shadow-md duration-300" style={{ borderLeftColor: kpi.border }}>
                 <span className="text-[9px] sm:text-[10px] font-semibold text-ink-muted uppercase tracking-widest">{kpi.label}</span>
                 <div className="flex flex-col">
                   <span className={`text-xl sm:text-2xl font-display font-semibold text-ink-primary ${kpi.isRevenue ? 'font-mono' : ''}`}>{kpi.value}</span>
@@ -215,6 +244,72 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
               </div>
             ))}
           </div>
+
+          {/* ARRIVALS TODAY SECTION */}
+          {arrivals.length > 0 && (
+            <section className="flex flex-col gap-4 mb-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-display text-ink-primary font-semibold">Arrivals Today</h2>
+                <Link href="/reservations" className="text-[11px] font-semibold text-accent hover:underline flex items-center gap-1.5 group transition-all">
+                  View guest list <ArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+              </div>
+              <div className="flex gap-4 overflow-x-auto pb-4 -mx-1 px-1 no-scrollbar">
+                {arrivals.map(booking => {
+                  const checkIn = parseISO(booking.check_in_date);
+                  const checkOut = parseISO(booking.check_out_date);
+                  const nights = differenceInDays(checkOut, checkIn) || 1;
+                  const room = rooms.find(r => r.id === booking.room_id);
+                  
+                  return (
+                    <div 
+                      key={booking.id} 
+                      className="min-w-[320px] bg-white border border-border-subtle rounded-xl shadow-sm overflow-hidden flex flex-col relative group transition-all"
+                    >
+                    <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: 'var(--status-arriving-border)' }} />
+                      <div className="p-4 flex flex-col gap-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex flex-col gap-1">
+                            <h3 className="text-lg font-bold text-ink-primary tracking-tight leading-tight">{booking.guest_name}</h3>
+                            <p className="text-[12px] font-medium text-ink-secondary">
+                              {(!room || booking.status === 'unassigned') ? 'Double Room (Unassigned)' : `Room ${room.room_number}`} • {nights} {nights === 1 ? 'night' : 'nights'}
+                            </p>
+                          </div>
+                          <div className="bg-blue-50 text-[9px] font-bold text-blue-600 px-2.5 py-1 rounded-md uppercase tracking-wide border border-blue-100">
+                            {booking.booking_source?.replace('_', '.') || 'Booking.com'}
+                          </div>
+                        </div>
+
+                        <div className="flex items-end justify-between pt-1">
+                          {!isReception ? (
+                            <div className="flex flex-col">
+                              <span className="text-[9px] font-bold text-ink-muted uppercase tracking-[0.2em]">ADVANCE PAID</span>
+                              <span className="text-xl font-bold text-ink-primary mt-1 tracking-tight">₹{booking.amount_paid}</span>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col">
+                              <span className="text-[9px] font-bold text-ink-muted uppercase tracking-[0.2em]">CONTACT NO</span>
+                              <span className="text-sm font-mono font-bold text-ink-primary mt-1 tracking-tight">{booking.guest_phone}</span>
+                            </div>
+                          )}
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const url = `/booking/new?name=${encodeURIComponent(booking.guest_name)}&phone=${encodeURIComponent(booking.guest_phone)}&property=${params.id}`;
+                              router.push(url);
+                            }}
+                            className="btn btn-accent btn--sm px-5 text-xs shadow-md"
+                          >
+                            Check In
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           {/* Header */}
           <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">

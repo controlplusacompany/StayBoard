@@ -21,7 +21,6 @@ export default function NewBookingModal({ isOpen, onClose, propertyId }: NewBook
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | 'all'>(propertyId || 'all');
 
-
   useEffect(() => {
     const fetchData = async () => {
       const [fetchedRooms, fetchedBookings, fetchedProps] = await Promise.all([

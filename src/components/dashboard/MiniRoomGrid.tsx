@@ -11,13 +11,13 @@ interface MiniRoomGridProps {
 export default function MiniRoomGrid({ rooms, noWrap }: MiniRoomGridProps) {
   const getDotClass = (status: RoomStatus) => {
     switch (status) {
-      case 'vacant': return 'bg-status-vacant-fg opacity-85';
-      case 'occupied': return 'bg-status-occupied-fg opacity-100';
-      case 'cleaning': return 'bg-status-cleaning-fg opacity-90';
-      case 'maintenance': return 'bg-status-maintenance-fg opacity-100';
-      case 'checkout_today': return 'bg-status-checkout-fg opacity-100';
-      case 'arriving_today': return 'bg-status-arriving-fg opacity-100';
-      default: return 'bg-ink-muted opacity-80';
+      case 'vacant': return 'bg-status-vacant-bg text-status-vacant-fg border-status-vacant-fg/20';
+      case 'occupied': return 'bg-status-occupied-bg text-status-occupied-fg border-status-occupied-fg/20';
+      case 'cleaning': return 'bg-status-cleaning-bg text-status-cleaning-fg border-status-cleaning-fg/40 border-dotted';
+      case 'maintenance': return 'bg-status-maintenance-bg text-status-maintenance-fg border-status-maintenance-fg/20';
+      case 'checkout_today': return 'bg-status-checkout-bg text-status-checkout-fg border-status-checkout-fg/20';
+      case 'arriving_today': return 'bg-status-arriving-bg text-status-arriving-fg border-status-arriving-fg/20';
+      default: return 'bg-ink-muted text-white border-transparent';
     }
   };
 
@@ -35,10 +35,10 @@ export default function MiniRoomGrid({ rooms, noWrap }: MiniRoomGridProps) {
       {rooms.map((room, idx) => (
         <div
           key={idx}
-          className={`w-[30px] h-[30px] rounded-[0px] transition-all duration-300 ease-in-out ${getDotClass(room.status)} flex items-center justify-center`}
+          className={`w-[30px] h-[30px] rounded-[0px] transition-all duration-300 ease-in-out ${getDotClass(room.status)} flex items-center justify-center border`}
           style={{ animationDelay: `${idx * 2}ms` }}
         >
-          <span className="text-[10px] font-bold text-white/90 leading-none tracking-tighter">
+          <span className="text-[10px] font-bold leading-none tracking-tighter">
             {formatRoomName(room.name)}
           </span>
         </div>
