@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import React, { Suspense } from 'react';
 import { NewBookingProvider } from '@/components/booking/NewBookingProvider';
 import MobileLayoutWrapper from '@/components/layout/MobileLayoutWrapper';
