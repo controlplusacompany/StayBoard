@@ -50,8 +50,7 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
 
   const properties = [
     { id: '010', name: 'Peace Hotel', type: 'Hotel' },
-    { id: '011', name: 'Starry Nights', type: 'Hostel' },
-    { id: '012', name: 'Starry Night Homes', type: 'Airbnb' }
+    { id: '011', name: 'Starry Nights', type: 'Hostel' }
   ];
 
   const [currentPropertyLabel, setCurrentPropertyLabel] = React.useState('All Properties');
@@ -69,7 +68,11 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
 
     syncProperty();
     window.addEventListener('storage', syncProperty);
-    return () => window.removeEventListener('storage', syncProperty);
+    window.addEventListener('stayboard_update', syncProperty);
+    return () => {
+      window.removeEventListener('storage', syncProperty);
+      window.removeEventListener('stayboard_update', syncProperty);
+    };
   }, []);
 
   const closeAll = () => {
@@ -110,7 +113,13 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
           <Link 
             href={isReception ? `/property/${typeof window !== 'undefined' ? localStorage.getItem('stayboard_user_property') || '010' : '010'}` : "/dashboard"} 
             className="flex items-center gap-2 no-underline group" 
-            onClick={closeAll}
+            onClick={() => {
+              closeAll();
+              if (isOwner) {
+                localStorage.removeItem('stayboard_master_property');
+                window.dispatchEvent(new Event('stayboard_update'));
+              }
+            }}
           >
             <span className="font-display font-bold text-xl text-ink-primary tracking-tighter">StayBoard</span>
             <span className="w-1.5 h-1.5 rounded-full bg-accent mt-1 animate-pulse" />

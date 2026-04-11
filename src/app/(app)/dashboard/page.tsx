@@ -74,8 +74,8 @@ export default function DashboardPage() {
   });
 
   const loadCache = useCallback(async () => {
+    // Remove the early setPropertyFilter to prevent rendering inconsistent state
     const currentFilter = getSelectedProperty();
-    setPropertyFilter(currentFilter);
     
     const [enrichedRooms, bookings, arrivalsToday, fetchedProps] = await Promise.all([
       getEnrichedRooms(),
@@ -84,12 +84,14 @@ export default function DashboardPage() {
       getStoredProperties()
     ]);
     
+    // Batch updates to ensure all state changes occur in the same render cycle
+    setPropertyFilter(currentFilter);
     setStoredRooms(enrichedRooms);
     setStoredBookings(bookings);
     setArrivals(arrivalsToday);
     setProperties(fetchedProps as Property[]);
-    setDataLoaded(true);
-  }, []);
+    if (!dataLoaded) setDataLoaded(true);
+  }, [dataLoaded]);
 
   useEffect(() => {
     loadCache();
@@ -104,7 +106,7 @@ export default function DashboardPage() {
   // Supabase Realtime Sync
   useRealtime(loadCache);
 
-  const allRooms = propertyFilter 
+  const allRooms = propertyFilter && propertyFilter !== 'all'
     ? storedRooms.filter(r => r.property_id === propertyFilter)
     : storedRooms;
 
@@ -121,7 +123,7 @@ export default function DashboardPage() {
   const filteredProperties = properties.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           (p.city?.toLowerCase() || '').includes(searchQuery.toLowerCase());
-    const matchesPropertyFilter = propertyFilter ? p.id === propertyFilter : true;
+    const matchesPropertyFilter = !propertyFilter || propertyFilter === 'all' ? true : p.id === propertyFilter;
     
     // STAFF RESTRICTION: Staff only sees their assigned property
     const staffPropertyId = typeof window !== 'undefined' ? localStorage.getItem('stayboard_user_property') : null;
@@ -192,7 +194,7 @@ export default function DashboardPage() {
                 <span className="text-xl sm:text-2xl font-mono font-medium tracking-tight text-ink-primary">
                   ₹{Object.values(storedBookings)
                     .filter(b => isSameDay(parseISO(b.check_in_date), new Date()))
-                    .filter(b => !propertyFilter || b.property_id === propertyFilter)
+                    .filter(b => !propertyFilter || propertyFilter === 'all' || b.property_id === propertyFilter)
                     .reduce((sum, b) => sum + (Number(b.amount_paid) || 0), 0)}
                 </span>
                 <span className="text-[11px] font-bold text-success">↗ 0%</span>
@@ -207,9 +209,9 @@ export default function DashboardPage() {
             {[
               { label: 'Vacant Rooms', value: allRooms.filter(r => r.status === 'vacant').length, sub: 'Available tonight', border: 'var(--status-vacant-border)' },
               { label: 'Occupied Rooms', value: allRooms.filter(r => r.status === 'occupied').length, sub: 'Currently in-stay', border: 'var(--status-occupied-border)' },
-              { label: 'Check-ins Today', value: Object.values(storedBookings).filter(b => isSameDay(parseISO(b.check_in_date), new Date())).filter(b => !propertyFilter || b.property_id === propertyFilter).length, sub: 'Arriving guests', border: 'var(--status-arriving-border)' },
-              { label: 'Check-outs Today', value: Object.values(storedBookings).filter(b => isSameDay(parseISO(b.check_out_date), new Date())).filter(b => !propertyFilter || b.property_id === propertyFilter).length, sub: 'Departing guests', border: 'var(--status-checkout-border)' },
-              { label: "Revenue Today", value: `₹${Object.values(storedBookings).filter(b => isSameDay(parseISO(b.check_in_date), new Date())).filter(b => !propertyFilter || b.property_id === propertyFilter).reduce((sum, b) => sum + (Number(b.amount_paid) || 0), 0).toLocaleString()}`, sub: 'Collected today', border: 'var(--accent)', isRevenue: true }
+              { label: 'Check-ins Today', value: Object.values(storedBookings).filter(b => isSameDay(parseISO(b.check_in_date), new Date())).filter(b => !propertyFilter || propertyFilter === 'all' || b.property_id === propertyFilter).length, sub: 'Arriving guests', border: 'var(--status-arriving-border)' },
+              { label: 'Check-outs Today', value: Object.values(storedBookings).filter(b => isSameDay(parseISO(b.check_out_date), new Date())).filter(b => !propertyFilter || propertyFilter === 'all' || b.property_id === propertyFilter).length, sub: 'Departing guests', border: 'var(--status-checkout-border)' },
+              { label: "Revenue Today", value: `₹${Object.values(storedBookings).filter(b => isSameDay(parseISO(b.check_in_date), new Date())).filter(b => !propertyFilter || propertyFilter === 'all' || b.property_id === propertyFilter).reduce((sum, b) => sum + (Number(b.amount_paid) || 0), 0).toLocaleString()}`, sub: 'Collected today', border: 'var(--accent)', isRevenue: true }
             ].filter(kpi => !isReception || !kpi.isRevenue).map((kpi, i) => (
               <div key={i} className="bg-white border border-border-subtle rounded-lg p-3 sm:p-4 shadow-xs border-l-4 flex flex-col gap-1 sm:gap-2 transition-all hover:shadow-md duration-300" style={{ borderLeftColor: kpi.border }}>
                 <span className="text-[9px] sm:text-[10px] font-semibold text-ink-muted uppercase tracking-widest">{kpi.label}</span>

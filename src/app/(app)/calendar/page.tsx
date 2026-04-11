@@ -45,7 +45,7 @@ export default function CalendarPage() {
     const fetchData = async () => {
       try {
         const currentProperty = getSelectedProperty();
-        setPropertyId(currentProperty);
+        // Moved setPropertyId below to prevent flicker
 
         const [fetchedRooms, fetchedBookings] = await Promise.all([
           getEnrichedRooms(),
@@ -57,6 +57,7 @@ export default function CalendarPage() {
           ? fetchedRooms
           : [];
 
+        setPropertyId(currentProperty);
         setRooms(roomsToSet);
         setBookings(Array.isArray(fetchedBookings) ? fetchedBookings : []);
       } catch (error) {

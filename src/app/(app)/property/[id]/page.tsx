@@ -231,7 +231,18 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
           {/* Breadcrumb & Global Actions */}
           <div className="flex items-center justify-between">
             <nav className="flex items-center gap-2 text-[12px] font-sans text-ink-muted">
-              <Link href="/dashboard" className="hover:text-accent transition-colors">Dashboard</Link>
+              <Link 
+                href="/dashboard" 
+                onClick={() => {
+                  if (typeof window !== 'undefined' && isOwnerRole) {
+                    localStorage.removeItem('stayboard_master_property');
+                    window.dispatchEvent(new Event('stayboard_update'));
+                  }
+                }}
+                className="hover:text-accent transition-colors"
+              >
+                Dashboard
+              </Link>
               <ChevronRight size={14} />
               <span className="text-ink-secondary font-medium">{property.name}</span>
             </nav>

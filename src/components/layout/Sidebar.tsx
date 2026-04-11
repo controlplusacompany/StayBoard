@@ -91,7 +91,13 @@ export default function Sidebar({ isMobileOpen, onCloseMobile }: { isMobileOpen?
             <Link
               key={item.label}
               href={href}
-              onClick={onCloseMobile}
+              onClick={() => {
+                onCloseMobile?.();
+                if (isOwner && item.label === 'Dashboard') {
+                  localStorage.removeItem('stayboard_master_property');
+                  window.dispatchEvent(new Event('stayboard_update'));
+                }
+              }}
               className={`
                 flex items-center gap-3 h-11 px-4 rounded-xl transition-all duration-200 group/nav
                 font-sans font-semibold text-[14px] leading-none no-underline

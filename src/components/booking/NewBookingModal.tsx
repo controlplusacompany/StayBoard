@@ -86,7 +86,7 @@ export default function NewBookingModal({ isOpen, onClose, propertyId }: NewBook
   });
 
   const handleRoomSelect = (room: Room) => {
-    router.push(`/booking/new?room=${room.room_number}&property=${room.property_id}`);
+    router.push(`/booking/new?room=${room.room_number}&property=${room.property_id}&mode=walkin`);
     onClose();
   };
 

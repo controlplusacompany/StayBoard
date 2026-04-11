@@ -80,22 +80,25 @@ export default function CalendarPicker({ startDate, endDate, blockedDates, onCha
     if (isBefore(day, today)) return;
 
     if (selectionType === 'start') {
-      // Prevent selecting blocked dates as START date
-      if (blockedDates.includes(dayStr)) return;
-      onChange(dayStr, dayStr);
+      // By default, suggest a 1-night stay
+      const nextDay = addDays(day, 1);
+      const nextDayStr = format(nextDay, 'yyyy-MM-dd');
+      onChange(dayStr, nextDayStr);
       setSelectionType('end');
     } else {
       // Check-out must be at least one day after check-in
-      const startD = new Date(startDate);
-      if (day <= startD) {
-        if (blockedDates.includes(dayStr)) return;
-        onChange(dayStr, dayStr);
+      const startD = parseISO(startDate);
+      if (isBefore(day, startD) || isSameDay(day, startD)) {
+        // User picked same day or earlier, restart selection with this as start
+        const nextDay = addDays(day, 1);
+        const nextDayStr = format(nextDay, 'yyyy-MM-dd');
+        onChange(dayStr, nextDayStr);
         setSelectionType('end');
       } else {
         // CHECK FOR OVERLAPS: Hotel logic
         // We check all nights (start to end-1). The check-out day itself can be blocked.
         const interval = eachDayOfInterval({
-          start: new Date(startDate),
+          start: startD,
           end: day
         });
         
@@ -104,11 +107,11 @@ export default function CalendarPicker({ startDate, endDate, blockedDates, onCha
         const hasConflict = nights.some(d => blockedDates.includes(format(d, 'yyyy-MM-dd')));
         
         if (hasConflict) {
-          // If we hit a conflict, restart selection from this new point (if not blocked)
-          if (!blockedDates.includes(dayStr)) {
-            onChange(dayStr, dayStr);
-            setSelectionType('end');
-          }
+          // If we hit a conflict, restart selection from this new point
+          const nextDay = addDays(day, 1);
+          const nextDayStr = format(nextDay, 'yyyy-MM-dd');
+          onChange(dayStr, nextDayStr);
+          setSelectionType('end');
         } else {
           onChange(startDate, dayStr);
           setSelectionType('start');

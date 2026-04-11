@@ -48,7 +48,7 @@ function BookingFlow() {
 
   // Default booking type based on date (Today = Walk-in, Future = Reservation)
   const [bookingType, setBookingType] = useState<'walk-in' | 'reservation'>('walk-in');
-  const [isFutureForced, setIsFutureForced] = useState(false);
+  const [isModeLocked, setIsModeLocked] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -86,9 +86,15 @@ function BookingFlow() {
         }
         setIsPreFilling(false);
       }
-      if (searchParams.get('mode') === 'future' && !bookingId) {
-        setBookingType('reservation');
-        setIsFutureForced(true);
+      if (!bookingId) {
+        const mode = searchParams.get('mode');
+        if (mode === 'future') {
+          setBookingType('reservation');
+          setIsModeLocked(true);
+        } else if (mode === 'walkin') {
+          setBookingType('walk-in');
+          setIsModeLocked(true);
+        }
       }
       setLoading(false);
     };
@@ -313,7 +319,7 @@ function BookingFlow() {
           </div>
         </div>
 
-        <div className={`flex gap-1 p-1 bg-bg-sunken rounded-xl border border-border-subtle self-start md:self-center ${(bookingId || isFutureForced) ? 'opacity-50 pointer-events-none grayscale cursor-not-allowed' : ''}`}>
+        <div className={`flex gap-1 p-1 bg-bg-sunken rounded-xl border border-border-subtle self-start md:self-center ${(bookingId || isModeLocked) ? 'opacity-50 pointer-events-none grayscale cursor-not-allowed' : ''}`}>
           <button 
             type="button"
             onClick={() => !bookingId && setBookingType('walk-in')}

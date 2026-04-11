@@ -31,7 +31,7 @@ export default function ReservationsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'unassigned' | 'assigned' | 'in_house'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'in_house'>('all');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
   const { open: openNewBooking } = useNewBooking();
@@ -58,7 +58,6 @@ export default function ReservationsPage() {
 
   const loadData = useCallback(async () => {
     const currentProperty = getSelectedProperty();
-    setPropertyId(currentProperty);
     if (typeof window !== 'undefined') {
       setUserRole(localStorage.getItem('stayboard_user_role'));
     }
@@ -68,6 +67,7 @@ export default function ReservationsPage() {
       getStoredRooms()
     ]);
     
+    setPropertyId(currentProperty);
     setBookings(rawBookings);
     setRooms(rawRooms);
     setDataLoaded(true);
@@ -97,10 +97,6 @@ export default function ReservationsPage() {
       if (b.status === 'checked_in') return false;
       const checkIn = parseISO(b.check_in_date);
       if (!isAfter(checkIn, today) && !isToday(checkIn)) return false;
-    } else if (statusFilter === 'unassigned') {
-      if (b.status !== 'unassigned') return false;
-    } else if (statusFilter === 'assigned') {
-      if (b.status !== 'assigned') return false;
     } else if (statusFilter === 'in_house') {
       if (b.status !== 'checked_in') return false;
     }
@@ -161,13 +157,13 @@ export default function ReservationsPage() {
         </div>
         
         <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto no-scrollbar py-1">
-          {(['all', 'unassigned', 'assigned', 'in_house'] as const).map((status) => (
+          {(['all', 'in_house'] as const).map((status) => (
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
               className={`px-4 py-2 rounded-full text-xs font-bold transition-all uppercase tracking-wider whitespace-nowrap ${statusFilter === status ? 'bg-accent text-white shadow-md' : 'bg-bg-sunken text-ink-muted hover:text-ink-primary border border-border-subtle'}`}
             >
-              {status.replace('_', ' ')}
+              {status === 'all' ? 'Future Bookings' : 'In House'}
             </button>
           ))}
         </div>
