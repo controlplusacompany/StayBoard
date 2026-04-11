@@ -126,8 +126,8 @@ export default function NewBookingModal({ isOpen, onClose, propertyId }: NewBook
           </div>
         </div>
 
-        <div className="border-t border-border-subtle pt-4">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+        <div className="border-t border-border-subtle pt-4 flex flex-col gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
             {vacantRooms.length > 0 ? (
               vacantRooms.map(room => (
                 <button 
@@ -152,6 +152,21 @@ export default function NewBookingModal({ isOpen, onClose, propertyId }: NewBook
                 <p className="text-sm font-medium">No vacant rooms found</p>
               </div>
             )}
+          </div>
+
+          <div className="flex flex-col gap-2 pt-2 border-t border-dashed border-border-subtle">
+            <p className="text-[11px] text-ink-muted text-center font-medium italic">Creating a future reservation? You can skip room assignment for now.</p>
+            <button 
+              onClick={() => {
+                const propId = selectedPropertyId !== 'all' ? selectedPropertyId : (staffPropertyId || '');
+                router.push(`/booking/new?property=${propId}`);
+                onClose();
+              }}
+              className="btn btn-secondary w-full py-3 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold"
+            >
+              <X size={14} />
+              <span>Continue without selecting a room</span>
+            </button>
           </div>
         </div>
       </div>

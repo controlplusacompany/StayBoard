@@ -560,10 +560,12 @@ function BookingFlow() {
                  <span className="text-ink-muted">Stay Duration</span>
                  <span className="text-ink-primary font-medium">{nights} Nights</span>
                </div>
-               <div className="flex justify-between text-xs">
-                 <span className="text-ink-muted">Room Number</span>
-                 <span className="text-ink-primary font-medium">{selectedRoom?.room_number || 'Unassigned'}</span>
-               </div>
+                {bookingType === 'walk-in' && (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-ink-muted">Room Number</span>
+                    <span className="text-ink-primary font-medium">{selectedRoom?.room_number || 'Unassigned'}</span>
+                  </div>
+                )}
                <div className="flex justify-between text-xs">
                  <span className="text-ink-muted">Total Guests</span>
                  <span className="text-ink-primary font-medium">{formData.numAdults + formData.numChildren} Count</span>
