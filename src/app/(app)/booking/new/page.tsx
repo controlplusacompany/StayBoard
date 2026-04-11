@@ -21,13 +21,13 @@ import {
   Building2
 } from 'lucide-react';
 import Select from '@/components/ui/Select';
-import { Room, BookingStatus } from '@/types';
+import { Room, BookingStatus, Booking } from '@/types';
 
 type IDType = 'aadhaar' | 'passport' | 'driving_license' | 'voter_id' | 'other';
 import { formatINR, formatDate } from '@/lib/formatting';
 import Badge from '@/components/ui/Badge';
 import { differenceInCalendarDays, addDays, format, areIntervalsOverlapping, parseISO } from 'date-fns';
-import { getStoredRooms, addBooking, getBookingsForRoom, getAvailableRoomCount, getRoomBlockedDates, getSelectedProperty, getBookingById, updateBookingStatus, updateBooking } from '@/lib/store';
+import { getStoredRooms, addBooking, getBookingsForRoom, getAvailableRoomCount, getRoomBlockedDates, getSelectedProperty, getBookingById, updateBookingStatus, updateBooking, getBookingsList } from '@/lib/store';
 import { useToast } from '@/components/ui/Toast';
 import CalendarPicker from '@/components/ui/CalendarPicker';
 
@@ -43,17 +43,21 @@ function BookingFlow() {
   
   const [isSuccess, setIsSuccess] = useState(false);
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Default booking type based on date (Today = Walk-in, Future = Reservation)
-  const [bookingType, setBookingType] = useState<'walk-in' | 'reservation'>(
-    (new Date(searchParams.get('check_in') || Date.now()).toLocaleDateString() === new Date().toLocaleDateString()) ? 'walk-in' : 'reservation'
-  );
+  const [bookingType, setBookingType] = useState<'walk-in' | 'reservation'>('walk-in');
+  const [isFutureForced, setIsFutureForced] = useState(false);
 
   useEffect(() => {
     const init = async () => {
-      const fetchedRooms = await getStoredRooms([]);
+      const [fetchedRooms, fetchedBookings] = await Promise.all([
+        getStoredRooms([]),
+        getBookingsList()
+      ]);
       setRooms(fetchedRooms);
+      setAllBookings(fetchedBookings);
 
       if (bookingId) {
         setIsPreFilling(true);
@@ -77,14 +81,19 @@ function BookingFlow() {
             idNumber: booking.id_number || '',
             address: booking.address || '',
           }));
-          setBookingType('walk-in');
+          // Only stay as walk-in if it's currently checked in
+          setBookingType(booking.status === 'checked_in' ? 'walk-in' : 'reservation');
         }
         setIsPreFilling(false);
+      }
+      if (searchParams.get('mode') === 'future' && !bookingId) {
+        setBookingType('reservation');
+        setIsFutureForced(true);
       }
       setLoading(false);
     };
     init();
-  }, [bookingId, roomId]);
+  }, [bookingId, roomId, searchParams]);
 
   useEffect(() => {
     const name = searchParams.get('name');
@@ -99,6 +108,17 @@ function BookingFlow() {
       if (name) setBookingType('walk-in');
     }
   }, [searchParams]);
+
+  // STAFF RESTRICTION: Ensure staff only books for their assigned property
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const role = localStorage.getItem('stayboard_user_role');
+      const staffPropId = localStorage.getItem('stayboard_user_property');
+      if (role === 'reception' && staffPropId && propertyId !== staffPropId) {
+        router.replace(`/booking/new?property=${staffPropId}`);
+      }
+    }
+  }, [propertyId, router]);
   
   const [formData, setFormData] = useState({
     guestName: '',
@@ -191,8 +211,8 @@ function BookingFlow() {
     }
 
     const newBooking = {
-      id: `b-${Date.now()}`,
-      room_id: formData.selectedRoomId || undefined,
+      id: bookingId || `b-${Date.now()}`,
+      room_id: bookingType === 'walk-in' ? formData.selectedRoomId : null,
       property_id: propertyId,
       owner_id: '00000000-0000-0000-0000-000000000000',
       guest_name: formData.guestName,
@@ -293,7 +313,7 @@ function BookingFlow() {
           </div>
         </div>
 
-        <div className={`flex gap-1 p-1 bg-bg-sunken rounded-xl border border-border-subtle self-start md:self-center ${bookingId ? 'opacity-50 pointer-events-none grayscale cursor-not-allowed' : ''}`}>
+        <div className={`flex gap-1 p-1 bg-bg-sunken rounded-xl border border-border-subtle self-start md:self-center ${(bookingId || isFutureForced) ? 'opacity-50 pointer-events-none grayscale cursor-not-allowed' : ''}`}>
           <button 
             type="button"
             onClick={() => !bookingId && setBookingType('walk-in')}
@@ -342,25 +362,43 @@ function BookingFlow() {
               <div className="field">
                 <label className="label">Select Room Number*</label>
                 <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
-                  {propertyRooms.map(r => (
-                    <button
-                      key={r.id}
-                      onClick={() => {
-                        if (r.status === 'vacant' || r.status === 'cleaning' || formData.selectedRoomId === r.id) {
-                          updateField('selectedRoomId', r.id);
-                        }
-                      }}
-                      className={`py-2 rounded-full text-sm font-semibold border transition-all ${
-                        formData.selectedRoomId === r.id 
-                          ? 'bg-accent text-white border-accent shadow-md' 
-                          : r.status === 'vacant' || r.status === 'cleaning'
-                            ? 'bg-white text-ink-primary border-border-subtle hover:border-accent'
-                            : 'bg-bg-sunken text-ink-muted border-transparent cursor-not-allowed opacity-40'
-                      }`}
-                    >
-                      {r.room_number}
-                    </button>
-                  ))}
+                  {propertyRooms.map(r => {
+                    const isToday = formData.checkInDate === format(new Date(), 'yyyy-MM-dd');
+                    
+                    // Check availability for selected range
+                    const hasConflict = allBookings.some(b => {
+                      if (b.room_id !== r.id) return false;
+                      if (['cancelled', 'checked_out'].includes(b.status)) return false;
+                      
+                      const bStart = b.check_in_date.split('T')[0];
+                      const bEnd = b.check_out_date.split('T')[0];
+                      return bStart < formData.checkOutDate && bEnd > formData.checkInDate;
+                    });
+
+                    // Room is available if no conflict, and if starting today, must not be currently occupied/in maintenance
+                    const isCurrentlyAvailable = r.status === 'vacant' || r.status === 'cleaning' || r.status === 'checkout_today' || r.status === 'arriving_today';
+                    const isSelectable = !hasConflict && (isToday ? isCurrentlyAvailable : true) && r.status !== 'maintenance';
+
+                    return (
+                      <button
+                        key={r.id}
+                        onClick={() => {
+                          if (isSelectable || formData.selectedRoomId === r.id) {
+                            updateField('selectedRoomId', r.id);
+                          }
+                        }}
+                        className={`py-2 rounded-full text-sm font-semibold border transition-all ${
+                          formData.selectedRoomId === r.id 
+                            ? 'bg-accent text-white border-accent shadow-md' 
+                            : isSelectable
+                              ? 'bg-white text-ink-primary border-border-subtle hover:border-accent'
+                              : 'bg-bg-sunken text-ink-muted border-transparent cursor-not-allowed opacity-40'
+                        }`}
+                      >
+                        {r.room_number}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -563,7 +601,7 @@ function BookingFlow() {
                 {bookingType === 'walk-in' && (
                   <div className="flex justify-between text-xs">
                     <span className="text-ink-muted">Room Number</span>
-                    <span className="text-ink-primary font-medium">{selectedRoom?.room_number || 'Unassigned'}</span>
+                    <span className="text-ink-primary font-medium">{propertyRooms.find(r => r.id === formData.selectedRoomId)?.room_number || 'Not Selected'}</span>
                   </div>
                 )}
                <div className="flex justify-between text-xs">

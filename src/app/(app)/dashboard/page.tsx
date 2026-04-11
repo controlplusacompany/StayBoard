@@ -94,7 +94,11 @@ export default function DashboardPage() {
   useEffect(() => {
     loadCache();
     window.addEventListener('storage', loadCache);
-    return () => window.removeEventListener('storage', loadCache);
+    window.addEventListener('stayboard_update', loadCache);
+    return () => {
+      window.removeEventListener('storage', loadCache);
+      window.removeEventListener('stayboard_update', loadCache);
+    };
   }, [loadCache]);
 
   // Supabase Realtime Sync

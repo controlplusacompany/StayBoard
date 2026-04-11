@@ -3,9 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Modal from '../ui/Modal';
-import { getStoredRooms, getBookingsList, getStoredProperties } from '@/lib/store';
+import { getStoredRooms, getBookingsList, getStoredProperties, getSelectedProperty } from '@/lib/store';
 import { Room, Booking, Property } from '@/types';
-import { Bed, Search, Home, ChevronRight, X } from 'lucide-react';
+import { Bed, Search, Home, ChevronRight, X, Calendar } from 'lucide-react';
 
 interface NewBookingModalProps {
   isOpen: boolean;
@@ -15,13 +15,20 @@ interface NewBookingModalProps {
 
 export default function NewBookingModal({ isOpen, onClose, propertyId }: NewBookingModalProps) {
   const router = useRouter();
+  const [stage, setStage] = useState<'CHOICE' | 'ROOM_SELECTION'>('CHOICE');
   const [rooms, setRooms] = useState<Room[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedPropertyId, setSelectedPropertyId] = useState<string | 'all'>(propertyId || 'all');
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string | 'all'>('all');
   const [userRole, setUserRole] = useState<string | null>(null);
   const [staffPropertyId, setStaffPropertyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setStage('CHOICE');
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -49,7 +56,8 @@ export default function NewBookingModal({ isOpen, onClose, propertyId }: NewBook
     };
     if (isOpen) {
       fetchData();
-      if (propertyId) setSelectedPropertyId(propertyId);
+      const currentGlobal = getSelectedProperty() || 'all';
+      setSelectedPropertyId(propertyId || currentGlobal);
     }
   }, [isOpen, propertyId]);
 
@@ -82,12 +90,76 @@ export default function NewBookingModal({ isOpen, onClose, propertyId }: NewBook
     onClose();
   };
 
+  const handleContinueWithoutRoom = () => {
+    const propId = selectedPropertyId !== 'all' ? selectedPropertyId : (staffPropertyId || '');
+    router.push(`/booking/new?property=${propId}&mode=future`);
+    onClose();
+  };
+
+  if (stage === 'CHOICE') {
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} title="New Reservation" size="md">
+        <div className="flex flex-col gap-5 py-2">
+            <p className="text-sm text-ink-muted leading-relaxed">How would you like to start this reservation?</p>
+            
+            <div className="grid grid-cols-1 gap-3">
+                <button 
+                  onClick={() => setStage('ROOM_SELECTION')}
+                  className="flex items-center gap-4 p-5 bg-white border border-border-subtle rounded-2xl hover:border-accent hover:bg-bg-sunken transition-all group text-left"
+                >
+                    <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center text-accent group-hover:bg-accent group-hover:text-white transition-all">
+                        <Bed size={24} />
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="text-base font-bold text-ink-primary">Select a Vacant Room</span>
+                        <span className="text-[11px] text-ink-muted">Ideal for walk-ins or immediate check-ins</span>
+                    </div>
+                </button>
+
+                <button 
+                  onClick={handleContinueWithoutRoom}
+                  className="flex items-center gap-4 p-5 bg-white border border-border-subtle rounded-2xl hover:border-accent hover:bg-bg-sunken transition-all group text-left"
+                >
+                    <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center text-success group-hover:bg-success group-hover:text-white transition-all">
+                        <Calendar size={24} />
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="text-base font-bold text-ink-primary">Continue without selecting a room</span>
+                        <span className="text-[11px] text-ink-muted font-medium">For future reservations with flexible assignment</span>
+                    </div>
+                </button>
+            </div>
+            
+            <button 
+              onClick={onClose}
+              className="mt-2 text-xs font-semibold text-ink-muted hover:text-ink-primary self-center"
+            >
+              Cancel
+            </button>
+        </div>
+      </Modal>
+    );
+  }
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Select a Vacant Room" size="lg">
+    <Modal 
+      isOpen={isOpen} 
+      onClose={onClose} 
+      title="Select a Vacant Room" 
+      size="lg"
+      headerActions={
+        <button 
+          onClick={handleContinueWithoutRoom}
+          className="btn btn-accent px-4 py-2 h-auto text-[11px] font-bold shadow-sm uppercase tracking-wider"
+        >
+          Continue without selecting a room
+        </button>
+      }
+    >
       <div className="flex flex-col gap-6 py-2">
         <div className="flex flex-col md:flex-row gap-4">
-          {/* Property Filter - Hidden for Staff */}
-          {userRole !== 'reception' && (
+          {/* Property Filter - Hidden for Staff or if specific property is selected */}
+          {userRole !== 'reception' && (getSelectedProperty() === 'all' || !getSelectedProperty()) && (
             <div className="flex-1">
               <label className="text-[10px] font-bold text-ink-muted uppercase tracking-wider mb-1.5 block">Filter Property</label>
               <div className="flex flex-wrap gap-2">
@@ -154,20 +226,6 @@ export default function NewBookingModal({ isOpen, onClose, propertyId }: NewBook
             )}
           </div>
 
-          <div className="flex flex-col gap-2 pt-2 border-t border-dashed border-border-subtle">
-            <p className="text-[11px] text-ink-muted text-center font-medium italic">Creating a future reservation? You can skip room assignment for now.</p>
-            <button 
-              onClick={() => {
-                const propId = selectedPropertyId !== 'all' ? selectedPropertyId : (staffPropertyId || '');
-                router.push(`/booking/new?property=${propId}`);
-                onClose();
-              }}
-              className="btn btn-secondary w-full py-3 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold"
-            >
-              <X size={14} />
-              <span>Continue without selecting a room</span>
-            </button>
-          </div>
         </div>
       </div>
     </Modal>

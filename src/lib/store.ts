@@ -40,22 +40,45 @@ export const logout = async () => {
 // GLOBAL FILTERS (Stored in LocalStorage for persistence)
 export const getSelectedProperty = (): string | null => {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('stayboard_master_property');
+  
+  // Prioritize staff-assigned property if it exists
+  const role = localStorage.getItem('stayboard_user_role');
+  const userProperty = localStorage.getItem('stayboard_user_property');
+  
+  // Accept both 'reception' and 'staff' as restricted roles
+  if ((role === 'reception' || role === 'staff') && userProperty) {
+    return userProperty;
+  }
+  
+  return localStorage.getItem('stayboard_master_property') || 'all';
 };
 
 export const setSelectedProperty = (propertyId: string | null) => {
   if (typeof window === 'undefined') return;
-  if (propertyId) {
+  if (propertyId && propertyId !== 'all') {
     localStorage.setItem('stayboard_master_property', propertyId);
   } else {
     localStorage.removeItem('stayboard_master_property');
   }
   // Broadcast change for other components/tabs
   window.dispatchEvent(new Event('storage'));
+  window.dispatchEvent(new Event('stayboard_update')); // Better same-tab handling
 };
 
 export const getStoredRooms = async (): Promise<Room[]> => {
-  const { data, error } = await supabase.from('rooms').select('*').order('room_number');
+  const propertyId = getSelectedProperty();
+  const role = typeof window !== 'undefined' ? localStorage.getItem('stayboard_user_role') : null;
+  const isStaff = role === 'reception' || role === 'staff';
+  
+  let query = supabase.from('rooms').select('*').order('room_number');
+  
+  if (propertyId && propertyId !== 'all') {
+    query = query.eq('property_id', propertyId);
+  } else if (isStaff) {
+    return [];
+  }
+
+  const { data, error } = await query;
   if (error) {
     console.error('Error fetching rooms:', error);
     return [];
@@ -64,14 +87,38 @@ export const getStoredRooms = async (): Promise<Room[]> => {
 };
 
 export const getBookingsList = async (): Promise<Booking[]> => {
-  const { data, error } = await supabase.from('bookings').select('*').order('check_in_date', { ascending: false });
+  const propertyId = getSelectedProperty();
+  const role = typeof window !== 'undefined' ? localStorage.getItem('stayboard_user_role') : null;
+  const isStaff = role === 'reception' || role === 'staff';
+
+  let query = supabase.from('bookings').select('*').order('check_in_date', { ascending: false });
+  
+  if (propertyId && propertyId !== 'all') {
+    query = query.eq('property_id', propertyId);
+  } else if (isStaff) {
+    return [];
+  }
+
+  const { data, error } = await query;
   return error ? [] : data as Booking[];
 };
 
 export const getStoredBookings = async (): Promise<Record<string, Booking>> => {
-  const list = await getBookingsList();
+  const propertyId = getSelectedProperty();
+  const role = typeof window !== 'undefined' ? localStorage.getItem('stayboard_user_role') : null;
+  const isStaff = role === 'reception' || role === 'staff';
+
+  let query = supabase.from('bookings').select('*');
+  
+  if (propertyId && propertyId !== 'all') {
+    query = query.eq('property_id', propertyId);
+  } else if (isStaff) {
+    return {};
+  }
+
+  const { data } = await query;
   const map: Record<string, Booking> = {};
-  list.forEach(b => map[b.id] = b);
+  (data || []).forEach(b => map[b.id] = b);
   return map;
 };
 
@@ -558,7 +605,16 @@ export const getVacantRooms = async (propertyId?: string): Promise<Room[]> => {
 };
 
 export const getStoredProperties = async () => {
-  const { data } = await supabase.from('properties').select('*').order('name');
+  const propertyId = getSelectedProperty();
+  const role = typeof window !== 'undefined' ? localStorage.getItem('stayboard_user_role') : null;
+  const isStaff = role === 'reception' || role === 'staff';
+
+  let query = supabase.from('properties').select('*').order('name');
+  if (isStaff && propertyId) {
+    query = query.eq('id', propertyId);
+  }
+  
+  const { data } = await query;
   return data || [];
 };
 

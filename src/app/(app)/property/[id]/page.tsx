@@ -12,7 +12,7 @@ import RoomDrawer from '@/components/rooms/RoomDrawer';
 import Modal from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 
-import { getEnrichedRooms, getStoredBookings, getBookingsForRoom, getSelectedProperty, getArrivalsToday } from '@/lib/store';
+import { getEnrichedRooms, getStoredBookings, getBookingsForRoom, getSelectedProperty, setSelectedProperty, getArrivalsToday } from '@/lib/store';
 import { format, parseISO, isWithinInterval, isSameDay, differenceInDays } from 'date-fns';
 import { useRealtime } from '@/hooks/useRealtime';
 import { useNewBooking } from '@/components/booking/NewBookingProvider';
@@ -28,14 +28,23 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
 
+  // Sync Master Property on visit
+  useEffect(() => {
+    if (params.id) {
+      setSelectedProperty(params.id);
+    }
+  }, [params.id]);
+
   // Auto-Redirect logic for Master Property sync
   useEffect(() => {
     const checkRedirect = () => {
       const globalPropId = getSelectedProperty();
       // Only redirect if a SPECIFIC property is selected globally and it's NOT this one.
-      // If 'All Properties' (null) is selected, stay on this page to allow 'drill down' viewing.
-      if (globalPropId && globalPropId !== params.id) {
-        router.push(`/property/${globalPropId}`);
+      // If 'All Properties' (null or 'all') is selected, stay on this page.
+      if (globalPropId && globalPropId !== 'all' && globalPropId !== params.id) {
+        // If we are on a property page, we usually WANT to stay there.
+        // But if the user used the Navbar switcher, we should redirect.
+        // However, setting it in the other useEffect above might cause a loop if not careful.
       }
     };
 

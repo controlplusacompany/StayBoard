@@ -80,27 +80,35 @@ export default function CalendarPicker({ startDate, endDate, blockedDates, onCha
     if (isBefore(day, today)) return;
 
     if (selectionType === 'start') {
+      // Prevent selecting blocked dates as START date
+      if (blockedDates.includes(dayStr)) return;
       onChange(dayStr, dayStr);
       setSelectionType('end');
     } else {
-      // If end date is before start date, restart selection
-      if (isBefore(day, new Date(startDate))) {
+      // Check-out must be at least one day after check-in
+      const startD = new Date(startDate);
+      if (day <= startD) {
+        if (blockedDates.includes(dayStr)) return;
         onChange(dayStr, dayStr);
         setSelectionType('end');
       } else {
-        // CHECK FOR OVERLAPS: Airbnb check!
-        // We cannot select a range that has a blocked date in the middle
+        // CHECK FOR OVERLAPS: Hotel logic
+        // We check all nights (start to end-1). The check-out day itself can be blocked.
         const interval = eachDayOfInterval({
           start: new Date(startDate),
           end: day
         });
         
-        const hasConflict = interval.some(d => blockedDates.includes(format(d, 'yyyy-MM-dd')));
+        // Only nights (excluding the morning of check-out)
+        const nights = interval.slice(0, -1);
+        const hasConflict = nights.some(d => blockedDates.includes(format(d, 'yyyy-MM-dd')));
         
         if (hasConflict) {
-          // Restart selection from this new start point
-          onChange(dayStr, dayStr);
-          setSelectionType('end');
+          // If we hit a conflict, restart selection from this new point (if not blocked)
+          if (!blockedDates.includes(dayStr)) {
+            onChange(dayStr, dayStr);
+            setSelectionType('end');
+          }
         } else {
           onChange(startDate, dayStr);
           setSelectionType('start');
@@ -136,11 +144,11 @@ export default function CalendarPicker({ startDate, endDate, blockedDates, onCha
             key={day.toString()}
             className={`relative h-11 flex items-center justify-center cursor-pointer transition-all ${
               !isCurrentMonth ? "opacity-20" : ""
-            } ${isBlocked || isPast ? "cursor-not-allowed" : ""}`}
+            } ${isPast ? "cursor-not-allowed" : ""} ${isBlocked && selectionType === 'start' ? "cursor-not-allowed" : ""}`}
             onClick={() => onDateClick(cloneDay)}
           >
             {/* Range Background */}
-            {isInRange && isCurrentMonth && !isBlocked && (
+            {isInRange && isCurrentMonth && (
               <div 
                 className={`absolute inset-y-2 inset-x-0 z-0 ${
                   isSelectedStart && isSelectedEnd ? 'rounded-lg mx-2' :
@@ -151,13 +159,14 @@ export default function CalendarPicker({ startDate, endDate, blockedDates, onCha
             )}
 
             <span className={`relative z-20 text-xs font-medium font-mono transition-colors duration-200 ${
-              (isSelectedStart || isSelectedEnd || (isInRange && !isBlocked)) && isCurrentMonth ? "text-white" : 
+              (isSelectedStart || isSelectedEnd || isInRange) && isCurrentMonth ? "text-white" : 
               isBlocked ? "text-ink-muted line-through opacity-30" : 
               isPast ? "text-ink-muted/30" :
               "text-ink-primary"
             }`}>
               {format(day, "d")}
             </span>
+
 
             {isBlocked && isCurrentMonth && (
               <div className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-ink-muted opacity-40" />

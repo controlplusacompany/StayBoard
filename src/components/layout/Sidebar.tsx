@@ -48,11 +48,19 @@ export default function Sidebar({ isMobileOpen, onCloseMobile }: { isMobileOpen?
   const isReception = userRole === 'reception';
   const isOwner = userRole === 'owner';
   
-  const filteredNavItems = isReception 
-    ? NAV_ITEMS.filter(item => RECEPTION_NAV_ITEMS.includes(item.label))
-    : isOwner
-      ? NAV_ITEMS.filter(item => item.label !== 'Channels')
-      : NAV_ITEMS;
+  const filteredNavItems = NAV_ITEMS.filter(item => {
+    // Only 'admin' or 'md' can see Channels
+    if (item.label === 'Channels') {
+      return userRole === 'admin' || userRole === 'md';
+    }
+    
+    // Reception (Staff) restricted view
+    if (isReception) {
+      return RECEPTION_NAV_ITEMS.includes(item.label);
+    }
+    
+    return true;
+  });
 
   return (
     <>

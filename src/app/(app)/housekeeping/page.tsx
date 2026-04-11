@@ -97,7 +97,11 @@ export default function HousekeepingPage() {
     
     loadStore();
     window.addEventListener('storage', loadStore);
-    return () => window.removeEventListener('storage', loadStore);
+    window.addEventListener('stayboard_update', loadStore);
+    return () => {
+      window.removeEventListener('storage', loadStore);
+      window.removeEventListener('stayboard_update', loadStore);
+    };
   }, [loadStore]);
 
   // Supabase Realtime Sync

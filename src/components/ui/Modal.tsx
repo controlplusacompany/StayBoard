@@ -19,6 +19,7 @@ interface ModalProps {
   className?: string;
   showX?: boolean;
   size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+  headerActions?: React.ReactNode;
 }
 
 const sizeClasses = {
@@ -37,7 +38,8 @@ export default function Modal({
   footer,
   className,
   showX = true,
-  size = 'md'
+  size = 'md',
+  headerActions
 }: ModalProps) {
   const [mounted, setMounted] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -87,11 +89,12 @@ export default function Modal({
         )}
       >
         {/* Header */}
-        {(title || showX) && (
+        {(title || showX || headerActions) && (
           <header className="flex items-center justify-between px-5 py-4 border-b border-border-subtle">
-            {title ? (
-              <h3 className="text-lg font-display text-ink-primary">{title}</h3>
-            ) : <div />}
+            <div className="flex items-center gap-4 flex-1">
+              {title && <h3 className="text-lg font-display text-ink-primary">{title}</h3>}
+              {headerActions}
+            </div>
             
             {showX && (
               <button 
