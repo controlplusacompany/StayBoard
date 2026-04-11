@@ -21,11 +21,6 @@ export const metadata: Metadata = {
   title: "StayBoard",
   description: "Multi-property hotel operations dashboard",
   manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "StayBoard",
-  },
 };
 
 export default function RootLayout({
