@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Search, 
   Users, 
@@ -25,7 +25,9 @@ import Badge from '@/components/ui/Badge';
 import { Booking, Guest } from '@/types';
 import { 
   getBookingsList,
-  toggleVipStatus 
+  toggleVipStatus,
+  getStoredGuests,
+  getSelectedProperty
 } from '@/lib/store';
 import { useRealtime } from '@/hooks/useRealtime';
 
@@ -44,7 +46,7 @@ export default function GuestsPage() {
   const { toast } = useToast();
   const [dataLoaded, setDataLoaded] = useState(false);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     const currentFilter = getSelectedProperty();
     setPropertyFilter(currentFilter);
     if (typeof window !== 'undefined') {
@@ -91,13 +93,13 @@ export default function GuestsPage() {
     } finally {
       setDataLoaded(true);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadData();
     window.addEventListener('storage', loadData);
     return () => window.removeEventListener('storage', loadData);
-  }, []);
+  }, [loadData]);
 
   // Supabase Realtime Sync
   useRealtime(loadData, ['guests', 'bookings']);

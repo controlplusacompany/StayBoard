@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Search, 
   FileText, 
@@ -47,16 +47,16 @@ export default function InvoicesPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('upi');
   const [dataLoaded, setDataLoaded] = useState(false);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     const currentProperty = getSelectedProperty();
     setPropertyFilter(currentProperty);
 
     const rawInvoices = await getStoredInvoices();
-    const rawBookings = await getStoredBookings({});
+    const rawBookings = await getStoredBookings();
     setInvoices(rawInvoices.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
     setBookings(rawBookings);
     setDataLoaded(true);
-  };
+  }, []);
 
   useEffect(() => {
     loadData();

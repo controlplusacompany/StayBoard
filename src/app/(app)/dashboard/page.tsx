@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import StatCard from '@/components/dashboard/StatCard';
 import PropertyCard from '@/components/dashboard/PropertyCard';
 import { Plus, Building2, MapPin, Bed, ExternalLink, Search, Home, GraduationCap, Warehouse, Coffee, ArrowRight, User, CreditCard } from 'lucide-react';
@@ -73,7 +73,7 @@ export default function DashboardPage() {
     address: ''
   });
 
-  const loadCache = async () => {
+  const loadCache = useCallback(async () => {
     const currentFilter = getSelectedProperty();
     setPropertyFilter(currentFilter);
     
@@ -89,13 +89,13 @@ export default function DashboardPage() {
     setArrivals(arrivalsToday);
     setProperties(fetchedProps as Property[]);
     setDataLoaded(true);
-  };
+  }, []);
 
   useEffect(() => {
     loadCache();
     window.addEventListener('storage', loadCache);
     return () => window.removeEventListener('storage', loadCache);
-  }, []);
+  }, [loadCache]);
 
   // Supabase Realtime Sync
   useRealtime(loadCache);

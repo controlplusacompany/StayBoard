@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { 
   Sparkles, 
@@ -64,7 +64,7 @@ export default function HousekeepingPage() {
   // Form states
   const [userRole, setUserRole] = useState<string | null>(null);
 
-  const loadStore = async () => {
+  const loadStore = useCallback(async () => {
     setIsLoading(true);
     try {
       const currentProperty = getSelectedProperty();
@@ -88,7 +88,7 @@ export default function HousekeepingPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -98,7 +98,7 @@ export default function HousekeepingPage() {
     loadStore();
     window.addEventListener('storage', loadStore);
     return () => window.removeEventListener('storage', loadStore);
-  }, []);
+  }, [loadStore]);
 
   // Supabase Realtime Sync
   useRealtime(loadStore, ['housekeeping_tasks', 'rooms']);
