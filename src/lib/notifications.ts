@@ -59,15 +59,30 @@ const isChannelEnabled = (channel: 'bookings' | 'checkins' | 'checkouts' | 'paym
 
 /**
  * Internal helper to log history to the database
+ * Ensures the activity is tagged to the correct owner for cross-user visibility
  */
 const logActivity = async (action: string, details: any, bookingId?: string) => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    let targetOwnerId = user.id;
+
+    // CROSS-USER LOGIC: If a staff member is logged in, find their property owner
+    const { data: profile } = await supabase.from('profiles').select('role, property_id').eq('id', user.id).single();
+    
+    if (profile && (profile.role === 'staff' || profile.role === 'reception') && profile.property_id) {
+      const { data: property } = await supabase.from('properties').select('owner_id').eq('id', profile.property_id).single();
+      if (property?.owner_id) {
+        targetOwnerId = property.owner_id;
+      }
+    }
+
     await supabase.from('booking_activities').insert([{
       action,
       details,
       booking_id: bookingId,
-      owner_id: user?.id
+      owner_id: targetOwnerId
     }]);
   } catch (err) {
     console.error('Failed to log activity:', err);
