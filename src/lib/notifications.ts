@@ -19,7 +19,7 @@ export const sendTelegramNotification = async (message: string, topic?: 'summari
   }
 };
 
-export const sendPushNotification = async (title: string, body: string, url?: string) => {
+export const sendPushNotification = async (title: string, body: string, url?: string, options: { broadcast?: boolean } = {}) => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
@@ -27,7 +27,13 @@ export const sendPushNotification = async (title: string, body: string, url?: st
     const response = await fetch('/api/notify/push/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, body, url, userId: user.id }),
+      body: JSON.stringify({ 
+        title, 
+        body, 
+        url, 
+        userId: user.id, 
+        broadcast: options.broadcast || false 
+      }),
     });
 
     return response.ok;
@@ -72,12 +78,14 @@ export const notifyNewBooking = async (booking: any, propertyName: string) => {
   // Send to Telegram (Always for owner)
   sendTelegramNotification(telegramMessage, 'bookings');
 
-  // Send Native Push ONLY if opted-in
+  // Broadcast Alert to all stakeholders (Owners/Admins)
+  // Native Push ONLY if opted-in on current device
   if (isChannelEnabled('bookings')) {
     sendPushNotification(
       "New Booking Received! 🛎️",
       `${booking.guest_name} at ${propertyName}`,
-      `/dashboard`
+      `/dashboard`,
+      { broadcast: true }
     );
   }
 
@@ -100,12 +108,13 @@ export const notifyCheckIn = async (booking: any, propertyName: string) => {
   // Send to Telegram
   sendTelegramNotification(telegramMessage, 'frontdesk');
 
-  // Send Native Push ONLY if opted-in
+  // Broadcast Alert to all stakeholders (Owners/Admins)
   if (isChannelEnabled('checkins')) {
     sendPushNotification(
       "Check-In Confirmed! ✅",
       `${booking.guest_name} (Room ${booking.room_number || 'N/A'})`,
-      `/dashboard`
+      `/dashboard`,
+      { broadcast: true }
     );
   }
 
@@ -131,12 +140,13 @@ export const notifyCheckoutPayment = async (details: {
   // Send to Telegram
   sendTelegramNotification(telegramMessage, 'frontdesk');
 
-  // Send Native Push ONLY if opted-in
+  // Broadcast Alert to all stakeholders (Owners/Admins)
   if (isChannelEnabled('checkouts')) {
     sendPushNotification(
       "Payment Received! 💰",
       `${details.guestName} (₹${details.amount}) - Checked Out`,
-      `/dashboard`
+      `/dashboard`,
+      { broadcast: true }
     );
   }
 
@@ -159,12 +169,13 @@ export const notifyGeneralPayment = async (details: {
   // Send to Telegram
   sendTelegramNotification(telegramMessage, 'frontdesk');
 
-  // Send Native Push ONLY if opted-in
+  // Broadcast Alert to all stakeholders (Owners/Admins)
   if (isChannelEnabled('payments')) {
     sendPushNotification(
       "Payment Received! 💸",
       `${details.guestName} (₹${details.amount} via ${details.method})`,
-      `/dashboard`
+      `/dashboard`,
+      { broadcast: true }
     );
   }
 

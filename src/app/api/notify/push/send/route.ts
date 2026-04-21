@@ -7,7 +7,8 @@ const pushSchema = z.object({
   title: z.string().min(1).max(100),
   body: z.string().min(1).max(500),
   url: z.string().optional().default('/'),
-  userId: z.string().uuid()
+  userId: z.string().uuid().optional(),
+  broadcast: z.boolean().optional().default(false)
 });
 
 // Configure Web Push with VAPID keys safely
@@ -20,23 +21,20 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
 }
 
 /**
- * Trigger Push Delivery to a specific user
+ * Trigger Push Delivery
  */
 export async function POST(request: Request) {
   try {
-    // 1. Security Check: Allow if CRON_SECRET is valid OR if user has a valid session
+    // 1. Security Check (remains same)
     const authHeader = request.headers.get('authorization');
     const apiKey = request.headers.get('x-api-key');
     const secret = authHeader?.replace('Bearer ', '') || apiKey;
 
     let isAuthorized = secret === process.env.CRON_SECRET;
 
-    // If not authorized by secret, check for a valid Supabase session
     if (!isAuthorized) {
       const { data: { user } } = await supabase.auth.getUser(secret || undefined);
-      if (user) {
-        isAuthorized = true;
-      }
+      if (user) isAuthorized = true;
     }
 
     if (!isAuthorized) {
@@ -51,13 +49,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid payload', details: result.error.format() }, { status: 400 });
     }
 
-    const { title, body, url, userId } = result.data;
+    const { title, body, url, userId, broadcast } = result.data;
 
-    // 3. Fetch all active subscriptions for this user using Admin service client
-    const { data: subscriptions, error } = await supabaseService
-      .from('push_subscriptions')
-      .select('subscription_json')
-      .eq('user_id', userId);
+    // 3. Fetch active subscriptions
+    let query = supabaseService.from('push_subscriptions').select('subscription_json, user_id');
+    
+    if (!broadcast && userId) {
+      query = query.eq('user_id', userId);
+    } else if (!broadcast && !userId) {
+      return NextResponse.json({ error: 'Either userId or broadcast must be provided' }, { status: 400 });
+    }
+
+    const { data: subscriptions, error } = await query;
 
     if (error) {
       console.error('Database error fetching subscriptions:', error);
