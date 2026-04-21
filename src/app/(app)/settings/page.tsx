@@ -43,27 +43,27 @@ export default function SettingsPage() {
   return (
     <div className="flex flex-col h-full bg-[#f8f9fa]">
       {/* Header */}
-      <div className="px-4 md:px-8 py-5 md:py-8 bg-white border-b border-gray-100">
+      <div className="px-4 md:px-8 py-5 md:py-6 bg-white border-b border-gray-100">
         <h1 className="text-xl md:text-2xl font-semibold text-[#011432]">Settings</h1>
         <p className="text-sm text-gray-500 mt-1">Manage your property configuration and view business performance.</p>
       </div>
 
-      {/* Mobile: Horizontal Tab Strip */}
-      <div className="md:hidden bg-white border-b border-gray-100 overflow-x-auto no-scrollbar">
-        <div className="flex gap-1 px-3 py-2">
+      {/* Universal Horizontal Tab Bar — shown on ALL screen sizes */}
+      <div className="bg-white border-b border-gray-100 overflow-x-auto no-scrollbar shrink-0">
+        <div className="flex gap-1 px-4 md:px-8 py-2">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all shrink-0 ${
+                className={`flex items-center gap-2 px-3 md:px-4 py-2 md:py-2.5 rounded-lg text-xs md:text-sm font-medium whitespace-nowrap transition-all shrink-0 border ${
                   activeTab === tab.id
-                    ? 'bg-accent/10 text-accent'
-                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                    ? 'bg-accent/8 text-accent border-accent/20 shadow-sm'
+                    : 'text-gray-500 border-transparent hover:bg-gray-50 hover:text-gray-700'
                 }`}
               >
-                <Icon size={14} />
+                <Icon size={14} className="shrink-0" />
                 <span>{tab.label}</span>
               </button>
             );
@@ -71,41 +71,17 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Desktop: Sidebar */}
-        <div className="hidden md:flex w-64 bg-white border-r border-gray-100 p-4 flex-col gap-1 overflow-y-auto">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                  activeTab === tab.id
-                    ? 'bg-accent/5 text-accent shadow-sm'
-                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
-                }`}
-              >
-                <Icon size={18} />
-                <span>{tab.label}</span>
-                {activeTab === tab.id && <div className="ml-auto w-1 h-4 bg-accent rounded-full" />}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-8">
-          <div className="max-w-4xl">
-            {activeTab === 'reports' && <ReportsContent />}
-            {activeTab === 'financials' && <FinancialsContent />}
-            {activeTab === 'property' && <PropertyContent />}
-            {activeTab === 'rooms' && <RoomsContent />}
-            {activeTab === 'taxes' && <TaxesContent />}
-            {activeTab === 'security' && <SecurityContent />}
-            {activeTab === 'staff' && <StaffContent />}
-            {activeTab === 'audit' && <AuditContent />}
-          </div>
+      {/* Full-Width Content Area */}
+      <div className="flex-1 overflow-y-auto p-4 md:p-8">
+        <div className="max-w-4xl mx-auto">
+          {activeTab === 'reports' && <ReportsContent />}
+          {activeTab === 'financials' && <FinancialsContent />}
+          {activeTab === 'property' && <PropertyContent />}
+          {activeTab === 'rooms' && <RoomsContent />}
+          {activeTab === 'taxes' && <TaxesContent />}
+          {activeTab === 'security' && <SecurityContent />}
+          {activeTab === 'staff' && <StaffContent />}
+          {activeTab === 'audit' && <AuditContent />}
         </div>
       </div>
     </div>
