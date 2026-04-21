@@ -222,13 +222,13 @@ export const finalCheckout = async (bookingId: string, paymentAmount: number, pa
   }).eq('id', bookingId);
 
   // 3. Log management audit trail
-  await logActivity(bookingId, 'CHECKOUT', {
+  await logActivity('CHECKOUT', {
     final_settlement: paymentAmount,
     mode: paymentMode,
     internal_notes: notes,
     timestamp: new Date().toISOString(),
     guest: booking.guest_name
-  });
+  }, bookingId);
 
   // 4. Find and update the invoice
   const { data: invoice } = await supabase.from('invoices').select('*').eq('booking_id', bookingId).single();
@@ -314,18 +314,7 @@ export const deleteBooking = async (bookingId: string) => {
   window.dispatchEvent(new Event('stayboard_update'));
 };
 
-export const logActivity = async (bookingId: string, action: string, details: any) => {
-  try {
-    await supabase.from('booking_activities').insert({
-      booking_id: bookingId,
-      action,
-      details,
-      created_at: new Date().toISOString()
-    });
-  } catch (err) {
-    console.error('Failed to log activity:', err);
-  }
-};
+import { logActivity } from './notifications';
 
 export const updateBooking = async (bookingId: string, updates: Partial<Booking>) => {
   // 0. Fetch pre-update state for logging
@@ -369,7 +358,7 @@ export const updateBooking = async (bookingId: string, updates: Partial<Booking>
     });
     
     if (Object.keys(changedFields).length > 0) {
-      await logActivity(bookingId, updates.check_out_date && updates.check_out_date !== oldBooking.check_out_date ? 'EXTENSION' : 'UPDATE', changedFields);
+      await logActivity(updates.check_out_date && updates.check_out_date !== oldBooking.check_out_date ? 'EXTENSION' : 'UPDATE', changedFields, bookingId);
     }
   }
 

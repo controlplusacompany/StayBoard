@@ -61,7 +61,7 @@ const isChannelEnabled = (channel: 'bookings' | 'checkins' | 'checkouts' | 'paym
  * Internal helper to log history to the database
  * Ensures the activity is tagged to the correct owner for cross-user visibility
  */
-const logActivity = async (action: string, details: any, bookingId?: string) => {
+export const logActivity = async (action: string, details: any, bookingId?: string) => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
