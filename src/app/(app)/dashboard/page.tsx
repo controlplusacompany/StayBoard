@@ -5,19 +5,20 @@ export const dynamic = 'force-dynamic';
 import React, { useState, useEffect, useCallback } from 'react';
 import StatCard from '@/components/dashboard/StatCard';
 import PropertyCard from '@/components/dashboard/PropertyCard';
-import { Plus, Building2, MapPin, Bed, ExternalLink, Search, Home, GraduationCap, Warehouse, Coffee, ArrowRight, User, CreditCard } from 'lucide-react';
+import { Plus, Building2, MapPin, Bed, ExternalLink, Search, Home, GraduationCap, Warehouse, Coffee, ArrowRight, User, CreditCard, ChevronRight, Layers } from 'lucide-react';
 import Select from '@/components/ui/Select';
 import { Property, RoomStatus } from '@/types';
 import Modal from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import Link from 'next/link';
-import { getEnrichedRooms, getStoredBookings, getSelectedProperty, getArrivalsToday, getStoredProperties } from '@/lib/store';
+import { getEnrichedRooms, getStoredBookings, getSelectedProperty, getArrivalsToday, getStoredProperties, setSelectedProperty } from '@/lib/store';
 import { Room, Booking } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useNewBooking } from '@/components/booking/NewBookingProvider';
 import { parseISO, format, isSameDay, differenceInDays } from 'date-fns';
 import { useRealtime } from '@/hooks/useRealtime';
 import RoomDrawer from '@/components/rooms/RoomDrawer';
+import RoomCard from '@/components/rooms/RoomCard';
 import { SkeletonKPI, SkeletonCard, SkeletonArrival } from '@/components/ui/Skeletons';
 import { motion } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
@@ -352,6 +353,9 @@ export default function DashboardPage() {
               <PropertyCard
                 property={property}
                 summary={getPropertySummary(property.id)}
+                onClick={(id) => {
+                  router.push(`/property/${id}`);
+                }}
               />
             </motion.div>
           ))}
@@ -363,6 +367,7 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+
         <div className="h-px bg-border-subtle mt-10 mb-6" />
       </section>
 

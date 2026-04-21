@@ -147,6 +147,9 @@ export default function Navbar({ onMenuClick, isSettingsPage }: { onMenuClick?: 
                     onClick={() => {
                       closeAll();
                       setSelectedProperty(null);
+                      if (pathname !== '/dashboard') {
+                        router.push('/dashboard');
+                      }
                     }}
                     className={`flex items-center justify-between w-full px-4 py-3 hover:bg-bg-sunken text-sm font-medium transition-colors ${!getSelectedProperty() ? 'bg-accent/5 text-accent border-l-2 border-accent' : 'text-ink-secondary'}`}
                   >
@@ -165,6 +168,10 @@ export default function Navbar({ onMenuClick, isSettingsPage }: { onMenuClick?: 
                       onClick={() => {
                         closeAll();
                         setSelectedProperty(p.id);
+                        // Navigation Logic: Only jump if NOT already on the dashboard
+                        if (pathname !== '/dashboard') {
+                          router.push(`/property/${p.id}`);
+                        }
                       }}
                       className={`flex items-center justify-between w-full px-4 py-3 hover:bg-bg-sunken text-sm font-medium transition-colors text-left ${(getSelectedProperty() === p.id) ? 'bg-accent/5 text-accent border-l-2 border-accent' : 'text-ink-secondary'}`}
                     >

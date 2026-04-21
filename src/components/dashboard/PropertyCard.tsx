@@ -14,9 +14,10 @@ interface PropertyCardProps {
     checkout_today: number;
     roomStatusList: { status: RoomStatus; floor?: number }[];
   };
+  onClick?: (id: string) => void;
 }
 
-export default function PropertyCard({ property, summary }: PropertyCardProps) {
+export default function PropertyCard({ property, summary, onClick }: PropertyCardProps) {
   if (!property || !summary) return null;
 
   const roomStatusList = summary.roomStatusList || [];
@@ -28,11 +29,8 @@ export default function PropertyCard({ property, summary }: PropertyCardProps) {
     });
   const hasMultipleFloors = floors.length > 1;
 
-  return (
-    <Link 
-      href={`/property/${property.id}`}
-      className="property-card bg-surface border border-border-subtle rounded-[var(--radius-lg)] p-5 md:p-7 shadow-sm transition-all duration-120 ease-out hover:shadow-md hover:-translate-y-0.5 flex flex-col gap-4 md:gap-5 no-underline group"
-    >
+  const cardContent = (
+    <>
       <header className="flex justify-between items-start">
         <h3 className="text-[22px] font-display text-ink-primary leading-tight font-medium">
           {property.name}
@@ -75,6 +73,22 @@ export default function PropertyCard({ property, summary }: PropertyCardProps) {
         </div>
         <ArrowRight size={18} className="text-ink-muted/40 group-hover:text-accent group-hover:translate-x-0.5 transition-all" />
       </footer>
+    </>
+  );
+
+  const className = "property-card bg-surface border border-border-subtle rounded-[var(--radius-lg)] p-5 md:p-7 shadow-sm transition-all duration-120 ease-out hover:shadow-md hover:-translate-y-0.5 flex flex-col gap-4 md:gap-5 no-underline group text-left w-full";
+
+  if (onClick) {
+    return (
+      <button onClick={() => onClick(property.id)} className={className}>
+        {cardContent}
+      </button>
+    );
+  }
+
+  return (
+    <Link href={`/property/${property.id}`} className={className}>
+      {cardContent}
     </Link>
   );
 }

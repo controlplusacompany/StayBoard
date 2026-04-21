@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Bell, History, Check, User, CreditCard, ExternalLink } from 'lucide-react';
+import { Bell, History, Check, User, CreditCard, ExternalLink, Trash2 } from 'lucide-react';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import Link from 'next/link';
 
@@ -11,6 +11,7 @@ export default function NotificationList() {
   const [isOpen, setIsOpen] = useState(false);
   const [lastViewed, setLastViewed] = useState<number>(0);
   const [hasNew, setHasNew] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
 
   useEffect(() => {
     // Load last viewed timestamp
@@ -26,12 +27,12 @@ export default function NotificationList() {
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*', // Listen for ALL events including DELETE
           schema: 'public',
           table: 'booking_activities'
         },
         (payload) => {
-          console.log('LIVE UPDATE RECEIVED:', payload);
+          console.log('ACTIVITY FEED UPDATE:', payload);
           fetchActivities(); // Refresh list instantly
         }
       )
@@ -53,10 +54,13 @@ export default function NotificationList() {
 
   const fetchActivities = async () => {
     try {
+      const clearedAt = localStorage.getItem('stayboard_notif_last_cleared') || '1970-01-01T00:00:00Z';
+      
       const { data, error } = await supabase
         .from('booking_activities')
         .select('*')
         .not('action', 'eq', 'STAFF_PIN_RESET') // Exclude sensitive admin actions
+        .gt('created_at', clearedAt) // Only show notifications since last cleared on this device
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -68,9 +72,28 @@ export default function NotificationList() {
         const newest = new Date(data[0].created_at).getTime();
         const savedViewed = parseInt(localStorage.getItem('stayboard_notif_last_viewed') || '0');
         setHasNew(newest > savedViewed);
+      } else {
+        setHasNew(false);
       }
     } catch (err) {
       console.error('Error fetching activities:', err);
+    }
+  };
+
+  const clearAllNotifications = async () => {
+    setIsClearing(true);
+    try {
+      // Device-specific clear: Save the timestamp of the latest notification as 'cleared'
+      const now = new Date().toISOString();
+      localStorage.setItem('stayboard_notif_last_cleared', now);
+      
+      // Update local state immediately
+      setActivities([]);
+      setHasNew(false);
+    } catch (err) {
+      console.error('Error clearing activities:', err);
+    } finally {
+      setIsClearing(false);
     }
   };
 
@@ -134,9 +157,21 @@ export default function NotificationList() {
           <div className="absolute top-full right-0 mt-2 w-72 bg-white border border-border-subtle rounded-xl shadow-2xl overflow-hidden py-2 animate-in fade-in slide-in-from-top-2 duration-200 z-50">
             <div className="px-4 py-2 border-b border-border-subtle mb-1 flex items-center justify-between">
               <span className="text-[10px] font-bold text-ink-muted uppercase tracking-widest">Recent Activity</span>
-              <Link href="/settings?tab=notifications" onClick={() => setIsOpen(false)} className="text-[10px] font-medium text-accent hover:underline">
-                Settings
-              </Link>
+              <div className="flex items-center gap-2">
+                {activities.length > 0 && (
+                  <button 
+                    onClick={clearAllNotifications}
+                    disabled={isClearing}
+                    className="p-1 hover:bg-danger/10 text-ink-muted hover:text-danger rounded-md transition-colors"
+                    title="Clear All"
+                  >
+                    <Trash2 size={12} className={isClearing ? 'animate-pulse' : ''} />
+                  </button>
+                )}
+                <Link href="/settings?tab=notifications" onClick={() => setIsOpen(false)} className="text-[10px] font-medium text-accent hover:underline">
+                  Settings
+                </Link>
+              </div>
             </div>
 
             <div className="max-h-[320px] overflow-y-auto no-scrollbar">

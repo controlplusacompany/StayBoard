@@ -25,12 +25,17 @@ export async function getDashboardStats(propertyId?: string): Promise<DashboardS
   }
 
   // 1. Fetch All Relevant data in parallel for speed
+  let roomQuery = supabaseService.from('rooms').select('id', { count: 'exact', head: true });
+  if (propertyId) {
+    roomQuery = roomQuery.eq('property_id', propertyId);
+  }
+
   const [
     { data: activeBookings },
     { count: totalRooms }
   ] = await Promise.all([
     query,
-    supabaseService.from('rooms').select('id', { count: 'exact', head: true }).eq('property_id', propertyId || '')
+    roomQuery
   ]);
 
   // 2. Compute Metrics
