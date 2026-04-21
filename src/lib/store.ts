@@ -420,19 +420,17 @@ export const updateRoomStatus = async (roomId: string, status: RoomStatus) => {
 
 // GUESTS & PAYMENTS
 export const getStoredGuests = async (): Promise<Guest[]> => {
-  console.log('Fetching guests from Supabase...');
-  const { data, error } = await supabase.from('guests').select('*').order('name');
+  const { data: guests, error } = await supabase.from('guests').select('*');
+  
   if (error) {
-    console.error('CRITICAL: Error fetching guests:', error);
+    if (error.code !== 'PGRST116') {
+      console.error('Error fetching guests:', error);
+    }
     return [];
   }
   
-  let guests = (data as Guest[]) || [];
-  console.log(`Initial guest count: ${guests.length}`);
-  
   // SELF-HEALING: If directory is empty but we have bookings, rebuild it!
   if (guests.length === 0) {
-    console.log('GUEST DIRECTORY EMPTY - TRIGGERING HEALING...');
     const { data: bookingsRaw, error: bError } = await supabase.from('bookings').select('*');
     if (bError) {
       console.error('HEAL FAIL: Could not fetch bookings:', bError);

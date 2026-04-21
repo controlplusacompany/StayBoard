@@ -14,7 +14,7 @@ export function useRealtime(callback: () => void, tables: string[] = ['bookings'
             table: table,
           },
           () => {
-            console.log(`Realtime update received for table: ${table}`);
+          // Realtime event handled
             callback();
           }
         )

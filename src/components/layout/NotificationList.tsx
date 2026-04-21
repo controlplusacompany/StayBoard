@@ -32,12 +32,11 @@ export default function NotificationList() {
           table: 'booking_activities'
         },
         (payload) => {
-          console.log('ACTIVITY FEED UPDATE:', payload);
+          const newActivity = payload.new as any;
           fetchActivities(); // Refresh list instantly
         }
       )
       .subscribe((status) => {
-        console.log('Realtime Status Change:', status);
         if (status === 'CHANNEL_ERROR') {
           console.error('CRITICAL: Realtime failed to connect. Check if Realtime is enabled in Supabase dashboard for booking_activities.');
         }

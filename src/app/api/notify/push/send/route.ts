@@ -65,11 +65,8 @@ export async function POST(request: Request) {
     const { data: subscriptions, error } = await query;
 
     if (error) {
-      console.error('[Push API] Database error fetching subscriptions:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-
-    console.log(`[Push API] Found ${subscriptions?.length || 0} matching subscriptions in DB.`);
 
     if (!subscriptions || subscriptions.length === 0) {
       return NextResponse.json({ success: true, info: 'No active push subscriptions found.' });
@@ -87,7 +84,6 @@ export async function POST(request: Request) {
 
     // 5. Send to all devices with High Priority headers
     const pushPromises = subscriptions.map((sub: any) => {
-      console.log(`[Push API] Attempting delivery to user: ${sub.user_id}`);
       return webpush.sendNotification(
         sub.subscription_json,
         payload,
@@ -99,13 +95,10 @@ export async function POST(request: Request) {
           TTL: 86400
         }
       ).then(res => {
-        console.log(`[Push API] Success for ${sub.user_id}`);
         return res;
       }).catch(err => {
-        console.error(`[Push API] Failure for ${sub.user_id}: Status ${err.statusCode}`);
         // Handle expired/invalid subscriptions
         if (err.statusCode === 410 || err.statusCode === 404) {
-          console.log(`[Push API] Cleaning up expired subscription for ${sub.user_id}`);
           return supabaseService
             .from('push_subscriptions')
             .delete()
@@ -117,8 +110,6 @@ export async function POST(request: Request) {
 
     const results = await Promise.all(pushPromises);
     const successCount = results.filter(r => r && !(r as any).error).length;
-
-    console.log(`[Push API] Dispatch complete. Success: ${successCount}/${subscriptions.length}`);
 
     return NextResponse.json({ 
       success: true, 

@@ -8,10 +8,9 @@ export default function PWAScripts() {
       const register = () => {
         navigator.serviceWorker.register('/sw.js').then(
           (registration) => {
-            console.log('SW registered: ', registration);
-          },
-          (registrationError) => {
-            console.log('SW registration failed: ', registrationError);
+            // SW registered
+          }).catch(registrationError => {
+            // SW registration failed
           }
         );
       };

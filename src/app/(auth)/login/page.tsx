@@ -29,7 +29,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
 
   // Step 1: Credentials
-  const [email, setEmail] = useState('starrynightroomandhostel@gmail.com');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
@@ -124,22 +124,25 @@ export default function LoginPage() {
     }
 
     try {
-      const { data: staff, error: staffError } = await supabase
-        .from('staff_pins')
-        .select('property_id, property_name')
-        .eq('property_name', selectedProperty)
-        .eq('pin', enteredPin)
-        .single();
+      // We call our new Security Definer function instead of querying the table directly
+      const { data, error } = await supabase.rpc('verify_staff_pin', {
+        p_property_name: selectedProperty,
+        p_pin: enteredPin
+      });
 
-      if (staffError || !staff) {
-        setError('Invalid PIN for the selected property.');
+      if (error || !data || !data.success) {
+        setError('Incorrect PIN for this property.');
+        setPin(['', '', '', '', '', '']);
+        if (pinRefs[0].current) pinRefs[0].current.focus();
+        setIsLoading(false);
         return;
       }
 
-      setSession('reception', `staff@${selectedProperty.toLowerCase().replace(/\s/g, '')}.stayboard`, staff.property_id);
-      router.push(`/property/${staff.property_id}`);
-    } catch (err: any) {
-      setError('PIN verification failed.');
+      // Success: Setup session for staff
+      setSession('staff', `staff@${selectedProperty.replace(/\s+/g, '').toLowerCase()}.com`, data.property_id);
+      router.push('/dashboard');
+    } catch (err) {
+      setError('System error during verification. Please try again.');
     } finally {
       setIsLoading(false);
     }
