@@ -136,137 +136,131 @@ export default function CalendarPage() {
   return (
     <div className="flex flex-col h-[calc(100vh-56px)] bg-white overflow-hidden animate-in fade-in duration-500">
       {/* Header */}
-      <header className="px-6 py-4 border-b border-border-subtle flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 bg-white z-20 shadow-sm">
-        <div className="flex items-center gap-6">
-          <h1 className="text-xl font-display font-medium text-ink-primary whitespace-nowrap tracking-tight">Room Availability</h1>
+      <header className="px-4 md:px-6 py-4 border-b border-border-subtle flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 bg-white z-20 shadow-sm">
+        <div className="flex items-center gap-3 md:gap-6 justify-between md:justify-start">
+          <h1 className="text-lg md:text-xl font-display font-medium text-ink-primary whitespace-nowrap tracking-tight">Availability</h1>
 
           <div className="flex items-center bg-bg-sunken rounded-lg p-1 border border-border-subtle">
             <button
               onClick={() => setStartDate(addDays(startDate, -7))}
-              className="p-1.5 hover:bg-white hover:shadow-sm rounded-md transition-all text-ink-muted hover:text-ink-primary"
+              className="p-1 md:p-1.5 hover:bg-white hover:shadow-sm rounded-md transition-all text-ink-muted hover:text-ink-primary"
             >
-              <ChevronLeft size={18} />
+              <ChevronLeft size={16} />
             </button>
-            <div className="px-4 text-sm font-medium text-ink-secondary min-w-[140px] text-center">
+            <div className="px-2 md:px-4 text-[11px] md:text-sm font-medium text-ink-secondary min-w-[90px] md:min-w-[140px] text-center">
               {format(startDate, 'MMM yyyy')}
             </div>
             <button
               onClick={() => setStartDate(addDays(startDate, 7))}
-              className="p-1.5 hover:bg-white hover:shadow-sm rounded-md transition-all text-ink-muted hover:text-ink-primary"
+              className="p-1 md:p-1.5 hover:bg-white hover:shadow-sm rounded-md transition-all text-ink-muted hover:text-ink-primary"
             >
-              <ChevronRight size={18} />
+              <ChevronRight size={16} />
             </button>
           </div>
 
           <button
             onClick={() => setStartDate(startOfDay(new Date()))}
-            className="text-xs font-medium text-accent hover:underline uppercase tracking-wider"
+            className="text-[10px] md:text-xs font-bold text-accent hover:underline uppercase tracking-wider hidden sm:block"
           >
             Today
           </button>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="relative">
+        <div className="flex items-center gap-2 md:gap-3 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 no-scrollbar">
+          <div className="relative flex-1 md:flex-none">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
             <input
               type="text"
-              placeholder="Search room..."
-              className="input pl-10 h-10 w-48 text-sm"
+              placeholder="Room#"
+              className="input pl-9 h-9 md:h-10 w-full md:w-48 text-sm"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
           </div>
-          <div className="relative">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className={`btn ${showFilters ? 'btn-accent' : 'btn-ghost border-border-subtle'} h-10 px-3 flex items-center gap-2 transition-all`}
-            >
-              <Filter size={16} />
-              <span className="text-sm">Filter</span>
-              {(floorFilter !== 'all' || statusFilter !== 'all') && (
-                <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-              )}
-            </button>
-
-            {showFilters && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setShowFilters(false)}
-                />
-                <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-border-subtle z-50 p-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-bold text-ink-primary">Filter Rooms</h3>
-                    <button
-                      onClick={() => {
-                        setFloorFilter('all');
-                        setStatusFilter('all');
-                      }}
-                      className="text-[10px] text-accent font-bold uppercase tracking-wider hover:underline"
-                    >
-                      Clear All
-                    </button>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-[10px] text-ink-muted uppercase font-bold tracking-widest mb-1.5 block">Floor</label>
-                      <select
-                        value={floorFilter}
-                        onChange={(e) => setFloorFilter(e.target.value)}
-                        className="w-full h-9 rounded-lg border border-border-subtle bg-bg-sunken px-2 text-sm outline-none focus:border-accent transition-colors"
-                      >
-                        <option value="all">All Floors</option>
-                        {[...new Set(rooms.map(r => r.floor))].sort().map(floor => (
-                          <option key={floor} value={String(floor)}>Floor {floor}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] text-ink-muted uppercase font-bold tracking-widest mb-1.5 block">Status</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {['all', 'vacant', 'occupied', 'cleaning', 'maintenance'].map(status => {
-                          const getStatusClass = (s: string) => {
-                            if (statusFilter !== s) return 'bg-bg-sunken text-ink-muted border-transparent hover:border-border-subtle';
-                            switch(s) {
-                              case 'vacant': return 'bg-status-vacant-fg text-white border-status-vacant-border';
-                              case 'occupied': return 'bg-status-occupied-fg text-white border-status-occupied-border';
-                              case 'cleaning': return 'bg-status-cleaning-fg text-white border-status-cleaning-border';
-                              case 'maintenance': return 'bg-status-maintenance-fg text-white border-status-maintenance-border';
-                              default: return 'bg-accent text-white border-accent';
-                            }
-                          };
-                          
-                          return (
-                            <button
-                              key={status}
-                              onClick={() => setStatusFilter(status)}
-                              className={`
-                                px-2 py-1.5 rounded-lg text-xs font-semibold capitalize border transition-all
-                                ${getStatusClass(status)}
-                              `}
-                            >
-                              {status}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </>
+          
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`btn ${showFilters ? 'btn-accent' : 'btn-ghost border-border-subtle'} h-9 md:h-10 px-2.5 md:px-3 flex items-center gap-2 transition-all shrink-0`}
+          >
+            <Filter size={16} />
+            <span className="text-sm hidden md:inline">Filter</span>
+            {(floorFilter !== 'all' || statusFilter !== 'all') && (
+              <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
             )}
-          </div>
+          </button>
+
           <button
             onClick={() => openNewBooking()}
-            className="btn btn-accent h-10 px-4 flex items-center gap-2"
+            className="btn btn-accent h-9 md:h-10 px-2.5 md:px-4 flex items-center gap-2 shrink-0"
           >
             <Plus size={16} />
-            <span className="text-sm">New Booking</span>
+            <span className="text-sm hidden md:inline">New Booking</span>
           </button>
         </div>
+
+        {showFilters && (
+          <div className="absolute right-4 top-32 md:top-20 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-border-subtle z-50 p-4 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-ink-primary">Filter Rooms</h3>
+              <button
+                onClick={() => {
+                  setFloorFilter('all');
+                  setStatusFilter('all');
+                }}
+                className="text-[10px] text-accent font-bold uppercase tracking-wider hover:underline"
+              >
+                Clear All
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] text-ink-muted uppercase font-bold tracking-widest mb-1.5 block">Floor</label>
+                <select
+                  value={floorFilter}
+                  onChange={(e) => setFloorFilter(e.target.value)}
+                  className="w-full h-9 rounded-lg border border-border-subtle bg-bg-sunken px-2 text-sm outline-none focus:border-accent transition-colors"
+                >
+                  <option value="all">All Floors</option>
+                  {[...new Set(rooms.map(r => r.floor))].sort().map(floor => (
+                    <option key={floor} value={String(floor)}>Floor {floor}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] text-ink-muted uppercase font-bold tracking-widest mb-1.5 block">Status</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {['all', 'vacant', 'occupied', 'cleaning', 'maintenance'].map(status => {
+                    const getStatusClass = (s: string) => {
+                      if (statusFilter !== s) return 'bg-bg-sunken text-ink-muted border-transparent hover:border-border-subtle';
+                      switch(s) {
+                        case 'vacant': return 'bg-status-vacant-fg text-white border-status-vacant-border';
+                        case 'occupied': return 'bg-status-occupied-fg text-white border-status-occupied-border';
+                        case 'cleaning': return 'bg-status-cleaning-fg text-white border-status-cleaning-border';
+                        case 'maintenance': return 'bg-status-maintenance-fg text-white border-status-maintenance-border';
+                        default: return 'bg-accent text-white border-accent';
+                      }
+                    };
+                    
+                    return (
+                      <button
+                        key={status}
+                        onClick={() => setStatusFilter(status)}
+                        className={`
+                          px-2 py-1.5 rounded-lg text-xs font-semibold capitalize border transition-all
+                          ${getStatusClass(status)}
+                        `}
+                      >
+                        {status}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Calendar Grid Container */}
@@ -274,10 +268,10 @@ export default function CalendarPage() {
         <table className="border-separate border-spacing-0 w-full min-w-max">
           <thead className="sticky top-0 z-40 bg-white shadow-[0_2px_10px_-3px_rgba(0,0,0,0.07)]">
             <tr>
-              <th className="sticky left-0 top-0 z-50 bg-white border-b border-r border-border-subtle p-0 w-48 h-14 shadow-[2px_0_10px_-3px_rgba(0,0,0,0.07)]">
-                <div className="flex flex-col justify-center items-start px-4 h-full">
-                  <span className="text-[10px] font-semibold text-ink-muted uppercase tracking-widest leading-none mb-1">Room</span>
-                  <span className="text-xs text-ink-secondary">Total {filteredRooms.length} Units</span>
+              <th className="sticky left-0 top-0 z-50 bg-white border-b border-r border-border-subtle p-0 w-20 md:w-48 h-14 shadow-[2px_0_10px_-3px_rgba(0,0,0,0.1)]">
+                <div className="flex flex-col justify-center items-center md:items-start px-2 md:px-4 h-full">
+                  <span className="text-[9px] md:text-[10px] font-semibold text-ink-muted uppercase tracking-widest leading-none mb-1">Room</span>
+                  <span className="text-[9px] md:text-xs text-ink-secondary hidden md:block">Total {filteredRooms.length} Units</span>
                 </div>
               </th>
               {days.map((date, i) => {
@@ -288,16 +282,16 @@ export default function CalendarPage() {
                   <th
                     key={i}
                     className={`
-                      border-b border-r border-border-subtle p-0 w-16 h-14 transition-colors relative
+                      border-b border-r border-border-subtle p-0 w-12 md:w-16 h-14 transition-colors relative
                       ${isToday ? 'bg-accent/5' : 'bg-white'}
                       ${isWeekend ? 'bg-bg-sunken/40' : ''}
                     `}
                   >
                     <div className="flex flex-col items-center justify-center h-full">
-                      <span className={`text-[10px] font-semibold uppercase tracking-tighter ${isToday ? 'text-accent' : 'text-ink-muted'}`}>
+                      <span className={`text-[9px] md:text-[10px] font-semibold uppercase tracking-tighter ${isToday ? 'text-accent' : 'text-ink-muted'}`}>
                         {format(date, 'eee')}
                       </span>
-                      <span className={`text-sm font-semibold mt-0.5 ${isToday ? 'text-accent' : 'text-ink-primary'}`}>
+                      <span className={`text-xs md:text-sm font-semibold mt-0.5 ${isToday ? 'text-accent' : 'text-ink-primary'}`}>
                         {format(date, 'd')}
                       </span>
                     </div>
@@ -311,7 +305,7 @@ export default function CalendarPage() {
           <tbody className="">
             {filteredRooms.map((room, ri) => (
               <tr key={room.id} className="group">
-                <td className="sticky left-0 z-30 bg-white border-b border-r border-border-subtle p-0 w-48 h-16 group-hover:bg-bg-sunken transition-colors">
+                <td className="sticky left-0 z-30 bg-white border-b border-r border-border-subtle p-0 w-20 md:w-48 h-16 group-hover:bg-bg-sunken transition-colors shadow-[2px_0_10px_-3px_rgba(0,0,0,0.05)]">
                   {(() => {
                     const today = startOfDay(new Date());
                     const activeBooking = bookings.find(b => {
@@ -342,14 +336,16 @@ export default function CalendarPage() {
                     }
 
                     return (
-                      <div className="flex items-center gap-3 px-4 h-full cursor-pointer" onClick={() => {
+                      <div className="flex items-center gap-2 md:gap-3 px-2 md:px-4 h-full cursor-pointer" onClick={() => {
                         setSelectedRoom({ ...room, booking: activeBooking });
                         setIsDrawerOpen(true);
                       }}>
-                        <div className={`w-1.5 h-8 rounded-full shadow-sm ${colorClass}`} />
-                        <div className="flex flex-col">
-                          <span className="text-sm font-semibold text-ink-primary group-hover:text-accent transition-colors">Room {room.room_number}</span>
-                          <span className="text-[10px] text-ink-muted uppercase tracking-wider font-light">Unit</span>
+                        <div className={`w-1 h-6 md:w-1.5 md:h-8 rounded-full shadow-sm ${colorClass} shrink-0`} />
+                        <div className="flex flex-col overflow-hidden">
+                          <span className="text-xs md:text-sm font-semibold text-ink-primary group-hover:text-accent transition-colors truncate">
+                            <span className="md:inline hidden">Room </span>{room.room_number}
+                          </span>
+                          <span className="text-[8px] md:text-[10px] text-ink-muted uppercase tracking-wider font-light">Unit</span>
                         </div>
                       </div>
                     );
@@ -504,8 +500,8 @@ export default function CalendarPage() {
       </div>
 
       {/* Legend */}
-      <footer className="px-6 py-4 border-t border-border-subtle bg-white flex items-center justify-between shrink-0">
-        <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
+      <footer className="px-4 md:px-6 py-4 border-t border-border-subtle bg-white flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:flex md:flex-wrap items-center gap-x-4 md:gap-x-8 gap-y-3">
           {[
             { id: 'checked_in', label: 'Checked In', color: 'bg-success' },
             { id: 'confirmed', label: 'Confirmed', color: 'bg-accent' },
@@ -515,19 +511,19 @@ export default function CalendarPage() {
             { id: 'maintenance', label: 'Maintenance', color: 'bg-status-maintenance-fg' },
             { id: 'vacant', label: 'Vacant', color: 'bg-status-vacant-fg' },
           ].map((item) => (
-            <div key={item.id} className="flex items-center gap-2.5">
-              <div className={`w-3 h-3 rounded-full ${item.color} shadow-sm border border-black/5`} />
-              <span className="text-[10px] font-medium text-ink-muted uppercase tracking-[0.15em] leading-none">{item.label}</span>
+            <div key={item.id} className="flex items-center gap-2">
+              <div className={`w-2.5 h-2.5 rounded-full ${item.color} shadow-sm border border-black/5 shrink-0`} />
+              <span className="text-[9px] md:text-[10px] font-medium text-ink-muted uppercase tracking-wider leading-none truncate">{item.label}</span>
             </div>
           ))}
-          <div className="flex items-center gap-2.5 ml-2">
-            <div className="w-3.5 h-3.5 rounded ring-1 ring-accent ring-offset-2" />
-            <span className="text-[10px] font-medium text-accent uppercase tracking-[0.15em] leading-none">Today</span>
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded ring-1 ring-accent ring-offset-1 shrink-0" />
+            <span className="text-[9px] md:text-[10px] font-medium text-accent uppercase tracking-wider leading-none">Today</span>
           </div>
         </div>
 
-        <div className="text-[11px] text-ink-muted">
-          <span className="font-medium text-ink-secondary">PRO TIP:</span> Click any vacant slot to create a new booking on that date.
+        <div className="text-[10px] md:text-[11px] text-ink-muted border-t md:border-t-0 pt-3 md:pt-0 border-border-subtle md:text-right">
+          <span className="font-bold text-ink-secondary hidden sm:inline">PRO TIP:</span> Click vacant slots to create bookings.
         </div>
       </footer>
 
