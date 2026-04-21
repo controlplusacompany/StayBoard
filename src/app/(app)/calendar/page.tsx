@@ -268,7 +268,7 @@ export default function CalendarPage() {
         <table className="border-separate border-spacing-0 w-full min-w-max">
           <thead className="sticky top-0 z-40 bg-white shadow-[0_2px_10px_-3px_rgba(0,0,0,0.07)]">
             <tr>
-              <th className="sticky left-0 top-0 z-50 bg-white border-b border-r border-border-subtle p-0 w-20 md:w-48 h-14 shadow-[2px_0_10px_-3px_rgba(0,0,0,0.1)]">
+              <th className="sticky left-0 top-0 z-50 bg-white border-b border-r border-border-subtle p-0 w-20 md:w-48 h-12 md:h-14 shadow-[2px_0_10px_-3px_rgba(0,0,0,0.1)]">
                 <div className="flex flex-col justify-center items-center md:items-start px-2 md:px-4 h-full">
                   <span className="text-[9px] md:text-[10px] font-semibold text-ink-muted uppercase tracking-widest leading-none mb-1">Room</span>
                   <span className="text-[9px] md:text-xs text-ink-secondary hidden md:block">Total {filteredRooms.length} Units</span>
@@ -282,7 +282,7 @@ export default function CalendarPage() {
                   <th
                     key={i}
                     className={`
-                      border-b border-r border-border-subtle p-0 w-12 md:w-16 h-14 transition-colors relative
+                      border-b border-r border-border-subtle p-0 w-12 md:w-16 h-12 md:h-14 transition-colors relative
                       ${isToday ? 'bg-accent/5' : 'bg-white'}
                       ${isWeekend ? 'bg-bg-sunken/40' : ''}
                     `}
@@ -305,7 +305,7 @@ export default function CalendarPage() {
           <tbody className="">
             {filteredRooms.map((room, ri) => (
               <tr key={room.id} className="group">
-                <td className="sticky left-0 z-30 bg-white border-b border-r border-border-subtle p-0 w-20 md:w-48 h-16 group-hover:bg-bg-sunken transition-colors shadow-[2px_0_10px_-3px_rgba(0,0,0,0.05)]">
+                <td className="sticky left-0 z-30 bg-white border-b border-r border-border-subtle p-0 w-20 md:w-48 h-14 md:h-16 group-hover:bg-bg-sunken transition-colors shadow-[2px_0_10px_-3px_rgba(0,0,0,0.05)]">
                   {(() => {
                     const today = startOfDay(new Date());
                     const activeBooking = bookings.find(b => {
