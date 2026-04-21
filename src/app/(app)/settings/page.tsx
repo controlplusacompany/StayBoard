@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { 
   Building2, 
   Home, 
@@ -12,7 +13,8 @@ import {
   History, 
   Settings as SettingsIcon,
   ChevronRight,
-  Info
+  Info,
+  ArrowLeft
 } from 'lucide-react';
 
 export default function SettingsPage() {
@@ -43,7 +45,14 @@ export default function SettingsPage() {
   return (
     <div className="flex flex-col h-full bg-[#f8f9fa]">
       {/* Header */}
-      <div className="px-4 md:px-8 py-5 md:py-6 bg-white border-b border-gray-100">
+      <div className="px-4 md:px-8 pt-4 pb-5 md:pt-5 md:pb-6 bg-white border-b border-gray-100">
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-accent transition-colors mb-3 group"
+        >
+          <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
+          Back to Dashboard
+        </Link>
         <h1 className="text-xl md:text-2xl font-semibold text-[#011432]">Settings</h1>
         <p className="text-sm text-gray-500 mt-1">Manage your property configuration and view business performance.</p>
       </div>
