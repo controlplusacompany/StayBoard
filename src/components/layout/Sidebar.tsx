@@ -28,7 +28,7 @@ const NAV_ITEMS = [
   { label: 'Rates',        href: '/rates',          icon: Tag },
   { label: 'Guests',       href: '/guests',         icon: Users },
   { label: 'Reports',      href: '/reports',        icon: BarChart3 },
-  { label: 'Channels',     icon: Wifi },
+  { label: 'Channels',     href: '/channels',      icon: Wifi },
 ];
 
 const RECEPTION_NAV_ITEMS = ['Dashboard', 'Availability', 'Reservations', 'Housekeeping', 'Guests'];
