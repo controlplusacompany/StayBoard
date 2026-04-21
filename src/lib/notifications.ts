@@ -19,21 +19,28 @@ export const sendTelegramNotification = async (message: string, topic?: 'summari
   }
 };
 
-export const sendPushNotification = async (title: string, body: string, url?: string, options: { broadcast?: boolean } = {}) => {
+export const sendPushNotification = async (title: string, body: string, url?: string, options: { broadcast?: boolean, targetUserId?: string } = {}) => {
   try {
+    // Try to get current user, but don't block if we're broadcasting
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return false;
+    
+    const payload: any = { 
+      title, 
+      body, 
+      url, 
+      broadcast: options.broadcast || false 
+    };
+
+    if (options.targetUserId) {
+      payload.userId = options.targetUserId;
+    } else if (user) {
+      payload.userId = user.id;
+    }
 
     const response = await fetch('/api/notify/push/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        title, 
-        body, 
-        url, 
-        userId: user.id, 
-        broadcast: options.broadcast || false 
-      }),
+      body: JSON.stringify(payload),
     });
 
     return response.ok;
