@@ -20,8 +20,9 @@ export default function NotificationList() {
     fetchActivities();
     
     // 1. REAL-TIME SUBSCRIPTION: Listen for new activities
+    console.log('Initiating Realtime subscription for booking_activities...');
     const channel = supabase
-      .channel('schema-db-changes')
+      .channel('activities-live')
       .on(
         'postgres_changes',
         {
@@ -29,12 +30,17 @@ export default function NotificationList() {
           schema: 'public',
           table: 'booking_activities'
         },
-        () => {
-          console.log('New activity detected via Realtime!');
+        (payload) => {
+          console.log('LIVE UPDATE RECEIVED:', payload);
           fetchActivities(); // Refresh list instantly
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Realtime Status Change:', status);
+        if (status === 'CHANNEL_ERROR') {
+          console.error('CRITICAL: Realtime failed to connect. Check if Realtime is enabled in Supabase dashboard for booking_activities.');
+        }
+      });
 
     // 2. Fallback: Refresh every minute
     const interval = setInterval(fetchActivities, 60000);
