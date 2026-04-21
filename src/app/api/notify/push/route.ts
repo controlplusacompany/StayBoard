@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import webpush from 'web-push';
-import { supabase } from '@/lib/supabase';
+import { supabaseService } from '@/lib/supabase';
 
 // Configure Web Push with VAPID keys safely
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:admin@stayboard.io';
@@ -22,15 +22,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing subscription or userId' }, { status: 400 });
     }
 
-    // Validate userId (should be a UUID in production)
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(userId)) {
-      console.warn('ID provided is not a valid UUID format. Proceeding with caution...');
-    }
-
-    // Save the subscription to Supabase
-    // Using upsert to prevent duplicates for the same user/device
-    const { error } = await supabase
+    // Save the subscription to Supabase using Admin service client
+    const { error } = await supabaseService
       .from('push_subscriptions')
       .upsert({
         user_id: userId,
@@ -38,8 +31,12 @@ export async function POST(request: Request) {
       }, { onConflict: 'user_id, subscription_json' });
 
     if (error) {
-      console.error('Database error saving subscription:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('CRITICAL: Supabase error saving subscription:', error);
+      return NextResponse.json({ 
+        error: error.message,
+        details: error.details,
+        hint: error.hint
+      }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });

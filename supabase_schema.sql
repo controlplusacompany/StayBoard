@@ -155,6 +155,15 @@ CREATE TABLE rate_rules (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 11. Push Subscriptions Table
+CREATE TABLE push_subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  subscription_json JSONB NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, subscription_json)
+);
+
 -- ENABLE ROW LEVEL SECURITY (RLS)
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE owners ENABLE ROW LEVEL SECURITY;

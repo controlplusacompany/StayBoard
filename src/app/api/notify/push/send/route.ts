@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import webpush from 'web-push';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseService } from '@/lib/supabase';
 
 // Configure Web Push with VAPID keys safely
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:admin@stayboard.io';
@@ -41,8 +41,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
     }
 
-    // 1. Fetch all active subscriptions for this user
-    const { data: subscriptions, error } = await supabase
+    // 1. Fetch all active subscriptions for this user using Admin service client
+    const { data: subscriptions, error } = await supabaseService
       .from('push_subscriptions')
       .select('subscription_json')
       .eq('user_id', userId);

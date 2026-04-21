@@ -8,3 +8,14 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Administrative client for server-side tasks (API routes)
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+export const supabaseService = serviceRoleKey 
+  ? createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+  : supabase; // Fallback
