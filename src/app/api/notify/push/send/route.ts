@@ -71,32 +71,45 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, info: 'No active push subscriptions found for this user.' });
     }
 
-    // 4. Wrap in a payload
+    // 4. Wrap in a payload with high-priority settings
     const payload = JSON.stringify({
       title,
       body,
       url,
-      icon: '/icons/icon-192x192.png'
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/icon-192x192.png', // For Android status bar
+      timestamp: Date.now() // Required for some background wake-ups
     });
 
-    // 5. Send to all devices
+    // 5. Send to all devices with High Priority headers
     const pushPromises = subscriptions.map((sub: any) => 
       webpush.sendNotification(
         sub.subscription_json,
-        payload
+        payload,
+        {
+          headers: {
+            'Urgency': 'high', // Wake up sleeping mobile devices
+            'Topic': 'administrative'
+          },
+          TTL: 86400 // Ensure it delivers within 24 hours if device is offline
+        }
       ).catch(err => {
         // Handle expired/invalid subscriptions
         if (err.statusCode === 410 || err.statusCode === 404) {
+          console.log(`Push failed (410/404), cleaning up subscription for user ${sub.user_id}`);
           return supabaseService
             .from('push_subscriptions')
             .delete()
-            .match({ user_id: userId, subscription_json: sub.subscription_json });
+            .match({ user_id: sub.user_id, subscription_json: sub.subscription_json });
         }
         console.error('Individual push failure:', err);
       })
     );
 
-    await Promise.all(pushPromises);
+    const results = await Promise.all(pushPromises);
+    const successCount = results.filter(r => r && !(r as any).error).length;
+
+    console.log(`Successfully dispatched ${successCount} notifications to ${subscriptions.length} registered devices.`);
 
     return NextResponse.json({ success: true });
   } catch (err: any) {

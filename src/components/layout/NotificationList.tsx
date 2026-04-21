@@ -19,9 +19,30 @@ export default function NotificationList() {
 
     fetchActivities();
     
-    // Refresh every minute
+    // 1. REAL-TIME SUBSCRIPTION: Listen for new activities
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'booking_activities'
+        },
+        () => {
+          console.log('New activity detected via Realtime!');
+          fetchActivities(); // Refresh list instantly
+        }
+      )
+      .subscribe();
+
+    // 2. Fallback: Refresh every minute
     const interval = setInterval(fetchActivities, 60000);
-    return () => clearInterval(interval);
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchActivities = async () => {
