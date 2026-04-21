@@ -62,8 +62,10 @@ export default function NotificationList() {
     switch (action) {
       case 'CHECKIN': return <Check size={14} className="text-success" />;
       case 'CHECKOUT': return <ExternalLink size={14} className="text-danger" />;
-      case 'UPDATE': return <History size={14} className="text-accent" />;
-      case 'GUEST_SYNC': return <User size={14} className="text-info" />;
+      case 'NEW_BOOKING': return <Bell size={14} className="text-accent" />;
+      case 'PAYMENT': return <CreditCard size={14} className="text-info" />;
+      case 'UPDATE': return <History size={14} className="text-orange-400" />;
+      case 'GUEST_SYNC': return <User size={14} className="text-gray-400" />;
       default: return <Bell size={14} className="text-gray-400" />;
     }
   };
@@ -76,6 +78,8 @@ export default function NotificationList() {
     switch (action) {
       case 'CHECKIN': return `Checked In: ${guest}`;
       case 'CHECKOUT': return `Checked Out: ${guest}`;
+      case 'NEW_BOOKING': return `New Booking: ${guest}`;
+      case 'PAYMENT': return `Payment Received: ₹${details?.amount || 0}`;
       case 'UPDATE': return `Updated booking for ${guest}`;
       case 'GUEST_SYNC': return `Guest details synced: ${guest}`;
       default: return activity.action;

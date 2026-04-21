@@ -58,6 +58,23 @@ const isChannelEnabled = (channel: 'bookings' | 'checkins' | 'checkouts' | 'paym
 };
 
 /**
+ * Internal helper to log history to the database
+ */
+const logActivity = async (action: string, details: any, bookingId?: string) => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from('booking_activities').insert([{
+      action,
+      details,
+      booking_id: bookingId,
+      owner_id: user?.id
+    }]);
+  } catch (err) {
+    console.error('Failed to log activity:', err);
+  }
+};
+
+/**
  * Pre-formatted alert triggers
  */
 export const notifyNewBooking = async (booking: any, propertyName: string) => {
@@ -75,19 +92,19 @@ export const notifyNewBooking = async (booking: any, propertyName: string) => {
 📍 <b>Source:</b> ${booking.booking_source || 'Direct'}
   `.trim();
 
-  // Send to Telegram (Always for owner)
+  // 1. Log to DB for Activity Feed (Bell icon)
+  logActivity('NEW_BOOKING', { guest: booking.guest_name, property: propertyName }, booking.id);
+
+  // 2. Send to Telegram (Always for owner)
   sendTelegramNotification(telegramMessage, 'bookings');
 
-  // Broadcast Alert to all stakeholders (Owners/Admins)
-  // Native Push ONLY if opted-in on current device
-  if (isChannelEnabled('bookings')) {
-    sendPushNotification(
-      "New Booking Received! 🛎️",
-      `${booking.guest_name} at ${propertyName}`,
-      `/dashboard`,
-      { broadcast: true }
-    );
-  }
+  // 3. Broadcast Alert to all stakeholders (Owners/Admins)
+  sendPushNotification(
+    "New Booking Received! 🛎️",
+    `${booking.guest_name} at ${propertyName}`,
+    `/dashboard`,
+    { broadcast: true }
+  );
 
   return true;
 };
@@ -105,18 +122,19 @@ export const notifyCheckIn = async (booking: any, propertyName: string) => {
 💳 <b>Paid:</b> ₹${booking.amount_paid || 0}
   `.trim();
 
-  // Send to Telegram
+  // 1. Log to DB for Activity Feed
+  logActivity('CHECKIN', { guest: booking.guest_name, room: booking.room_number }, booking.id);
+
+  // 2. Send to Telegram
   sendTelegramNotification(telegramMessage, 'frontdesk');
 
-  // Broadcast Alert to all stakeholders (Owners/Admins)
-  if (isChannelEnabled('checkins')) {
-    sendPushNotification(
-      "Check-In Confirmed! ✅",
-      `${booking.guest_name} (Room ${booking.room_number || 'N/A'})`,
-      `/dashboard`,
-      { broadcast: true }
-    );
-  }
+  // 3. Broadcast Alert
+  sendPushNotification(
+    "Check-In Confirmed! ✅",
+    `${booking.guest_name} (Room ${booking.room_number || 'N/A'})`,
+    `/dashboard`,
+    { broadcast: true }
+  );
 
   return true;
 };
@@ -126,6 +144,7 @@ export const notifyCheckoutPayment = async (details: {
   roomNumber: string;
   amount: number;
   mode: string;
+  bookingId?: string;
 }) => {
   const telegramMessage = `
 💰 <b>Payment Received (Checkout)</b>
@@ -137,18 +156,19 @@ export const notifyCheckoutPayment = async (details: {
 <b>Status:</b> Paid & Checked Out
   `.trim();
 
-  // Send to Telegram
+  // 1. Log to DB
+  logActivity('CHECKOUT', { guest: details.guestName, amount: details.amount }, details.bookingId);
+
+  // 2. Send to Telegram
   sendTelegramNotification(telegramMessage, 'frontdesk');
 
-  // Broadcast Alert to all stakeholders (Owners/Admins)
-  if (isChannelEnabled('checkouts')) {
-    sendPushNotification(
-      "Payment Received! 💰",
-      `${details.guestName} (₹${details.amount}) - Checked Out`,
-      `/dashboard`,
-      { broadcast: true }
-    );
-  }
+  // 3. Broadcast Alert
+  sendPushNotification(
+    "Payment Received! 💰",
+    `${details.guestName} (₹${details.amount}) - Checked Out`,
+    `/dashboard`,
+    { broadcast: true }
+  );
 
   return true;
 };
@@ -166,18 +186,19 @@ export const notifyGeneralPayment = async (details: {
 <b>Method:</b> ${details.method}
     `.trim();
 
-  // Send to Telegram
+  // 1. Log to DB
+  logActivity('PAYMENT', { guest: details.guestName, amount: details.amount }, undefined);
+
+  // 2. Send to Telegram
   sendTelegramNotification(telegramMessage, 'frontdesk');
 
-  // Broadcast Alert to all stakeholders (Owners/Admins)
-  if (isChannelEnabled('payments')) {
-    sendPushNotification(
-      "Payment Received! 💸",
-      `${details.guestName} (₹${details.amount} via ${details.method})`,
-      `/dashboard`,
-      { broadcast: true }
-    );
-  }
+  // 3. Broadcast Alert
+  sendPushNotification(
+    "Payment Received! 💸",
+    `${details.guestName} (₹${details.amount} via ${details.method})`,
+    `/dashboard`,
+    { broadcast: true }
+  );
 
   return true;
 };
