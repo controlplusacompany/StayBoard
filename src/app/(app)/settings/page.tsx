@@ -315,7 +315,7 @@ function StaffContent() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {[
+              { [
                 { name: 'Rahul K.', bookings: 0, checkins: 0 },
                 { name: 'Sneha M.', bookings: 0, checkins: 0 },
                 { name: 'Amit V.', bookings: 0, checkins: 0 }
@@ -324,6 +324,16 @@ function StaffContent() {
                   <td className="py-4 text-sm font-medium text-[#011432]">{staff.name}</td>
                   <td className="py-4 text-sm text-center text-gray-600">{staff.bookings}</td>
                   <td className="py-4 text-sm text-right text-gray-600">{staff.checkins}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 function NotificationsContent({ isOwner }: { isOwner: boolean }) {
   const { isSupported, config, updateConfig, toggleNotifications, loading, isBlocked } = useNotifications();
 
