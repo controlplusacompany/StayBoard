@@ -10,6 +10,7 @@ import { useToast } from '../ui/Toast';
 import { useNewBooking } from '../booking/NewBookingProvider';
 import { getSelectedProperty, setSelectedProperty } from '@/lib/store';
 import { format } from 'date-fns';
+import PushNotificationManager from '../PushNotificationManager';
 
 export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const pathname = usePathname();
@@ -211,36 +212,9 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
             )}
           </div>
 
-          {!isOwner && !isReception && (
+          {mounted && (
             <div className="relative">
-              <button
-                onClick={() => {
-                  const newState = !isNotifOpen;
-                  closeAll();
-                  setIsNotifOpen(newState);
-                }}
-                className={`relative w-9 h-9 flex items-center justify-center rounded-md cursor-pointer hover:bg-bg-sunken transition-colors ${isNotifOpen ? 'bg-bg-sunken' : ''}`}
-              >
-                <Bell size={18} className="text-ink-secondary" />
-                <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 bg-danger text-white font-sans font-medium text-[9px] leading-4 text-center rounded-full">3</span>
-              </button>
-
-              {isNotifOpen && (
-                <div className="absolute top-full right-0 mt-2 w-80 bg-white border border-border-subtle rounded-xl shadow-2xl overflow-hidden py-2 animate-in fade-in slide-in-from-top-2 duration-200 z-[100]">
-                  <div className="px-4 py-3 border-b border-border-subtle flex items-center justify-between">
-                    <h3 className="text-sm font-medium text-ink-primary">Notifications</h3>
-                    <button className="text-[11px] font-medium text-accent hover:underline">Mark all read</button>
-                  </div>
-                  <div className="max-h-[320px] overflow-y-auto">
-                    {[1, 2, 3].map(i => (
-                      <div key={i} className="px-4 py-3 border-b border-border-subtle/30 hover:bg-sunken transition-colors group relative cursor-pointer">
-                        <p className="text-xs text-ink-secondary leading-relaxed pr-4">New booking confirmed for <b>Amit Verma</b></p>
-                        <p className="text-[10px] text-ink-muted mt-1">2 mins ago</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <PushNotificationManager />
             </div>
           )}
 

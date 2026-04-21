@@ -1,3 +1,13 @@
 {
-  "buildCommand": "next build"
+  "buildCommand": "next build",
+  "crons": [
+    {
+      "path": "/api/notify/summary?type=morning",
+      "schedule": "30 2 * * *"
+    },
+    {
+      "path": "/api/notify/summary?type=night",
+      "schedule": "30 17 * * *"
+    }
+  ]
 }

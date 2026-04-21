@@ -251,9 +251,11 @@ export default function DashboardPage() {
                     <div className="flex items-start justify-between">
                       <div className="flex flex-col gap-1">
                         <h3 className="text-xl font-bold text-ink-primary tracking-tight leading-tight">{booking.guest_name}</h3>
+
                         <p className="text-sm font-medium text-ink-secondary">
-                          {(!room || booking.status === 'unassigned') ? 'Double Room (Unassigned)' : `Room ${room.room_number}`} • {nights} {nights === 1 ? 'night' : 'nights'}
+                          {room ? `Room ${room.room_number}` : 'Double Room (Unassigned)'} • {nights} {nights === 1 ? 'night' : 'nights'}
                         </p>
+
                       </div>
                       <div className="bg-blue-50 text-[10px] font-bold text-blue-600 px-2.5 py-1 rounded-md uppercase tracking-wide border border-blue-100">
                         {booking.booking_source?.replace('_', '.') || 'Booking.com'}

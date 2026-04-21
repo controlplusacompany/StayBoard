@@ -15,6 +15,12 @@ import {
 } from '@/types';
 import { supabase } from './supabase';
 import { parseISO } from 'date-fns';
+import { 
+  notifyNewBooking, 
+  notifyCheckIn, 
+  notifyCheckoutPayment,
+  notifyGeneralPayment
+} from './notifications';
 
 // NATIVE CLOUD STORE - SOURCE OF TRUTH: SUPABASE
 // --------------------------------------------------
@@ -240,6 +246,20 @@ export const finalCheckout = async (bookingId: string, paymentAmount: number, pa
   // 5. Sync Guest history
   await syncGuestFromBooking({ ...booking, status: 'checked_out' });
 
+  // 6. Notify Owner (Non-blocking)
+  try {
+    const { data: property } = await supabase.from('properties').select('name').eq('id', booking.property_id).single();
+    const { data: room } = await supabase.from('rooms').select('room_number').eq('id', booking.room_id).single();
+    await notifyCheckoutPayment({
+      guestName: booking.guest_name,
+      roomNumber: room?.room_number || 'N/A',
+      amount: paymentAmount,
+      mode: paymentMode
+    });
+  } catch (nErr) {
+    console.error("Checkout Notification Failed:", nErr);
+  }
+
   window.dispatchEvent(new Event('storage'));
 };
 
@@ -266,7 +286,18 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
   // SYNC GUEST: Ensure guest info is always up to date on status change
   await syncGuestFromBooking({ ...booking, status });
 
-  if (status === 'checked_in') await updateRoomStatus(booking.room_id, 'occupied');
+  if (status === 'checked_in') {
+    await updateRoomStatus(booking.room_id, 'occupied');
+    
+    // Notify Owner with full details
+    try {
+      const { data: property } = await supabase.from('properties').select('name').eq('id', booking.property_id).single();
+      const { data: room } = await supabase.from('rooms').select('room_number').eq('id', booking.room_id).single();
+      await notifyCheckIn({ ...booking, room_number: room?.room_number }, property?.name || 'StayBoard Property');
+    } catch (nErr) {
+      console.error("Check-in Notification Failed:", nErr);
+    }
+  }
   if (status === 'checked_out') await updateRoomStatus(booking.room_id, 'vacant');
   
   window.dispatchEvent(new Event('storage'));
@@ -376,6 +407,15 @@ export const addBooking = async (booking: Booking) => {
     await syncGuestFromBooking(booking);
   } catch (err) {
     console.error("Guest Sync Failed during booking save:", err);
+  }
+
+  // Notify Owner (Non-blocking)
+  try {
+    const { data: property } = await supabase.from('properties').select('name').eq('id', booking.property_id).single();
+    const { data: room } = booking.room_id ? await supabase.from('rooms').select('room_number').eq('id', booking.room_id).single() : { data: null };
+    await notifyNewBooking({ ...booking, room_number: room?.room_number }, property?.name || 'StayBoard Property');
+  } catch (nErr) {
+    console.error("New Booking Notification Failed:", nErr);
   }
 
   window.dispatchEvent(new Event('storage'));
@@ -490,6 +530,19 @@ export const processPayment = async (invoiceId: string, amount: number, method: 
     const newPaid = Number(inv.amount_paid) + amount;
     const newStatus = newPaid >= Number(inv.amount_total) ? 'paid' : 'partially_paid';
     await supabase.from('invoices').update({ amount_paid: newPaid, status: newStatus }).eq('id', invoiceId);
+    
+    // Notify Owner
+    try {
+        const { data: booking } = await supabase.from('bookings').select('guest_name').eq('id', inv.booking_id).single();
+        await notifyGeneralPayment({
+            guestName: booking?.guest_name || 'Guest',
+            amount: amount,
+            method: method
+        });
+    } catch (nErr) {
+        console.error("Payment Notification Failed:", nErr);
+    }
+
     window.dispatchEvent(new Event('storage'));
   }
 };
