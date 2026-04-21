@@ -76,7 +76,7 @@ export default function DashboardPage() {
   const isSuperAdmin = userRole === 'superadmin';
 
   const getGreeting = () => {
-    if (userEmail === 'dhagamonish00@gmail.com') return 'Welcome, Admin!';
+    if (userEmail === 'controlplusacompany@gmail.com') return 'Welcome, Admin!';
     if (userRole === 'reception') return 'Welcome, Staff!';
     if (userRole === 'owner') return 'Welcome, Sudhir!';
     return 'Welcome Back!';

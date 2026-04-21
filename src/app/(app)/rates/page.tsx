@@ -40,7 +40,7 @@ export default function RatesPage() {
     return () => window.removeEventListener('storage', refreshRules);
   }, []);
   
-  const canManageRates = userEmail === 'dhagamonish00@gmail.com' || (userRole !== 'owner' && userRole !== 'reception' && userRole !== null && userRole !== 'staff');
+  const canManageRates = userRole === 'admin' || (userRole !== 'owner' && userRole !== 'reception' && userRole !== null && userRole !== 'staff');
   const [ruleName, setRuleName] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
