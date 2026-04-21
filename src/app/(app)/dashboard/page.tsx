@@ -20,8 +20,10 @@ import { useRealtime } from '@/hooks/useRealtime';
 import RoomDrawer from '@/components/rooms/RoomDrawer';
 import RoomCard from '@/components/rooms/RoomCard';
 import { SkeletonKPI, SkeletonCard, SkeletonArrival } from '@/components/ui/Skeletons';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
+import { sendTelegramNotification } from '@/lib/notifications';
+import { Send, Terminal } from 'lucide-react';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -149,6 +151,23 @@ export default function DashboardPage() {
       setIsUpgradeOpen(true);
     } else {
       setIsAddPropertyOpen(true);
+    }
+  };
+
+  const handleTestTelegram = async () => {
+    try {
+      const success = await sendTelegramNotification(
+        "🚀 <b>StayBoard: System Test</b>\n\nYour Telegram bot is successfully connected and responding. All systems operational!", 
+        'summaries'
+      );
+      if (success) {
+        toast("Telegram test sent! Check your group.", "success");
+      } else {
+        toast("Failed to send telegram. Check console and Vercel keys.", "error");
+      }
+    } catch (err) {
+      console.error("Telegram test failed:", err);
+      toast("Error triggering telegram test.", "error");
     }
   };
 
@@ -329,6 +348,18 @@ export default function DashboardPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
              </div>
+             
+             {userRole === 'admin' && (
+                <button 
+                  onClick={handleTestTelegram}
+                  className="btn btn-secondary flex items-center gap-2 group whitespace-nowrap !bg-bg-sunken !text-ink-primary hover:!bg-border-subtle"
+                  title="Test Telegram Connectivity"
+                >
+                  <Send size={14} className="group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform" />
+                  <span>Test Telegram</span>
+                </button>
+             )}
+
              {(userRole === 'admin' || userRole === 'md' || userRole === 'superadmin') && (
                <button 
                   onClick={handleAddPropertyClick}
