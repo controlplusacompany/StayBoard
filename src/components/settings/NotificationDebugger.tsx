@@ -49,7 +49,7 @@ export default function NotificationDebugger() {
           title: 'StayBoard Test Alert! 🛎️',
           body: 'If you see this, your iPhone push is working perfectly.',
           url: '/dashboard',
-          userId: user?.id,
+          userId: session?.user?.id,
           broadcast: false
         }),
       });
