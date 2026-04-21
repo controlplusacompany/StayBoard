@@ -40,11 +40,28 @@ export default function LoginPage() {
     useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null),
     useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)
   ];
+  const [availableProperties, setAvailableProperties] = useState<{ id: string; name: string }[]>([]);
 
   // Logic Constants
   const STAFF_PASSWORD = 'PasswordforStaff@Controlplusa@2026';
   // Note: OWNER_PASSWORD removed from frontend check to prevent source-code leakage.
   // Supabase will handle the owner password verification securely.
+
+  useEffect(() => {
+    async function loadProperties() {
+      if (role === 'staff' && step === 'pin') {
+        const { data, error } = await supabase
+          .from('properties')
+          .select('id, name')
+          .eq('is_active', true);
+        
+        if (!error && data) {
+          setAvailableProperties(data);
+        }
+      }
+    }
+    loadProperties();
+  }, [role, step]);
 
   // ── Step 1: Initial Login ─────────────────────────────────────
   const handleInitialSubmit = async (e: React.FormEvent) => {
@@ -264,8 +281,11 @@ export default function LoginPage() {
                     required
                   >
                     <option value="">Choose property...</option>
-                    <option value="The Peace">The Peace (PEACE01)</option>
-                    <option value="The Starry Nights">The Starry Nights (STARRY01)</option>
+                    {availableProperties.map(p => (
+                      <option key={p.id} value={p.name}>
+                        {p.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
