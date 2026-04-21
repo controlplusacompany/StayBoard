@@ -328,7 +328,7 @@ export default function DashboardPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
              </div>
-             {!isReception && !isOwnerRole && (
+             {(userRole === 'admin' || userRole === 'md' || userRole === 'superadmin') && (
                <button 
                   onClick={handleAddPropertyClick}
                   className="btn btn-accent flex items-center gap-2 group whitespace-nowrap"

@@ -21,13 +21,11 @@ export default function MobileLayoutWrapper({
         isSettingsPage={isSettingsPage}
       />
       <div className="flex-1 flex overflow-hidden">
-        {!isSettingsPage && (
-          <Sidebar
-            isMobileOpen={isMobileMenuOpen}
-            onCloseMobile={() => setIsMobileMenuOpen(false)}
-          />
-        )}
-        <main className={`flex-1 mt-[56px] relative overflow-y-auto w-full h-[calc(100vh-56px)] ${isSettingsPage ? '' : 'md:ml-64'}`}>
+        <Sidebar
+          isMobileOpen={isMobileMenuOpen}
+          onCloseMobile={() => setIsMobileMenuOpen(false)}
+        />
+        <main className="flex-1 mt-[56px] relative overflow-y-auto w-full h-[calc(100vh-56px)] md:ml-[76px]">
           {children}
         </main>
       </div>

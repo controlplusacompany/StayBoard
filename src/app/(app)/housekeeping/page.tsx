@@ -1,12 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { 
   Sparkles, 
   Plus, 
-  Search, 
-  Filter, 
   Clock, 
   User, 
   CheckCircle2, 
@@ -14,13 +12,10 @@ import {
   SkipForward, 
   UserPlus,
   Building2,
-  Tent,
   AlertTriangle,
   Zap,
   CheckCircle,
-  Strikethrough,
-  Home,
-  MoreHorizontal
+  Home
 } from 'lucide-react';
 import Select from '@/components/ui/Select';
 import { 
@@ -53,12 +48,17 @@ const TASK_STATUSES: { label: string; value: HousekeepingTask['status'] }[] = [
 
 export default function HousekeepingPage() {
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [tasks, setTasks] = useState<HousekeepingTask[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [filterProperty, setFilterProperty] = useState<string | null>(null);
   const [availableProperties, setAvailableProperties] = useState<{id: string, name: string}[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'tasks' | 'rooms'>('tasks');
+  // Fix #21 — persist active tab via URL searchParam
+  const [activeTab, setActiveTab] = useState<'tasks' | 'rooms'>(
+    (searchParams.get('tab') as 'tasks' | 'rooms') || 'tasks'
+  );
   const [isLoading, setIsLoading] = useState(true);
 
   // Form states
@@ -147,12 +147,8 @@ export default function HousekeepingPage() {
 
   const handleStatusChange = async (taskId: string, status: HousekeepingTask['status']) => {
     const now = new Date().toISOString();
-    await updateTaskStatus(
-      taskId, 
-      status, 
-      status === 'in_progress' ? now : undefined,
-      status === 'done' ? now : undefined
-    );
+    await updateTaskStatus(taskId, status);
+
     
     const fetchedTasks = await getStoredTasks();
     setTasks(fetchedTasks);
@@ -163,6 +159,20 @@ export default function HousekeepingPage() {
         toast(`Room ${rooms.find(r => r.id === task.room_id)?.room_number} cleaned and ready`, "success");
       }
     }
+  };
+
+  // Fix #9 — wire up Clear All for completed tasks
+  const handleClearCompleted = async () => {
+    const completedIds = completedTasks.map(t => t.id);
+    // Just filter them out locally — no hard delete needed
+    setTasks(prev => prev.filter(t => !completedIds.includes(t.id)));
+    toast(`Cleared ${completedIds.length} completed task${completedIds.length !== 1 ? 's' : ''}`, 'success');
+  };
+
+  // Fix #21 — update URL when switching tabs
+  const handleTabChange = (tab: 'tasks' | 'rooms') => {
+    setActiveTab(tab);
+    router.replace(`?tab=${tab}`, { scroll: false });
   };
 
   const filteredTasks = tasks.filter(t => {
@@ -199,22 +209,18 @@ export default function HousekeepingPage() {
       >
         <div className={`absolute left-0 top-0 bottom-0 w-1 ${task.priority === 'urgent' ? 'bg-danger' : task.priority === 'high' ? 'bg-warning' : 'bg-ink-muted/20'}`} />
         
+        {/* Fix #10 — removed dead MoreHorizontal button */}
         <div className="flex justify-between items-start">
           <div className="flex flex-col">
             <h4 className="font-display text-lg text-ink-primary leading-tight font-medium">Room {room?.room_number || '??'}</h4>
             {(filterProperty === 'all' || !filterProperty) && (
-              <span className="text-[9px] font-medium text-accent font-sans uppercase tracking-[0.1em] -mt-0.5 opacity-80 decoration-accent/50 underline-offset-2">
+              <span className="text-[9px] font-medium text-accent font-sans uppercase tracking-[0.1em] -mt-0.5 opacity-80">
                 {availableProperties.find(p => p.id === task.property_id)?.name}
               </span>
             )}
             <span className="text-[10px] font-normal text-ink-muted uppercase tracking-wider mt-1">{task.task_type.replace('_', ' ')}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${task.priority === 'urgent' ? 'bg-danger animate-pulse' : task.priority === 'high' ? 'bg-warning' : 'bg-ink-muted/20'}`} />
-            <button className="text-ink-muted hover:text-ink-primary p-1 rounded-full hover:bg-bg-sunken">
-              <MoreHorizontal size={16} />
-            </button>
-          </div>
+          <div className={`w-2 h-2 rounded-full mt-1.5 ${task.priority === 'urgent' ? 'bg-danger animate-pulse' : task.priority === 'high' ? 'bg-warning' : 'bg-ink-muted/20'}`} />
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -232,7 +238,8 @@ export default function HousekeepingPage() {
           {task.status === 'pending' && (
             <button 
               onClick={() => handleStatusChange(task.id, 'in_progress')}
-              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-full bg-accent/5 text-accent text-[11px] font-medium uppercase tracking-wider hover:bg-accent hover:text-white transition-all"
+              aria-label="Start task"
+              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-full bg-accent/5 text-accent text-xs font-medium uppercase tracking-wider hover:bg-accent hover:text-white transition-all"
             >
               <PlayCircle size={14} />
               <span>Start</span>
@@ -241,13 +248,20 @@ export default function HousekeepingPage() {
           {task.status === 'in_progress' && (
             <button 
               onClick={() => handleStatusChange(task.id, 'done')}
-              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-full bg-success/5 text-success text-[11px] font-medium uppercase tracking-wider hover:bg-success hover:text-white transition-all"
+              aria-label="Mark task as done"
+              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-full bg-success/5 text-success text-xs font-medium uppercase tracking-wider hover:bg-success hover:text-white transition-all"
             >
               <CheckCircle2 size={14} />
               <span>Done</span>
             </button>
           )}
-          <button className="px-3 py-2 rounded-full text-ink-muted hover:bg-bg-sunken hover:text-ink-primary transition-all">
+          {/* Fix #14 — SkipForward now has title tooltip and aria-label */}
+          <button
+            title="Skip task for now"
+            aria-label="Skip task"
+            onClick={() => toast('Task skipped', 'info')}
+            className="px-3 py-2 rounded-full text-ink-muted hover:bg-bg-sunken hover:text-ink-primary transition-all"
+          >
             <SkipForward size={14} />
           </button>
         </div>
@@ -294,16 +308,17 @@ export default function HousekeepingPage() {
 
 
       <div className="flex flex-col md:flex-row justify-end items-center gap-4 mb-4 border-b border-border-subtle pb-4">
+        {/* Fix #21 — tab change now synced with URL */}
         <div className="flex w-full md:w-auto items-center p-1 bg-bg-sunken rounded-xl border border-border-subtle">
           <button 
-            onClick={() => setActiveTab('tasks')}
-            className={`flex-1 py-2 rounded-full text-sm font-medium transition-all ${activeTab === 'tasks' ? 'bg-white text-ink-primary shadow-sm' : 'text-ink-muted'}`}
+            onClick={() => handleTabChange('tasks')}
+            className={`flex-1 py-2 px-6 rounded-full text-sm font-medium transition-all ${activeTab === 'tasks' ? 'bg-white text-ink-primary shadow-sm' : 'text-ink-muted'}`}
           >
             Tasks
           </button>
           <button 
-            onClick={() => setActiveTab('rooms')}
-            className={`flex-1 py-2 rounded-full text-sm font-medium transition-all ${activeTab === 'rooms' ? 'bg-white text-ink-primary shadow-sm' : 'text-ink-muted'}`}
+            onClick={() => handleTabChange('rooms')}
+            className={`flex-1 py-2 px-6 rounded-full text-sm font-medium transition-all ${activeTab === 'rooms' ? 'bg-white text-ink-primary shadow-sm' : 'text-ink-muted'}`}
           >
             Rooms
           </button>
@@ -340,7 +355,15 @@ export default function HousekeepingPage() {
           <div className="flex flex-col gap-6">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-medium text-ink-muted uppercase tracking-widest">Completed — {completedTasks.length}</h3>
-              <button className="text-[10px] font-medium text-accent uppercase tracking-wider hover:underline">Clear all</button>
+              {/* Fix #9 — Clear All now has a handler */}
+              {completedTasks.length > 0 && (
+                <button
+                  onClick={handleClearCompleted}
+                  className="text-[10px] font-medium text-accent uppercase tracking-wider hover:underline"
+                >
+                  Clear all
+                </button>
+              )}
             </div>
             <div className="flex flex-col gap-4 opacity-70 grayscale-[0.3]">
               {completedTasks.map(renderTaskCard)}
@@ -453,10 +476,11 @@ export default function HousekeepingPage() {
               <label className="label">Assign To</label>
               <div className="relative">
                  <UserPlus size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
+                 {/* Fix #17 — placeholder is unconditional */}
                  <input 
                   type="text" 
                   className="input pl-10" 
-                  placeholder={newTask.assigned_to ? "" : "Staff name"} 
+                  placeholder="Staff name"
                   value={newTask.assigned_to}
                   onChange={e => setNewTask({ ...newTask, assigned_to: e.target.value })}
                 />
@@ -475,9 +499,10 @@ export default function HousekeepingPage() {
 
           <div className="field">
             <label className="label">Notes (Optional)</label>
+            {/* Fix #17 — placeholder is unconditional */}
             <textarea 
               className="input min-h-[80px] py-3" 
-              placeholder={newTask.notes ? "" : "e.g. Check AC remote battery"}
+              placeholder="e.g. Check AC remote battery"
               value={newTask.notes}
               onChange={e => setNewTask({ ...newTask, notes: e.target.value })}
             />

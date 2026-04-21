@@ -14,8 +14,11 @@ import {
   Settings as SettingsIcon,
   ChevronRight,
   Info,
-  ArrowLeft
+  ArrowLeft,
+  Bell as BellIcon,
+  BellOff
 } from 'lucide-react';
+import { useNotifications } from '@/hooks/useNotifications';
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = React.useState('reports');
@@ -39,6 +42,7 @@ export default function SettingsPage() {
     { id: 'taxes', label: 'Taxes & Invoicing', icon: Percent, roles: ['admin', 'owner'] },
     { id: 'security', label: 'Security & PINs', icon: ShieldCheck, roles: ['admin'] },
     { id: 'staff', label: 'Staff Management', icon: Users, roles: ['admin', 'owner'] },
+    { id: 'notifications', label: 'Notifications', icon: BellIcon, roles: ['admin', 'owner', 'reception'] },
     { id: 'audit', label: 'Audit Logs', icon: History, roles: ['owner', 'admin'] },
   ].filter(tab => userRole && tab.roles.includes(userRole));
 
@@ -65,7 +69,11 @@ export default function SettingsPage() {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  // Fix #22 — scroll content to top when switching tabs
+                  document.getElementById('settings-content')?.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
                 className={`flex items-center gap-2 px-3 md:px-4 py-2 md:py-2.5 rounded-lg text-xs md:text-sm font-medium whitespace-nowrap transition-all shrink-0 border ${
                   activeTab === tab.id
                     ? 'bg-accent/8 text-accent border-accent/20 shadow-sm'
@@ -81,7 +89,8 @@ export default function SettingsPage() {
       </div>
 
       {/* Full-Width Content Area */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-8">
+      {/* Fix #25 — standardized padding to match other pages */}
+      <div id="settings-content" className="flex-1 overflow-y-auto p-6 md:p-10">
         <div className="max-w-4xl mx-auto">
           {activeTab === 'reports' && <ReportsContent />}
           {activeTab === 'financials' && <FinancialsContent />}
@@ -90,6 +99,7 @@ export default function SettingsPage() {
           {activeTab === 'taxes' && <TaxesContent />}
           {activeTab === 'security' && <SecurityContent />}
           {activeTab === 'staff' && <StaffContent />}
+          {activeTab === 'notifications' && <NotificationsContent />}
           {activeTab === 'audit' && <AuditContent />}
         </div>
       </div>
@@ -140,8 +150,9 @@ function ReportsContent() {
         </Card>
         <Card>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">ADR</p>
+          {/* Fix #16 — removed hardcoded target */}
           <p className="text-2xl font-bold text-[#011432]">₹ 0</p>
-          <p className="text-xs text-gray-400 mt-2">Target: ₹ 2,800</p>
+          <p className="text-xs text-gray-400 mt-2">No revenue data yet</p>
         </Card>
       </div>
 
@@ -257,7 +268,7 @@ function TaxesContent() {
             <span className="text-sm font-bold text-accent">12.00%</span>
           </div>
           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-            <span className="text-sm font-medium">Luxury Tax (for >₹7500)</span>
+            <span className="text-sm font-medium">Luxury Tax (for &gt;₹7500)</span>
             <span className="text-sm font-bold text-accent">18.00%</span>
           </div>
         </div>
@@ -318,6 +329,85 @@ function StaffContent() {
           </table>
         </div>
       </Card>
+    </div>
+  );
+}
+
+function NotificationsContent() {
+  const { isSupported, config, updateConfig, toggleNotifications, loading, isBlocked } = useNotifications();
+
+  if (!isSupported) {
+    return (
+      <Card title="Device Notifications" description="Notifications are not supported on this browser or device.">
+        <div className="text-sm text-gray-400 py-4 italic">Browser notifications require a secure connection and a modern browser like Chrome or Safari.</div>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="animate-in fade-in slide-in-from-bottom-2 space-y-6">
+      <SectionHeader title="Notification Controls" description="Configure when and how you receive alerts." />
+      
+      <Card title="Native Alerts" description="Receive real-time push notifications on this device.">
+        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+          <div className="flex items-center gap-3">
+             <div className={`p-2 rounded-lg ${config.enabled ? 'bg-accent/10 text-accent' : 'bg-gray-200 text-gray-400'}`}>
+                {config.enabled ? <BellIcon size={18} /> : <BellOff size={18} />}
+             </div>
+             <div>
+               <span className="text-sm font-medium block">Browser Push Notifications</span>
+               <span className="text-[10px] text-gray-400">{config.enabled ? 'Currently active' : 'Disabled'}</span>
+             </div>
+          </div>
+          
+          <label className={`relative inline-flex items-center cursor-pointer ${loading || isBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}>
+            <input 
+              type="checkbox" 
+              className="sr-only peer" 
+              checked={config.enabled} 
+              disabled={loading || isBlocked}
+              onChange={toggleNotifications} 
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
+          </label>
+        </div>
+        
+        {isBlocked && (
+          <div className="mt-4 p-3 bg-danger/5 border border-danger/10 rounded-lg flex items-start gap-3">
+            <Info size={14} className="text-danger mt-0.5" />
+            <p className="text-[11px] text-danger/80">Permissions have been denied. Please reset the site settings in your browser address bar to allow alerts.</p>
+          </div>
+        )}
+      </Card>
+
+      {config.enabled && (
+        <Card title="Delivery Preferences" description="Choose which activity types trigger a system alert.">
+          <div className="space-y-1">
+             {[
+               { id: 'bookings', label: 'New Bookings', desc: 'When a new reservation is received' },
+               { id: 'checkins', label: 'Check-ins', desc: 'When a guest arrives and checks in' },
+               { id: 'checkouts', label: 'Check-outs', desc: 'When a guest pays and departs' },
+               { id: 'payments', label: 'Payments', desc: 'When any standalone payment is logged' }
+             ].map(item => (
+               <div key={item.id} className="flex items-center justify-between p-4 hover:bg-gray-50 rounded-xl transition-colors">
+                  <div>
+                    <span className="text-sm font-medium block text-gray-700">{item.label}</span>
+                    <span className="text-[10px] text-gray-400">{item.desc}</span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer" 
+                      checked={(config as any)[item.id]} 
+                      onChange={() => updateConfig({ [item.id]: !(config as any)[item.id] })} 
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
+                  </label>
+               </div>
+             ))}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

@@ -357,7 +357,7 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
               </div>
             </div>
             <div className="flex items-center gap-3 w-full sm:w-auto">
-              {!isReception && !isOwnerRole && (
+              {(userRole === 'admin' || userRole === 'md' || userRole === 'superadmin') && (
                 <button
                   onClick={() => setIsAddRoomOpen(true)}
                   className="btn btn-accent flex items-center justify-center gap-2 group"

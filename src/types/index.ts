@@ -72,6 +72,14 @@ export interface Booking {
   booking_source?: 'walk_in' | 'booking_com' | 'makemytrip' | 'cleartrip' | 'airbnb' | 'phone_call' | 'other'
   status: BookingStatus;
   special_requests?: string;
+  metadata?: any;
+  adults?: number;
+  children?: number;
+  infants?: number;
+  nationality?: string;
+  id_type?: string;
+  id_number?: string;
+  address?: string;
   created_at: string;
 }
 

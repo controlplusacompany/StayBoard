@@ -3,16 +3,16 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Bell, ChevronDown, Check, Building2, Layout, Home, Plus, Settings, LogOut, X, Menu, User } from 'lucide-react';
+import { Bell, ChevronDown, Check, Building2, Layout, Home, Plus, Settings, LogOut, X, Menu, User, ArrowLeft } from 'lucide-react';
 import Badge from '../ui/Badge';
 import Modal from '../ui/Modal';
 import { useToast } from '../ui/Toast';
 import { useNewBooking } from '../booking/NewBookingProvider';
 import { getSelectedProperty, setSelectedProperty } from '@/lib/store';
 import { format } from 'date-fns';
-import PushNotificationManager from '../PushNotificationManager';
+import NotificationList from './NotificationList';
 
-export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
+export default function Navbar({ onMenuClick, isSettingsPage }: { onMenuClick?: () => void; isSettingsPage?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -41,7 +41,6 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
 
   const [isSwitcherOpen, setIsSwitcherOpen] = React.useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false);
-  const [isNotifOpen, setIsNotifOpen] = React.useState(false);
   const [isAddPropertyOpen, setIsAddPropertyOpen] = React.useState(false);
   const [isUpgradeOpen, setIsUpgradeOpen] = React.useState(false);
   const [newPropertyName, setNewPropertyName] = React.useState('');
@@ -79,7 +78,6 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const closeAll = () => {
     setIsSwitcherOpen(false);
     setIsUserMenuOpen(false);
-    setIsNotifOpen(false);
   };
 
   const handleSignOut = () => {
@@ -98,7 +96,7 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
 
   return (
     <>
-      {(isSwitcherOpen || isUserMenuOpen || isNotifOpen) && (
+      {(isSwitcherOpen || isUserMenuOpen) && (
         <div className="fixed inset-0 z-[90]" onClick={closeAll} />
       )}
 
@@ -199,7 +197,7 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="hidden lg:flex flex-col items-end mr-2">
+          <div className="hidden md:flex flex-col items-end mr-2">
             {mounted && (
               <>
                 <span className="text-[13px] font-semibold text-accent leading-none mb-1 uppercase tracking-wider">
@@ -213,9 +211,7 @@ export default function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
           </div>
 
           {mounted && (
-            <div className="relative">
-              <PushNotificationManager />
-            </div>
+            <NotificationList />
           )}
 
           <div className="relative">

@@ -6,6 +6,7 @@ import {
   Users, 
   Star, 
   ArrowRight,
+  ChevronRight,
   UserCircle2,
   Phone,
   CreditCard,
@@ -111,7 +112,7 @@ export default function GuestsPage() {
       setGuests(updatedGuests);
       toast("VIP status updated", "success");
     } catch (error) {
-      toast("Failed to update VIP status", "danger");
+      toast("Failed to update VIP status", "error");
     }
   };
 
@@ -225,7 +226,8 @@ export default function GuestsPage() {
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">
         <div className="flex flex-col gap-3">
           <span className="text-[10px] font-medium text-accent uppercase tracking-[0.3em] font-sans">Relationships & Loyalty</span>
-          <h1 className="text-4xl md:text-5xl font-display text-ink-primary tracking-tighter font-semibold text-balance">Guest Directory</h1>
+          {/* Fix #4 — standardized to font-medium, matching Reservations & Housekeeping */}
+          <h1 className="text-4xl md:text-5xl font-display text-ink-primary tracking-tighter font-medium text-balance">Guest Directory</h1>
         </div>
         
         {/* Metric Summaries */}
@@ -275,9 +277,11 @@ export default function GuestsPage() {
             <button 
               onClick={handleExportCSV}
               className="btn border border-border-strong text-ink-secondary hover:bg-bg-sunken hover:text-ink-primary shadow-none font-semibold"
+              aria-label="Export guest list as CSV"
             >
               <FileSpreadsheet size={16} />
-              Export Excel
+              {/* Fix #23 — label now correctly says CSV */}
+              Export CSV
             </button>
           </div>
           
@@ -351,14 +355,17 @@ export default function GuestsPage() {
                 <th className="py-4 px-6 text-[10px] font-semibold text-ink-muted uppercase tracking-[0.1em]">
                   Stay
                 </th>
+                {/* Fix #12 — Last Visit header font matches all other headers */}
                 <th 
-                  className="py-4 px-6 text-xs font-medium text-ink-muted uppercase tracking-wider cursor-pointer hover:text-accent transition-colors text-right"
+                  className="py-4 px-6 text-[10px] font-semibold text-ink-muted uppercase tracking-[0.1em] cursor-pointer hover:text-accent transition-colors"
                   onClick={() => handleSort('last_stay_date')}
                 >
                   <div className="flex items-center gap-2 justify-end text-nowrap">
                     Last Visit <SortIcon column="last_stay_date" />
                   </div>
                 </th>
+                {/* Fix #20 — chevron column header placeholder for affordance */}
+                <th className="py-4 px-6 w-8" />
               </tr>
               
               {showColumnFilters && (
@@ -472,8 +479,9 @@ export default function GuestsPage() {
                       </span>
                     </div>
                   </td>
+                  {/* Fix #19 — plain span instead of semantic Badge for numeric data */}
                   <td className="py-4 px-6">
-                    <Badge type="info" label={`${(guest as any).stay_duration || 0} Days`} className="font-mono whitespace-nowrap" />
+                    <span className="font-mono text-sm text-ink-secondary">{(guest as any).stay_duration || 0} nights</span>
                   </td>
                   <td className="py-4 px-6 text-right">
                     <div className="flex flex-col items-end">
@@ -484,6 +492,10 @@ export default function GuestsPage() {
                         {guest.last_stay_date ? format(new Date(guest.last_stay_date), 'HH:mm') : '--:--'}
                       </span>
                     </div>
+                  </td>
+                  {/* Fix #20 — chevron affordance on every row */}
+                  <td className="py-4 px-2 text-ink-muted group-hover:text-accent transition-colors">
+                    <ChevronRight size={16} />
                   </td>
                 </tr>
               ))}
@@ -541,7 +553,7 @@ export default function GuestsPage() {
                   <span className="text-[10px] uppercase font-medium tracking-wider text-ink-muted flex items-center gap-1.5">
                     <CreditCard size={12} /> Total Spent
                   </span>
-                  <span className="font-mono text-sm font-medium text-success">₹{selectedGuest.total_spent.toLocaleString()}</span>
+                  <span className="font-mono text-sm font-medium text-success">₹{(selectedGuest?.total_spent || 0).toLocaleString()}</span>
                 </div>
               )}
               <div className="border border-border-subtle rounded-lg p-3 flex flex-col gap-1">
@@ -574,15 +586,12 @@ export default function GuestsPage() {
               </div>
             </div>
 
-            {/* Notes Section */}
+            {/* Fix #11 — Notes displayed as read-only styled element, not a confusingly editable textarea */}
             <div className="flex flex-col gap-2">
               <label className="text-xs font-semibold text-ink-muted uppercase tracking-wider">Internal Notes</label>
-              <textarea 
-                className="input min-h-[100px] resize-none" 
-                placeholder={selectedGuest?.notes ? "" : "Add dietary preferences, room preferences, or anything else about this guest..."}
-                defaultValue={selectedGuest?.notes}
-                readOnly
-              />
+              <div className="bg-bg-sunken/50 border border-border-subtle rounded-xl px-4 py-3 min-h-[80px] text-sm text-ink-secondary leading-relaxed">
+                {selectedGuest?.notes || <span className="text-ink-muted italic text-xs">No notes recorded for this guest.</span>}
+              </div>
             </div>
           </div>
         )}
