@@ -37,11 +37,14 @@ export default function NotificationDebugger() {
   const sendTestPush = async () => {
     try {
       setTestStatus('Sending...');
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
       
       const response = await fetch('/api/notify/push/send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
         body: JSON.stringify({
           title: 'StayBoard Test Alert! 🛎️',
           body: 'If you see this, your iPhone push is working perfectly.',
