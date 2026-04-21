@@ -219,4 +219,29 @@ CREATE POLICY "Receptionists can manage assigned property invoices" ON invoices 
 CREATE POLICY "Owners can manage payments" ON payments FOR ALL USING (EXISTS (SELECT 1 FROM invoices WHERE invoices.id = payments.invoice_id AND invoices.owner_id = auth.uid()));
 
 -- Rate Rules
-CREATE POLICY "Owners can manage rate rules" ON rate_rules FOR ALL USING (EXISTS (SELECT 1 FROM properties WHERE properties.id = rate_rules.property_id AND properties.owner_id = auth.uid()));
+-- 222: CREATE POLICY "Owners can manage rate rules" ON rate_rules FOR ALL USING (EXISTS (SELECT 1 FROM properties WHERE properties.id = rate_rules.property_id AND properties.owner_id = auth.uid()));
+
+-- 12. Audit Logs Table
+CREATE TABLE audit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  action TEXT NOT NULL,
+  entity_type TEXT NOT NULL,
+  entity_id UUID NOT NULL,
+  old_data JSONB,
+  new_data JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- PERFORMANCE INDEXES
+CREATE INDEX idx_bookings_property_checkin ON bookings(property_id, check_in_date);
+CREATE INDEX idx_bookings_property_checkout ON bookings(property_id, check_out_date);
+CREATE INDEX idx_bookings_status ON bookings(status);
+CREATE INDEX idx_housekeeping_property_status ON housekeeping_tasks(property_id, status);
+CREATE INDEX idx_push_subscriptions_user_id ON push_subscriptions(user_id);
+
+-- ENABLE RLS FOR AUDIT LOGS
+ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+
+-- AUDIT LOG POLICIES
+CREATE POLICY "Owners can view audit logs" ON audit_logs FOR SELECT USING (EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role = 'owner'));

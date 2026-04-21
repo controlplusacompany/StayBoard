@@ -18,7 +18,8 @@ import { useNewBooking } from '@/components/booking/NewBookingProvider';
 import { parseISO, format, isSameDay, differenceInDays } from 'date-fns';
 import Badge from '@/components/ui/Badge';
 import { useRealtime } from '@/hooks/useRealtime';
-import RoomDrawer from '@/components/rooms/RoomDrawer';
+import { SkeletonKPI, SkeletonCard, SkeletonArrival } from '@/components/ui/Skeletons';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -28,14 +29,23 @@ export default function DashboardPage() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isMounted, setIsMounted] = useState(false);
+  const [stats, setStats] = useState<any>(null);
 
   React.useEffect(() => {
     setIsMounted(true);
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    if (typeof window !== 'undefined') {
-      setUserRole(localStorage.getItem('stayboard_user_role') || 'owner');
-      setUserEmail(localStorage.getItem('stayboard_user_email'));
-    }
+    
+    // SECURE ROLE FETCHING
+    const fetchProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserEmail(user.email || null);
+        const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+        if (profile) setUserRole(profile.role);
+      }
+    };
+
+    fetchProfile();
     return () => clearInterval(timer);
   }, []);
 
@@ -45,9 +55,9 @@ export default function DashboardPage() {
 
   const getGreeting = () => {
     if (userEmail === 'dhagamonish00@gmail.com') return 'Welcome, Admin!';
-    if (userRole === 'reception') return 'Welcome, User!';
+    if (userRole === 'reception') return 'Welcome, Staff!';
     if (userRole === 'owner') return 'Welcome, Sudhir!';
-    return 'Welcome Back, User!';
+    return 'Welcome Back!';
   };
 
   const owner = { 
@@ -74,22 +84,22 @@ export default function DashboardPage() {
   });
 
   const loadCache = useCallback(async () => {
-    // Remove the early setPropertyFilter to prevent rendering inconsistent state
     const currentFilter = getSelectedProperty();
     
-    const [enrichedRooms, bookings, arrivalsToday, fetchedProps] = await Promise.all([
+    const [enrichedRooms, bookings, arrivalsToday, fetchedProps, dashboardStats] = await Promise.all([
       getEnrichedRooms(),
       getStoredBookings(),
       getArrivalsToday(),
-      getStoredProperties()
+      getStoredProperties(),
+      import('@/lib/services').then(m => m.getDashboardStats(currentFilter === 'all' ? undefined : currentFilter || undefined))
     ]);
     
-    // Batch updates to ensure all state changes occur in the same render cycle
     setPropertyFilter(currentFilter);
     setStoredRooms(enrichedRooms);
     setStoredBookings(bookings);
     setArrivals(arrivalsToday);
     setProperties(fetchedProps as Property[]);
+    setStats(dashboardStats);
     if (!dataLoaded) setDataLoaded(true);
   }, [dataLoaded]);
 
@@ -148,30 +158,30 @@ export default function DashboardPage() {
   const currentDateTime = format(currentTime, 'EEEE, dd MMM yyyy');
 
   if (!isMounted || !dataLoaded) return (
-    <div className="p-6 md:p-8 flex flex-col gap-10 animate-pulse bg-bg-canvas min-h-screen">
+    <div className="p-6 md:p-8 flex flex-col gap-10 bg-bg-canvas min-h-screen">
       <div className="flex flex-col gap-4">
-        <div className="h-4 w-32 bg-bg-sunken rounded opacity-60" />
-        <div className="h-12 w-80 bg-bg-sunken rounded" />
+        <div className="h-6 w-80 bg-bg-sunken rounded-lg animate-pulse" />
       </div>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="flex flex-col gap-3">
-            <div className="h-28 bg-bg-sunken rounded-2xl" />
-            <div className="h-4 w-2/3 bg-bg-sunken rounded opacity-40 mx-auto" />
-          </div>
-        ))}
+        {[1,2,3,4,5].map(i => <SkeletonKPI key={i} />)}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="h-64 bg-bg-sunken rounded-3xl" />
-        ))}
+      <div className="flex gap-5 overflow-hidden">
+        {[1,2,3].map(i => <SkeletonArrival key={i} />)}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {[1,2,3].map(i => <SkeletonCard key={i} />)}
       </div>
     </div>
   );
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 flex flex-col gap-6 animate-slide-up bg-bg-canvas min-h-screen">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: 'easeOut' }}
+      className="p-4 md:p-6 lg:p-8 flex flex-col gap-6 bg-bg-canvas min-h-screen"
+    >
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 sticky top-0 z-20 bg-bg-canvas/80 backdrop-blur-md py-2 -mx-4 px-4">
         <div className="flex flex-col gap-2 w-full">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 w-full">
             <h1 className="text-3xl md:text-4xl font-display text-ink-primary tracking-tighter font-medium text-balance">
@@ -181,39 +191,51 @@ export default function DashboardPage() {
         </div>
 
         {!isReception && (
-          <div className="flex items-center gap-8 text-right shrink-0">
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+            className="flex items-center gap-8 text-right shrink-0"
+          >
             <div className="flex flex-col gap-1 items-end">
               <span className="text-[10px] font-medium uppercase tracking-widest text-ink-muted">Occupancy</span>
               <span className="text-xl sm:text-2xl font-mono font-medium tracking-tight text-ink-primary">
-                {Math.round((allRooms.filter(r => r.status === 'occupied').length / Math.max(1, allRooms.length)) * 100)}%
+                {stats?.occupiedRooms !== undefined ? Math.round((stats.occupiedRooms / (stats.vacantRooms + stats.occupiedRooms || 1)) * 100) : 0}%
               </span>
             </div>
             <div className="flex flex-col gap-1 items-end">
               <span className="text-[10px] font-medium uppercase tracking-widest text-ink-muted">Revenue</span>
               <div className="flex items-center gap-1.5">
                 <span className="text-xl sm:text-2xl font-mono font-medium tracking-tight text-ink-primary">
-                  ₹{Object.values(storedBookings)
-                    .filter(b => isSameDay(parseISO(b.check_in_date), new Date()))
-                    .filter(b => !propertyFilter || propertyFilter === 'all' || b.property_id === propertyFilter)
-                    .reduce((sum, b) => sum + (Number(b.amount_paid) || 0), 0)}
+                  ₹{stats?.revenueToday?.toLocaleString() || 0}
                 </span>
                 <span className="text-[11px] font-bold text-success">↗ 0%</span>
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
       </header>
 
       {/* GLOBAL KPI DASHBOARD */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-2">
+      <motion.div 
+        layout
+        className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-2"
+      >
             {[
-              { label: 'Vacant Rooms', value: allRooms.filter(r => r.status === 'vacant').length, sub: 'Available tonight', border: 'var(--status-vacant-border)' },
-              { label: 'Occupied Rooms', value: allRooms.filter(r => r.status === 'occupied').length, sub: 'Currently in-stay', border: 'var(--status-occupied-border)' },
-              { label: 'Check-ins Today', value: Object.values(storedBookings).filter(b => isSameDay(parseISO(b.check_in_date), new Date()) && (b.status === 'confirmed' || b.status === 'partial_payment' || b.status === 'unassigned')).filter(b => !propertyFilter || propertyFilter === 'all' || b.property_id === propertyFilter).length, sub: 'Arriving guests', border: 'var(--status-arriving-border)' },
-              { label: 'Check-outs Today', value: Object.values(storedBookings).filter(b => isSameDay(parseISO(b.check_out_date), new Date()) && b.status === 'checked_in').filter(b => !propertyFilter || propertyFilter === 'all' || b.property_id === propertyFilter).length, sub: 'Departing guests', border: 'var(--status-checkout-border)' },
-              { label: "Revenue Today", value: `₹${Object.values(storedBookings).filter(b => isSameDay(parseISO(b.check_in_date), new Date())).filter(b => !propertyFilter || propertyFilter === 'all' || b.property_id === propertyFilter).reduce((sum, b) => sum + (Number(b.amount_paid) || 0), 0).toLocaleString()}`, sub: 'Collected today', border: 'var(--accent)', isRevenue: true }
+              { label: 'Vacant Rooms', value: stats?.vacantRooms ?? 0, sub: 'Available tonight', border: 'var(--status-vacant-border)' },
+              { label: 'Occupied Rooms', value: stats?.occupiedRooms ?? 0, sub: 'Currently in-stay', border: 'var(--status-occupied-border)' },
+              { label: 'Check-ins Today', value: stats?.checkinsToday ?? 0, sub: 'Arriving guests', border: 'var(--status-arriving-border)' },
+              { label: 'Check-outs Today', value: stats?.checkoutsToday ?? 0, sub: 'Departing guests', border: 'var(--status-checkout-border)' },
+              { label: "Revenue Today", value: `₹${(stats?.revenueToday ?? 0).toLocaleString()}`, sub: 'Collected today', border: 'var(--accent)', isRevenue: true }
             ].filter(kpi => !isReception || !kpi.isRevenue).map((kpi, i) => (
-              <div key={i} className="bg-white border border-border-subtle rounded-lg p-3 sm:p-4 shadow-xs border-l-4 flex flex-col gap-1 sm:gap-2 transition-all hover:shadow-md duration-300" style={{ borderLeftColor: kpi.border }}>
+              <motion.div 
+                key={i} 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 * i }}
+                className="bg-white border border-border-subtle rounded-lg p-3 sm:p-4 shadow-xs border-l-4 flex flex-col gap-1 sm:gap-2 transition-all hover:shadow-md duration-300" 
+                style={{ borderLeftColor: kpi.border }}
+              >
                 <span className="text-[9px] sm:text-[10px] font-semibold text-ink-muted uppercase tracking-widest">{kpi.label}</span>
                 <div className="flex flex-col">
                   <span className={`text-xl sm:text-2xl font-display font-semibold text-ink-primary ${kpi.isRevenue ? 'font-mono' : ''}`}>{kpi.value}</span>
@@ -221,9 +243,9 @@ export default function DashboardPage() {
                     {kpi.sub} {kpi.isRevenue && <span className="text-success font-semibold ml-1">↗ 0%</span>}
                   </span>
                 </div>
-              </div>
+              </motion.div>
             ))}
-      </div>
+      </motion.div>
 
       {/* ARRIVALS TODAY SECTION */}
       {arrivals.length > 0 && (
@@ -323,12 +345,18 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProperties.map((property, idx) => (
-            <div key={property.id} className="stagger-item visible" style={{ animationDelay: `${idx * 40}ms` }}>
+            <motion.div 
+              key={property.id} 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.1 * idx + 0.3 }}
+              className="stagger-item visible"
+            >
               <PropertyCard
                 property={property}
                 summary={getPropertySummary(property.id)}
               />
-            </div>
+            </motion.div>
           ))}
           {filteredProperties.length === 0 && (
             <div className="col-span-full py-16 bg-bg-sunken/40 rounded-2xl border border-dashed border-border-subtle flex flex-col items-center justify-center text-center">
@@ -340,6 +368,12 @@ export default function DashboardPage() {
         </div>
         <div className="h-px bg-border-subtle mt-10 mb-6" />
       </section>
+
+      {/* MODAL: Add Property */}
+      {/* ... keeping modals as is ... */}
+    </motion.div>
+  );
+}
 
       {/* MODAL: Add Property */}
       <Modal 

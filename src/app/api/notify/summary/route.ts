@@ -1,37 +1,54 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseService } from '@/lib/supabase';
 import { sendTelegramNotification } from '@/lib/notifications';
+import { formatInTimeZone } from 'date-fns-tz';
+import { z } from 'zod';
+
+const TIMEZONE = 'Asia/Kolkata';
+
+const summarySchema = z.object({
+  type: z.enum(['morning', 'night']).default('morning')
+});
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const type = searchParams.get('type') || 'morning';
   const authHeader = request.headers.get('authorization');
   
   if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const now = new Date();
-  const offset = now.getTimezoneOffset() * 60000;
-  const localToday = new Date(now.getTime() - offset).toISOString().split('T')[0];
+  // Validate Input
+  const result = summarySchema.safeParse({
+    type: searchParams.get('type')
+  });
+
+  if (!result.success) {
+    return NextResponse.json({ error: 'Invalid parameters', details: result.error.format() }, { status: 400 });
+  }
+
+  const { type } = result.data;
+
+  // Use explicit Timezone for India
+  const localToday = formatInTimeZone(new Date(), TIMEZONE, 'yyyy-MM-dd');
 
   try {
-    // 1. Fetch All Properties
-    const { data: properties, error: pError } = await supabase.from('properties').select('*').eq('is_active', true);
+    // 1. Fetch All Properties using Service Role to ensure all data is visible
+    const { data: properties, error: pError } = await supabaseService.from('properties').select('*').eq('is_active', true);
     if (pError || !properties) throw new Error('Could not fetch properties');
 
     if (type === 'morning') {
       for (const property of properties) {
         // A. Fetch Arrivals today
-        const { data: arrivals } = await supabase
+        const { data: arrivals } = await supabaseService
           .from('bookings')
           .select('id')
           .eq('property_id', property.id)
           .eq('check_in_date', localToday)
-          .in('status', ['unassigned', 'assigned']);
+          .in('status', ['confirmed', 'partial_payment']);
 
-        // B. Fetch Departures today with Invoice/Balance info
-        const { data: departures } = await supabase
+        // B. Fetch Departures today
+        const { data: departures } = await supabaseService
           .from('bookings')
           .select('*, invoices(amount_total, amount_paid)')
           .eq('property_id', property.id)
@@ -39,7 +56,7 @@ export async function GET(request: Request) {
           .eq('status', 'checked_in');
 
         // C. Calculate Occupancy
-        const { count: occupiedCount } = await supabase
+        const { count: occupiedCount } = await supabaseService
           .from('bookings')
           .select('id', { count: 'exact', head: true })
           .eq('property_id', property.id)
@@ -49,44 +66,41 @@ export async function GET(request: Request) {
           ? Math.round(((occupiedCount || 0) / property.total_rooms) * 100) 
           : 0;
 
-        // D. Calculate Financials (Balance to collect from departures)
         const balanceToCollect = departures?.reduce((sum, d) => {
-          const inv = Array.isArray((d as any).invoices) ? (d as any).invoices[0] : (d as any).invoices;
+          const invs = (d as any).invoices;
+          const inv = Array.isArray(invs) ? invs[0] : invs;
           if (inv) return sum + (Number(inv.amount_total) - Number(inv.amount_paid));
           return sum;
         }, 0) || 0;
 
-        // E. Format Simple Message
         const message = `
 ☀️ <b>${property.name} - Morning</b>
 ---------------------------
+📅 <b>Date:</b> ${localToday}
 📊 <b>Occupancy:</b> ${occupancyPercent}% (${occupiedCount || 0}/${property.total_rooms} Rooms)
 
 🚶 <b>Expected Arrivals:</b> ${arrivals?.length || 0}
 🏃 <b>Expected Departures:</b> ${departures?.length || 0}
-💰 <b>Balance to Collect:</b> ₹${balanceToCollect.toLocaleString()}
+💰 <b>Expected Collections:</b> ₹${balanceToCollect.toLocaleString()}
         `.trim();
 
         await sendTelegramNotification(message, 'summaries');
       }
-      return NextResponse.json({ success: true });
 
     } else if (type === 'night') {
       for (const property of properties) {
-        // A. Today's Collections
-        const { data: bookingsToday } = await supabase
+        // Fetch all financial activity for today
+        const fetchDate = `${localToday}T00:00:00Z`;
+        const { data: bookingsToday } = await supabaseService
           .from('bookings')
           .select('amount_paid')
           .eq('property_id', property.id)
-          .filter('created_at', 'gte', `${localToday}T00:00:00Z`);
+          .gte('created_at', fetchDate);
 
         const propertyCollected = bookingsToday?.reduce((sum, b) => sum + (Number(b.amount_paid) || 0), 0) || 0;
-
-        // B. New Bookings Today
         const newBookingCount = bookingsToday?.length || 0;
 
-        // C. Current Occupancy
-        const { count: occupiedCount } = await supabase
+        const { count: occupiedCount } = await supabaseService
           .from('bookings')
           .select('id', { count: 'exact', head: true })
           .eq('property_id', property.id)
@@ -95,19 +109,19 @@ export async function GET(request: Request) {
         const message = `
 🌙 <b>${property.name} - Night</b>
 ---------------------------
-💰 <b>Total Collected Today:</b> ₹${propertyCollected.toLocaleString()}
-🆕 <b>New Bookings Made:</b> ${newBookingCount}
-🛏️ <b>Occupancy for Tonight:</b> ${occupiedCount || 0}/${property.total_rooms}
+📅 <b>Date:</b> ${localToday}
+💰 <b>Collected Today:</b> ₹${propertyCollected.toLocaleString()}
+🆕 <b>New Bookings:</b> ${newBookingCount}
+🛏️ <b>Occupied Tonight:</b> ${occupiedCount || 0}/${property.total_rooms}
         `.trim();
 
         await sendTelegramNotification(message, 'summaries');
       }
-      return NextResponse.json({ success: true });
     }
 
-    return NextResponse.json({ error: 'Invalid summary type' }, { status: 400 });
-  } catch (error) {
+    return NextResponse.json({ success: true, date: localToday });
+  } catch (error: any) {
     console.error('Summary notification error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
