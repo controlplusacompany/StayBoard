@@ -19,6 +19,7 @@ import {
   BellOff
 } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
+import NotificationDebugger from '@/components/settings/NotificationDebugger';
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = React.useState('reports');
@@ -99,7 +100,7 @@ export default function SettingsPage() {
           {activeTab === 'taxes' && <TaxesContent />}
           {activeTab === 'security' && <SecurityContent />}
           {activeTab === 'staff' && <StaffContent />}
-          {activeTab === 'notifications' && <NotificationsContent />}
+          {activeTab === 'notifications' && <NotificationsContent isOwner={isOwner} />}
           {activeTab === 'audit' && <AuditContent />}
         </div>
       </div>
@@ -323,17 +324,7 @@ function StaffContent() {
                   <td className="py-4 text-sm font-medium text-[#011432]">{staff.name}</td>
                   <td className="py-4 text-sm text-center text-gray-600">{staff.bookings}</td>
                   <td className="py-4 text-sm text-right text-gray-600">{staff.checkins}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-    </div>
-  );
-}
-
-function NotificationsContent() {
+function NotificationsContent({ isOwner }: { isOwner: boolean }) {
   const { isSupported, config, updateConfig, toggleNotifications, loading, isBlocked } = useNotifications();
 
   if (!isSupported) {
@@ -389,7 +380,7 @@ function NotificationsContent() {
                { id: 'checkouts', label: 'Check-outs', desc: 'When a guest pays and departs' },
                { id: 'payments', label: 'Payments', desc: 'When any standalone payment is logged' }
              ].map(item => (
-               <div key={item.id} className="flex items-center justify-between p-4 hover:bg-gray-50 rounded-xl transition-colors">
+                <div key={item.id} className="flex items-center justify-between p-4 hover:bg-gray-50 rounded-xl transition-colors">
                   <div>
                     <span className="text-sm font-medium block text-gray-700">{item.label}</span>
                     <span className="text-[10px] text-gray-400">{item.desc}</span>
@@ -403,11 +394,14 @@ function NotificationsContent() {
                     />
                     <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
                   </label>
-               </div>
-             ))}
+                </div>
+              ))}
           </div>
         </Card>
       )}
+
+      {/* Owner-Specific Diagnostic Tools */}
+      {isOwner && <NotificationDebugger />}
     </div>
   );
 }
