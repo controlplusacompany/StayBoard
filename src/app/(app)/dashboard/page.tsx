@@ -11,15 +11,16 @@ import { Property, RoomStatus } from '@/types';
 import Modal from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import Link from 'next/link';
-import { getEnrichedRooms, getStoredBookings, getSelectedProperty, getArrivalsToday, updateRoomStatus, getVacantRooms, getStoredProperties, updateBookingStatus } from '@/lib/store';
+import { getEnrichedRooms, getStoredBookings, getSelectedProperty, getArrivalsToday, getStoredProperties } from '@/lib/store';
 import { Room, Booking } from '@/types';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useNewBooking } from '@/components/booking/NewBookingProvider';
 import { parseISO, format, isSameDay, differenceInDays } from 'date-fns';
-import Badge from '@/components/ui/Badge';
 import { useRealtime } from '@/hooks/useRealtime';
+import RoomDrawer from '@/components/rooms/RoomDrawer';
 import { SkeletonKPI, SkeletonCard, SkeletonArrival } from '@/components/ui/Skeletons';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { supabase } from '@/lib/supabase';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -30,6 +31,24 @@ export default function DashboardPage() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isMounted, setIsMounted] = useState(false);
   const [stats, setStats] = useState<any>(null);
+
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [storedRooms, setStoredRooms] = useState<Room[]>([]);
+  const [storedBookings, setStoredBookings] = useState<Record<string, Booking>>({});
+  const [arrivals, setArrivals] = useState<Booking[]>([]);
+  const [dataLoaded, setDataLoaded] = useState(false);
+  const [propertyFilter, setPropertyFilter] = useState<string | null>(null);
+
+  const [isAddPropertyOpen, setIsAddPropertyOpen] = useState(false);
+  const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [newProperty, setNewProperty] = useState({
+    name: '',
+    rooms: '',
+    address: ''
+  });
 
   React.useEffect(() => {
     setIsMounted(true);
@@ -64,24 +83,6 @@ export default function DashboardPage() {
     name: isReception ? 'Reception' : isSuperAdmin ? 'Monish' : isOwnerRole ? 'Operations Manager' : 'Rajesh', 
     plan: 'pro' 
   };
-
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [storedRooms, setStoredRooms] = useState<Room[]>([]);
-  const [storedBookings, setStoredBookings] = useState<Record<string, Booking>>({});
-  const [arrivals, setArrivals] = useState<Booking[]>([]);
-  const [dataLoaded, setDataLoaded] = useState(false);
-  const [propertyFilter, setPropertyFilter] = useState<string | null>(null);
-
-  const [isAddPropertyOpen, setIsAddPropertyOpen] = useState(false);
-  const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [newProperty, setNewProperty] = useState({
-    name: '',
-    rooms: '',
-    address: ''
-  });
 
   const loadCache = useCallback(async () => {
     const currentFilter = getSelectedProperty();
@@ -154,8 +155,6 @@ export default function DashboardPage() {
     toast("Peace Hotel added", "success");
     setIsAddPropertyOpen(false);
   };
-
-  const currentDateTime = format(currentTime, 'EEEE, dd MMM yyyy');
 
   if (!isMounted || !dataLoaded) return (
     <div className="p-6 md:p-8 flex flex-col gap-10 bg-bg-canvas min-h-screen">
@@ -273,11 +272,9 @@ export default function DashboardPage() {
                     <div className="flex items-start justify-between">
                       <div className="flex flex-col gap-1">
                         <h3 className="text-xl font-bold text-ink-primary tracking-tight leading-tight">{booking.guest_name}</h3>
-
                         <p className="text-sm font-medium text-ink-secondary">
                           {room ? `Room ${room.room_number}` : 'Double Room (Unassigned)'} • {nights} {nights === 1 ? 'night' : 'nights'}
                         </p>
-
                       </div>
                       <div className="bg-blue-50 text-[10px] font-bold text-blue-600 px-2.5 py-1 rounded-md uppercase tracking-wide border border-blue-100">
                         {booking.booking_source?.replace('_', '.') || 'Booking.com'}
@@ -370,12 +367,6 @@ export default function DashboardPage() {
       </section>
 
       {/* MODAL: Add Property */}
-      {/* ... keeping modals as is ... */}
-    </motion.div>
-  );
-}
-
-      {/* MODAL: Add Property */}
       <Modal 
         isOpen={isAddPropertyOpen} 
         onClose={() => setIsAddPropertyOpen(false)}
@@ -444,6 +435,6 @@ export default function DashboardPage() {
         onClose={() => setIsDrawerOpen(false)} 
         room={selectedRoom as any} 
       />
-    </div>
+    </motion.div>
   );
 }
