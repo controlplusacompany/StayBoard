@@ -29,7 +29,10 @@ yarn-error.log*
 .env*.local
 
 # vercel
-.vercel
+# maintenance scripts
+cleanup_audit.js
+create_audit_user.js
+update_rls.js
 
 # Database Recovery Vault (Private)
 db_recovery_vault.sql

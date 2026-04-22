@@ -729,3 +729,16 @@ export const shiftRoom = async (bookingId: string, sourceRoomId: string, targetR
   
   window.dispatchEvent(new Event('storage'));
 };
+export const getAuditLogsStored = async () => {
+  const { data, error } = await supabase
+    .from('audit_logs')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error) {
+    console.error('Error fetching audit logs:', error);
+    return [];
+  }
+  return data;
+};

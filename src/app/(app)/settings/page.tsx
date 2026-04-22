@@ -20,16 +20,64 @@ import {
 } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
 import NotificationDebugger from '@/components/settings/NotificationDebugger';
+import { 
+  getMTDPerformance, 
+  getFinancialDistribution, 
+  getStaffPerformance 
+} from '@/lib/services';
+import { getAuditLogsStored, getSelectedProperty } from '@/lib/store';
+import { formatDistanceToNow } from 'date-fns';
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = React.useState('reports');
   const [userRole, setUserRole] = React.useState<string | null>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [data, setData] = React.useState<any>(null);
 
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
       setUserRole(localStorage.getItem('stayboard_user_role') || 'owner');
     }
+
+    // Listen for property changes
+    const handleUpdate = () => fetchData();
+    window.addEventListener('stayboard_update', handleUpdate);
+    window.addEventListener('stayboard_property_change', handleUpdate);
+    
+    return () => {
+      window.removeEventListener('stayboard_update', handleUpdate);
+      window.removeEventListener('stayboard_property_change', handleUpdate);
+    };
   }, []);
+
+  const fetchData = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const propertyId = getSelectedProperty() || 'all';
+      
+      const [performance, financials, staff, audit] = await Promise.all([
+        getMTDPerformance(propertyId),
+        getFinancialDistribution(propertyId),
+        getStaffPerformance(propertyId),
+        getAuditLogsStored()
+      ]);
+
+      setData({
+        performance,
+        financials,
+        staff,
+        audit
+      });
+    } catch (error) {
+      console.error('Error fetching settings data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const isAdmin = userRole === 'admin';
   const isOwner = userRole === 'owner';
@@ -90,18 +138,17 @@ export default function SettingsPage() {
       </div>
 
       {/* Full-Width Content Area */}
-      {/* Fix #25 — standardized padding to match other pages */}
       <div id="settings-content" className="flex-1 overflow-y-auto p-6 md:p-10">
         <div className="max-w-4xl mx-auto">
-          {activeTab === 'reports' && <ReportsContent />}
-          {activeTab === 'financials' && <FinancialsContent />}
+          {activeTab === 'reports' && (loading ? <LoadingSkeleton type="grid" /> : <ReportsContent data={data?.performance} />)}
+          {activeTab === 'financials' && (loading ? <LoadingSkeleton type="card" /> : <FinancialsContent data={data?.financials} />)}
           {activeTab === 'property' && <PropertyContent />}
           {activeTab === 'rooms' && <RoomsContent />}
           {activeTab === 'taxes' && <TaxesContent />}
           {activeTab === 'security' && <SecurityContent />}
-          {activeTab === 'staff' && <StaffContent />}
+          {activeTab === 'staff' && (loading ? <LoadingSkeleton type="table" /> : <StaffContent data={data?.staff} />)}
           {activeTab === 'notifications' && <NotificationsContent isOwner={isOwner} />}
-          {activeTab === 'audit' && <AuditContent />}
+          {activeTab === 'audit' && (loading ? <LoadingSkeleton type="list" /> : <AuditContent data={data?.audit} isAdmin={isAdmin} />)}
         </div>
       </div>
     </div>
@@ -133,7 +180,11 @@ function Card({ children, title, description }: { children: React.ReactNode, tit
   );
 }
 
-function ReportsContent() {
+function ReportsContent({ data }: { data: any }) {
+  const revenue = data?.totalRevenue || 0;
+  const occupancy = data?.occupancy || 0;
+  const adr = data?.avgBookingValue || 0;
+
   return (
     <div className="animate-in fade-in slide-in-from-bottom-2">
       <SectionHeader title="Performance Overview" description="Consolidated metrics across all your properties." />
@@ -141,60 +192,49 @@ function ReportsContent() {
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-5 md:mb-8">
         <Card>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Total Revenue (MTD)</p>
-          <p className="text-2xl font-bold text-[#011432]">₹ 0</p>
-          <p className="text-xs text-gray-400 mt-2">No revenue recorded yet</p>
+          <p className="text-2xl font-bold text-[#011432]">₹ {revenue.toLocaleString()}</p>
+          <p className="text-xs text-gray-400 mt-2">{revenue > 0 ? 'Month-to-date total' : 'No revenue recorded yet'}</p>
         </Card>
         <Card>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Average Occupancy</p>
-          <p className="text-2xl font-bold text-[#011432]">0%</p>
-          <p className="text-xs text-gray-400 mt-2">Waiting for first booking</p>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Occupancy</p>
+          <p className="text-2xl font-bold text-[#011432]">{occupancy}%</p>
+          <p className="text-xs text-gray-400 mt-2">{occupancy > 0 ? 'Monthly average' : 'Waiting for first booking'}</p>
         </Card>
         <Card>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">ADR</p>
-          {/* Fix #16 — removed hardcoded target */}
-          <p className="text-2xl font-bold text-[#011432]">₹ 0</p>
-          <p className="text-xs text-gray-400 mt-2">No revenue data yet</p>
+          <p className="text-2xl font-bold text-[#011432]">₹ {Math.round(adr).toLocaleString()}</p>
+          <p className="text-xs text-gray-400 mt-2">{adr > 0 ? 'Avg. Daily Rate' : 'No revenue data yet'}</p>
         </Card>
       </div>
 
-      <Card title="Property Performance Comparison" description="Monthly revenue distribution between entities.">
-        <div className="flex flex-col gap-4">
-          <div className="space-y-2">
-            <div className="flex justify-between text-xs font-medium">
-              <span>Peace Hotel</span>
-              <span>₹ 0 (0%)</span>
+      <Card title="Monthly Growth" description="Trailing revenue performance over the last 30 days.">
+        <div className="h-24 flex items-end gap-1 px-2">
+          {/* Mock visual for now as historical data needs more queries */}
+          {[40, 70, 45, 90, 65, 80, 50, 100, 75, 85, 60, 95].map((h, i) => (
+            <div key={i} className="flex-1 bg-accent/10 rounded-t-sm hover:bg-accent/30 transition-colors cursor-help group relative h-full">
+               <div className="absolute bottom-0 w-full bg-accent rounded-t-sm transition-all duration-500" style={{ height: `${h}%` }} />
             </div>
-            <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-              <div className="h-full bg-accent w-0 transition-all duration-1000" />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <div className="flex justify-between text-xs font-medium">
-              <span>Starry Nights</span>
-              <span>₹ 0 (0%)</span>
-            </div>
-            <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-              <div className="h-full bg-blue-400 w-0 transition-all duration-1000" />
-            </div>
-          </div>
+          ))}
         </div>
       </Card>
     </div>
   );
 }
 
-function FinancialsContent() {
+function FinancialsContent({ data }: { data: any[] }) {
+  const items = data || [
+    { med: 'UPI / Online', val: '0%', color: 'bg-green-500' },
+    { med: 'Cash', val: '0%', color: 'bg-orange-400' },
+    { med: 'Card', val: '0%', color: 'bg-blue-500' }
+  ];
+
   return (
     <div className="animate-in fade-in slide-in-from-bottom-2">
       <SectionHeader title="Financial Summary" description="Tracking collections, expenses, and profit margins." />
       <Card title="Collection Breakdown" description="Distribution of payments received by method.">
         <div className="flex items-center gap-8 py-4">
           <div className="flex-1 space-y-3">
-             {[
-               { med: 'UPI / Online', val: '62%', color: 'bg-green-500' },
-               { med: 'Cash', val: '28%', color: 'bg-orange-400' },
-               { med: 'Card', val: '10%', color: 'bg-blue-500' }
-             ].map(item => (
+             {items.map(item => (
                <div key={item.med} className="flex items-center gap-3">
                  <div className={`w-2 h-2 rounded-full ${item.color}`} />
                  <span className="text-sm text-gray-600 flex-1">{item.med}</span>
@@ -202,7 +242,11 @@ function FinancialsContent() {
                </div>
              ))}
           </div>
-          <div className="w-32 h-32 rounded-full border-[10px] border-green-500 border-r-orange-400 border-b-blue-500 opacity-20" />
+          <div className="relative w-32 h-32 rounded-full border-[10px] border-gray-100 overflow-hidden flex items-center justify-center">
+             <Wallet size={32} className="text-gray-200" />
+             {/* Simple visual representation */}
+             <div className="absolute inset-0 border-[10px] border-accent border-r-transparent border-b-transparent opacity-20 rotate-45" />
+          </div>
         </div>
       </Card>
     </div>
@@ -300,32 +344,36 @@ function SecurityContent() {
   );
 }
 
-function StaffContent() {
+function StaffContent({ data }: { data: any[] }) {
+  const staffList = data || [];
+
   return (
     <div className="animate-in fade-in slide-in-from-bottom-2">
-      <SectionHeader title="Staff Performance" description="Monitoring operational efficiency." />
+      <SectionHeader title="Staff Performance" description="Monitoring operational efficiency across roles." />
       <Card>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-100">
                 <th className="text-left py-4 text-[10px] font-bold text-gray-400 uppercase">Staff Name</th>
+                <th className="text-center py-4 text-[10px] font-bold text-gray-400 uppercase">Role</th>
                 <th className="text-center py-4 text-[10px] font-bold text-gray-400 uppercase">Bookings</th>
                 <th className="text-right py-4 text-[10px] font-bold text-gray-400 uppercase">Check-ins</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              { [
-                { name: 'Rahul K.', bookings: 0, checkins: 0 },
-                { name: 'Sneha M.', bookings: 0, checkins: 0 },
-                { name: 'Amit V.', bookings: 0, checkins: 0 }
-              ].map(staff => (
-                <tr key={staff.name}>
+              { staffList.length > 0 ? staffList.map((staff, i) => (
+                <tr key={i}>
                   <td className="py-4 text-sm font-medium text-[#011432]">{staff.name}</td>
-                  <td className="py-4 text-sm text-center text-gray-600">{staff.bookings}</td>
-                  <td className="py-4 text-sm text-right text-gray-600">{staff.checkins}</td>
+                  <td className="py-4 text-xs text-center text-gray-500 capitalize">{staff.role}</td>
+                  <td className="py-4 text-sm text-center text-gray-600 font-mono">{staff.bookings}</td>
+                  <td className="py-4 text-sm text-right text-gray-600 font-mono">{staff.checkins}</td>
                 </tr>
-              ))}
+              )) : (
+                <tr>
+                  <td colSpan={4} className="py-8 text-center text-sm text-gray-400">No staff records found.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -416,43 +464,65 @@ function NotificationsContent({ isOwner }: { isOwner: boolean }) {
   );
 }
 
-function AuditContent() {
-  const [userRole, setUserRole] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setUserRole(localStorage.getItem('stayboard_user_role') || 'owner');
-    }
-  }, []);
-
-  const isAdmin = userRole === 'admin';
+function AuditContent({ data, isAdmin }: { data: any[], isAdmin: boolean }) {
+  const logs = data || [];
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-2">
       <SectionHeader title="Audit Logs" description="Recent administrative actions for traceability." />
       <Card>
         <div className="space-y-4">
-          {[
-            { action: 'Updated Tax Slab', user: 'Admin', time: '2 hours ago' },
-            { action: 'Deleted Reservation #4521', user: 'Rahul K.', time: '5 hours ago' },
-            { action: 'Changed Room Pricing', user: 'Owner', time: 'Yesterday' },
-            { action: 'Staff PIN Reset', user: 'Admin', time: '3 days ago' },
-            { action: 'Guest Checkout Override', user: 'Sneha M.', time: '4 days ago' }
-          ]
-          .filter(log => isAdmin ? true : log.user !== 'Admin')
+          {logs.length > 0 ? logs
+          .filter(log => isAdmin ? true : log.user_role !== 'admin')
+          .slice(0, 15)
           .map((log, i) => (
-            <div key={i} className="flex items-center gap-4 py-2">
-              <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400">
+            <div key={i} className="flex items-center gap-4 py-2 border-b border-gray-50 last:border-0">
+              <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 shrink-0">
                 <History size={14} />
               </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-[#011432]">{log.action}</p>
-                <p className="text-[10px] text-gray-400">{log.user} • {log.time}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-[#011432] truncate">{log.action}</p>
+                <p className="text-[10px] text-gray-400">
+                  {log.user_email || 'System'} • {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
+                </p>
+              </div>
+              <div className="text-[10px] font-bold px-2 py-1 bg-gray-50 text-gray-400 rounded-md uppercase">
+                {log.entity_type || 'General'}
               </div>
             </div>
-          ))}
+          )) : (
+            <div className="py-8 text-center text-sm text-gray-400">No audit logs available.</div>
+          )}
         </div>
       </Card>
+    </div>
+  );
+}
+
+function LoadingSkeleton({ type }: { type: 'grid' | 'card' | 'table' | 'list' }) {
+  if (type === 'grid') {
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 animate-pulse">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="h-32 bg-gray-200 rounded-2xl" />
+        ))}
+        <div className="col-span-full h-40 bg-gray-200 rounded-2xl mt-4" />
+      </div>
+    );
+  }
+  if (type === 'table') {
+    return (
+      <div className="animate-pulse space-y-4">
+        <div className="h-10 bg-gray-200 rounded-lg w-full" />
+        {[1, 2, 3, 4, 5].map(i => (
+          <div key={i} className="h-12 bg-gray-100 rounded-lg w-full" />
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div className="animate-pulse space-y-4">
+      <div className="h-48 bg-gray-200 rounded-2xl w-full" />
     </div>
   );
 }
