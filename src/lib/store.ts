@@ -36,6 +36,7 @@ export const logout = async () => {
     localStorage.removeItem('stayboard_user_role');
     localStorage.removeItem('stayboard_user_email');
     localStorage.removeItem('stayboard_user_property');
+    localStorage.removeItem('stayboard_master_property');
     // Clear cookies
     document.cookie = "sb_auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
     document.cookie = "sb_user_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
@@ -47,13 +48,16 @@ export const logout = async () => {
 export const getSelectedProperty = (): string | null => {
   if (typeof window === 'undefined') return null;
   
-  // Prioritize staff-assigned property if it exists
   const role = localStorage.getItem('stayboard_user_role');
   const userProperty = localStorage.getItem('stayboard_user_property');
   
-  // Accept both 'reception' and 'staff' as restricted roles
-  if ((role === 'reception' || role === 'staff') && userProperty) {
-    return userProperty;
+  // MANDATORY: Staff/Reception are LOCKED to their property
+  if ((role === 'reception' || role === 'staff')) {
+    if (userProperty && userProperty !== 'undefined' && userProperty !== 'null') {
+      return userProperty;
+    }
+    // If staff has no property assigned, they should see NOTHING (to prevent leakage)
+    return 'none';
   }
   
   return localStorage.getItem('stayboard_master_property') || 'all';
@@ -420,7 +424,19 @@ export const updateRoomStatus = async (roomId: string, status: RoomStatus) => {
 
 // GUESTS & PAYMENTS
 export const getStoredGuests = async (): Promise<Guest[]> => {
-  const { data: guests, error } = await supabase.from('guests').select('*');
+  const propertyId = getSelectedProperty();
+  const role = typeof window !== 'undefined' ? localStorage.getItem('stayboard_user_role') : null;
+  const isStaff = role === 'reception' || role === 'staff';
+
+  let query = supabase.from('guests').select('*');
+  
+  if (propertyId && propertyId !== 'all') {
+    query = query.eq('property_id', propertyId);
+  } else if (isStaff) {
+    return [];
+  }
+
+  const { data: guests, error } = await query;
   
   if (error) {
     if (error.code !== 'PGRST116') {
@@ -471,7 +487,8 @@ export const syncGuestFromBooking = async (booking: Booking) => {
     const guestData: any = {
       name: booking.guest_name,
       phone: booking.guest_phone,
-      last_stay_date: booking.check_in_date
+      last_stay_date: booking.check_in_date,
+      property_id: booking.property_id
     };
 
     if (existing) {
@@ -503,7 +520,19 @@ export const toggleVipStatus = async (guestId: string) => {
 
 // INVOICES & PAYMENTS
 export const getStoredInvoices = async (): Promise<Invoice[]> => {
-  const { data } = await supabase.from('invoices').select('*').order('created_at', { ascending: false });
+  const propertyId = getSelectedProperty();
+  const role = typeof window !== 'undefined' ? localStorage.getItem('stayboard_user_role') : null;
+  const isStaff = role === 'reception' || role === 'staff';
+
+  let query = supabase.from('invoices').select('*').order('created_at', { ascending: false });
+  
+  if (propertyId && propertyId !== 'all') {
+    query = query.eq('property_id', propertyId);
+  } else if (isStaff) {
+    return [];
+  }
+
+  const { data } = await query;
   return (data as Invoice[]) || [];
 };
 
@@ -536,7 +565,19 @@ export const processPayment = async (invoiceId: string, amount: number, method: 
 
 // HOUSEKEEPING
 export const getStoredTasks = async (): Promise<HousekeepingTask[]> => {
-  const { data } = await supabase.from('housekeeping_tasks').select('*').order('created_at', { ascending: false });
+  const propertyId = getSelectedProperty();
+  const role = typeof window !== 'undefined' ? localStorage.getItem('stayboard_user_role') : null;
+  const isStaff = role === 'reception' || role === 'staff';
+
+  let query = supabase.from('housekeeping_tasks').select('*').order('created_at', { ascending: false });
+  
+  if (propertyId && propertyId !== 'all') {
+    query = query.eq('property_id', propertyId);
+  } else if (isStaff) {
+    return [];
+  }
+
+  const { data } = await query;
   return (data as HousekeepingTask[]) || [];
 };
 
@@ -560,7 +601,19 @@ export const reassignTask = async (taskId: string, staffName: string) => {
 
 // RATES & RULES
 export const getStoredRateRules = async (): Promise<RateRule[]> => {
-  const { data } = await supabase.from('rate_rules').select('*').order('created_at', { ascending: false });
+  const propertyId = getSelectedProperty();
+  const role = typeof window !== 'undefined' ? localStorage.getItem('stayboard_user_role') : null;
+  const isStaff = role === 'reception' || role === 'staff';
+
+  let query = supabase.from('rate_rules').select('*').order('created_at', { ascending: false });
+  
+  if (propertyId && propertyId !== 'all') {
+    query = query.eq('property_id', propertyId);
+  } else if (isStaff) {
+    return [];
+  }
+
+  const { data } = await query;
   return (data as RateRule[]) || [];
 };
 
@@ -656,16 +709,11 @@ export const getVacantRooms = async (propertyId?: string): Promise<Room[]> => {
 };
 
 export const getStoredProperties = async () => {
-  const propertyId = getSelectedProperty();
-  const role = typeof window !== 'undefined' ? localStorage.getItem('stayboard_user_role') : null;
-  const isStaff = role === 'reception' || role === 'staff';
-
-  let query = supabase.from('properties').select('*').order('name');
-  if (isStaff && propertyId) {
-    query = query.eq('id', propertyId);
+  const { data, error } = await supabase.from('properties').select('*').order('name');
+  if (error) {
+    console.error("Error fetching properties:", error);
+    return [];
   }
-  
-  const { data } = await query;
   return data || [];
 };
 

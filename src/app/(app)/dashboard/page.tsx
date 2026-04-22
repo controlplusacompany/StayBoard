@@ -53,6 +53,8 @@ export default function DashboardPage() {
     address: ''
   });
 
+  const [userName, setUserName] = useState<string | null>(null);
+
   React.useEffect(() => {
     setIsMounted(true);
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -62,8 +64,22 @@ export default function DashboardPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUserEmail(user.email || null);
-        const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-        if (profile) setUserRole(profile.role);
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role, full_name, property_id')
+          .eq('id', user.id)
+          .single();
+        
+        if (profile) {
+          setUserRole(profile.role);
+          setUserName(profile.full_name);
+
+          // AUTO-REDIRECT STAFF TO THEIR PROPERTY
+          const isStaff = profile.role === 'reception' || profile.role === 'staff';
+          if (isStaff && profile.property_id) {
+            router.replace(`/property/${profile.property_id}`);
+          }
+        }
       }
     };
 
@@ -71,19 +87,20 @@ export default function DashboardPage() {
     return () => clearInterval(timer);
   }, []);
 
-  const isReception = userRole === 'reception';
+  const isReception = userRole === 'reception' || userRole === 'staff';
   const isOwnerRole = userRole === 'owner';
-  const isSuperAdmin = userRole === 'superadmin';
+  const isSuperAdmin = userRole === 'superadmin' || userRole === 'admin';
 
   const getGreeting = () => {
-    if (userEmail === 'controlplusacompany@gmail.com') return 'Welcome, Admin!';
-    if (userRole === 'reception') return 'Welcome, Staff!';
-    if (userRole === 'owner') return 'Welcome, Sudhir!';
+    if (userName) return `Welcome, ${userName}!`;
+    const email = (userEmail || '').toLowerCase();
+    if (email === 'controlplusacompany@gmail.com') return 'Welcome, Admin!';
+    if (isReception) return 'Welcome, Reception!';
     return 'Welcome Back!';
   };
 
   const owner = { 
-    name: isReception ? 'Reception' : isSuperAdmin ? 'Monish' : isOwnerRole ? 'Operations Manager' : 'Rajesh', 
+    name: userName || (isSuperAdmin ? 'Admin' : isReception ? 'Staff' : 'Operations Manager'), 
     plan: 'pro' 
   };
 
@@ -332,75 +349,68 @@ export default function DashboardPage() {
         </section>
       )}
 
-      {/* Properties Section */}
-      <section className="flex flex-col gap-4 mt-2">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <h2 className="text-xl font-display text-ink-primary font-medium">Your Properties</h2>
-          
-          <div className="flex items-center gap-3 w-full md:w-auto">
-             <div className="relative w-full md:w-64">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
-                <input 
-                  type="text" 
-                  placeholder="Search properties..." 
-                  className="input pl-10 h-9 text-xs"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-             </div>
-             
-             {userRole === 'admin' && (
-                <button 
-                  onClick={handleTestTelegram}
-                  className="btn btn-secondary flex items-center gap-2 group whitespace-nowrap !bg-bg-sunken !text-ink-primary hover:!bg-border-subtle"
-                  title="Test Telegram Connectivity"
-                >
-                  <Send size={14} className="group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform" />
-                  <span>Test Telegram</span>
-                </button>
-             )}
+      {/* Properties Section - Hidden for Staff to prevent cross-property visibility */}
+      {!isReception && (
+        <section className="flex flex-col gap-4 mt-2">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <h2 className="text-xl font-display text-ink-primary font-medium">Your Properties</h2>
+            
+            <div className="flex items-center gap-3 w-full md:w-auto">
+               <div className="relative w-full md:w-64">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
+                  <input 
+                    type="text" 
+                    placeholder="Search properties..." 
+                    className="input pl-10 h-9 text-xs"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+               </div>
+               
+               {userRole === 'admin' && (
+                  <button 
+                    onClick={handleTestTelegram}
+                    className="btn btn-secondary flex items-center gap-2 group whitespace-nowrap !bg-bg-sunken !text-ink-primary hover:!bg-border-subtle"
+                    title="Test Telegram Connectivity"
+                  >
+                    <Send size={14} className="group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform" />
+                    <span>Test Telegram</span>
+                  </button>
+               )}
 
-             {(userRole === 'admin' || userRole === 'md' || userRole === 'superadmin') && (
-               <button 
-                  onClick={handleAddPropertyClick}
-                  className="btn btn-accent flex items-center gap-2 group whitespace-nowrap"
-                >
-                  <Plus size={14} className="group-hover:rotate-90 transition-transform" />
-                  <span>Add Property</span>
-                </button>
-             )}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProperties.map((property, idx) => (
-            <motion.div 
-              key={property.id} 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.1 * idx + 0.3 }}
-              className="stagger-item visible"
-            >
-              <PropertyCard
-                property={property}
-                summary={getPropertySummary(property.id)}
-                onClick={(id) => {
-                  router.push(`/property/${id}`);
-                }}
-              />
-            </motion.div>
-          ))}
-          {filteredProperties.length === 0 && (
-            <div className="col-span-full py-16 bg-bg-sunken/40 rounded-2xl border border-dashed border-border-subtle flex flex-col items-center justify-center text-center">
-               <Building2 size={40} strokeWidth={1} className="text-ink-muted/30 mb-3" />
-               <h3 className="text-sm font-medium text-ink-primary mb-1">No properties found</h3>
-               <p className="text-xs text-ink-muted">Try adjusting your search query</p>
+               {(userRole === 'admin' || userRole === 'md' || userRole === 'superadmin') && (
+                 <button 
+                    onClick={handleAddPropertyClick}
+                    className="btn btn-accent flex items-center gap-2 group whitespace-nowrap"
+                  >
+                    <Plus size={14} className="group-hover:rotate-90 transition-transform" />
+                    <span>Add Property</span>
+                  </button>
+               )}
             </div>
-          )}
-        </div>
+          </div>
 
-        <div className="h-px bg-border-subtle mt-10 mb-6" />
-      </section>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredProperties.map((property, idx) => (
+              <motion.div 
+                key={property.id} 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.1 * idx + 0.3 }}
+                className="stagger-item visible"
+              >
+                <PropertyCard
+                  property={property}
+                  summary={getPropertySummary(property.id)}
+                  onClick={(id) => {
+                    router.push(`/property/${id}`);
+                  }}
+                />
+              </motion.div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* MODAL: Add Property */}
       <Modal 

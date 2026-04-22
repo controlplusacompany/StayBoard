@@ -27,6 +27,22 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [assignedPropertyId, setAssignedPropertyId] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const role = localStorage.getItem('stayboard_user_role');
+      const propId = localStorage.getItem('stayboard_user_property');
+      setUserRole(role);
+      setAssignedPropertyId(propId);
+
+      // SECURITY REDIRECT: Staff cannot visit properties they aren't assigned to
+      const isStaff = role === 'reception' || role === 'staff';
+      if (isStaff && propId && propId !== params.id) {
+        router.replace(`/property/${propId}`);
+      }
+    }
+  }, [params.id, router]);
 
   // Sync Master Property on visit
   useEffect(() => {
@@ -53,13 +69,7 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
     return () => window.removeEventListener('storage', checkRedirect);
   }, [params.id, router]);
 
-  React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setUserRole(localStorage.getItem('stayboard_user_role'));
-    }
-  }, []);
-
-  const isReception = userRole === 'reception';
+  const isReception = userRole === 'reception' || userRole === 'staff';
   const isOwnerRole = userRole === 'owner';
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -222,6 +232,20 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
       </div>
     </div>
   );
+
+  // NO PROPERTY ASSIGNED FALLBACK (For Staff)
+  if (isReception && (!assignedPropertyId || assignedPropertyId === 'none' || assignedPropertyId === 'null')) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-bg-canvas flex-col gap-4 p-8 text-center">
+        <div className="w-16 h-16 bg-bg-sunken rounded-full flex items-center justify-center text-ink-muted">
+          <Layers size={32} />
+        </div>
+        <h2 className="text-2xl font-display font-semibold text-ink-primary">No Property Assigned</h2>
+        <p className="text-ink-muted max-w-md">Your staff account is correctly logged in, but you haven't been assigned to a specific hotel yet. Please contact your administrator.</p>
+        <button onClick={() => window.location.href = '/login'} className="btn btn-secondary mt-4">Sign Out</button>
+      </div>
+    );
+  }
 
   return (
     <>
