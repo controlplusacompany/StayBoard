@@ -56,7 +56,7 @@ export default function BottomNav() {
         {/* Floating More Menu */}
         {showMore && (
           <div 
-            className="absolute bottom-[calc(100%+8px)] right-4 w-56 bg-white rounded-3xl border border-border-subtle shadow-[0_20px_50px_rgba(0,0,0,0.15)] overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-300"
+            className="absolute bottom-[calc(100%+6px)] right-4 w-52 bg-white rounded-3xl border border-border-subtle shadow-[0_20px_50px_rgba(0,0,0,0.15)] overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-300"
           >
             <div className="p-2 flex flex-col gap-1">
               <div className="px-4 py-3 border-b border-border-subtle mb-1 flex items-center justify-between">
@@ -101,7 +101,7 @@ export default function BottomNav() {
         {/* glassmorphic nav bar */}
         <div className="absolute inset-0 bg-white/90 backdrop-blur-2xl border-t border-border-subtle shadow-[0_-8px_30px_rgb(0,0,0,0.06)]" />
         
-        <div className="relative flex items-center justify-around h-16 px-2">
+        <div className="relative flex items-center justify-around h-14 px-2">
           {MOBILE_ITEMS.map((item) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;
@@ -110,17 +110,17 @@ export default function BottomNav() {
               <Link 
                 key={item.href} 
                 href={item.href}
-                className="flex flex-col items-center justify-center flex-1 gap-1.5 relative h-full group"
+                className="flex flex-col items-center justify-center flex-1 gap-1 relative h-full group"
               >
                 <div className={`
-                  w-12 h-8 flex items-center justify-center rounded-full transition-all duration-400 ease-spring
-                  ${isActive ? 'bg-accent/10 text-accent scale-110' : 'text-ink-muted group-hover:bg-bg-sunken'}
+                  w-10 h-6.5 flex items-center justify-center rounded-full transition-all duration-400 ease-spring
+                  ${isActive ? 'bg-accent/10 text-accent scale-105' : 'text-ink-muted group-hover:bg-bg-sunken'}
                 `}>
-                  <Icon size={22} strokeWidth={isActive ? 2.5 : 2} className="transition-transform duration-300" />
+                  <Icon size={20} strokeWidth={isActive ? 2.5 : 2} className="transition-transform duration-300" />
                 </div>
                 <span className={`
-                  text-[10px] uppercase font-bold tracking-widest transition-all duration-300
-                  ${isActive ? 'text-accent opacity-100' : 'text-ink-muted/60 opacity-100'}
+                  text-[9px] uppercase font-bold tracking-widest transition-all duration-300
+                  ${isActive ? 'text-accent opacity-100' : 'text-ink-muted/50 opacity-100'}
                 `}>
                   {item.label}
                 </span>
@@ -136,17 +136,17 @@ export default function BottomNav() {
           <button 
             onClick={() => setShowMore(!showMore)}
             className={`
-              flex flex-col items-center justify-center flex-1 gap-1.5 h-full transition-all duration-300 relative
+              flex flex-col items-center justify-center flex-1 gap-1 relative h-full transition-all duration-300 group
               ${showMore ? 'text-accent' : 'text-ink-muted'}
             `}
           >
             <div className={`
-              w-12 h-8 flex items-center justify-center rounded-full transition-all duration-400 ease-spring
-              ${showMore ? 'bg-accent/10 text-accent scale-110' : 'text-ink-muted hover:bg-bg-sunken'}
+              w-10 h-6.5 flex items-center justify-center rounded-full transition-all duration-400 ease-spring
+              ${showMore ? 'bg-accent/10 text-accent scale-105' : 'text-ink-muted hover:bg-bg-sunken'}
             `}>
-              <MoreHorizontal size={22} strokeWidth={showMore ? 2.5 : 2} />
+              <MoreHorizontal size={20} strokeWidth={showMore ? 2.5 : 2} />
             </div>
-            <span className="text-[10px] uppercase font-bold tracking-widest">More</span>
+            <span className="text-[9px] uppercase font-bold tracking-widest">More</span>
 
             {showMore && (
               <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-accent rounded-full" />
