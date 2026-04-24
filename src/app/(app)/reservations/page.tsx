@@ -13,7 +13,9 @@ import {
   Clock,
   ArrowRight,
   ClipboardList,
-  Trash2
+  Trash2,
+  Columns,
+  StretchHorizontal
 } from 'lucide-react';
 import { format, parseISO, isAfter, startOfDay, isToday } from 'date-fns';
 import { getBookingsList, getSelectedProperty, getStoredRooms, updateBookingStatus, deleteBooking } from '@/lib/store';
@@ -23,6 +25,7 @@ import { useNewBooking } from '@/components/booking/NewBookingProvider';
 import Modal from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { useRealtime } from '@/hooks/useRealtime';
+import TimelineView from '@/components/reservations/TimelineView';
 
 export default function ReservationsPage() {
   const router = useRouter();
@@ -38,6 +41,8 @@ export default function ReservationsPage() {
   const [bookingToDelete, setBookingToDelete] = useState<string | null>(null);
   // Fix #1 — custom modal for cancel instead of native confirm()
   const [bookingToCancel, setBookingToCancel] = useState<string | null>(null);
+  const [view, setView] = useState<'list' | 'timeline'>('list');
+  const isAdmin = userRole === 'admin';
 
   const handleCheckInNow = (booking: Booking) => {
     setSelectedBooking(null);
@@ -112,10 +117,11 @@ export default function ReservationsPage() {
     // 1. Property Filter
     if (propertyId && propertyId !== 'all' && b.property_id !== propertyId) return false;
 
-    // 2. Exclude completed/cancelled/no-show
-    if (['checked_out', 'cancelled', 'no_show'].includes(b.status)) return false;
+    // 2. ONLY SHOW UPCOMING & ARRIVALS (Filter out Checked-in, Checked-out, Cancelled, Delayed)
+    const pipelineStatuses = ['confirmed', 'unassigned'];
+    if (!pipelineStatuses.includes(b.status)) return false;
 
-    // 3. Search filter — Fix #2: this now runs before early returns
+    // 3. Search filter
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       const matchesSearch =
@@ -124,10 +130,7 @@ export default function ReservationsPage() {
       if (!matchesSearch) return false;
     }
 
-    // 4. Show checked-in guests always
-    if (b.status === 'checked_in') return true;
-
-    // 5. Show only today's or future arrivals
+    // 4. Show only today's or future arrivals
     const checkIn = parseISO(b.check_in_date);
     if (!isAfter(checkIn, today) && !isToday(checkIn)) return false;
 
@@ -157,7 +160,7 @@ export default function ReservationsPage() {
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">
         <div className="flex flex-col gap-3">
           {/* Fix #4 — consistent font-medium (not font-semibold) */}
-          <h1 className="text-4xl md:text-5xl font-display text-ink-primary tracking-tighter font-medium text-balance">Reservations &amp; Stays</h1>
+          <h1 className="text-4xl md:text-5xl font-display text-ink-primary tracking-tighter font-medium text-balance">Upcoming Reservations</h1>
         </div>
         
         <button 
@@ -195,92 +198,132 @@ export default function ReservationsPage() {
               Clear Search
             </button>
           )}
+
+          {isAdmin && (
+            <div className="flex items-center bg-bg-sunken p-1 rounded-xl border border-border-subtle ml-auto">
+              <button
+                onClick={() => setView('list')}
+                className={`p-2 rounded-lg transition-all ${view === 'list' ? 'bg-white shadow-sm text-accent' : 'text-ink-muted hover:text-ink-primary'}`}
+                title="List View"
+              >
+                <ClipboardList size={18} />
+              </button>
+              <button
+                onClick={() => setView('timeline')}
+                className={`p-2 rounded-lg transition-all ${view === 'timeline' ? 'bg-white shadow-sm text-accent' : 'text-ink-muted hover:text-ink-primary'}`}
+                title="Timeline View"
+              >
+                <StretchHorizontal size={18} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* List */}
-      <div className="grid grid-cols-1 gap-4">
-        {filteredBookings.length > 0 ? (
-          filteredBookings.map((booking) => (
-            <div 
-              key={booking.id} 
-              className="bg-white border border-border-subtle rounded-xl p-4 md:p-6 shadow-sm hover:shadow-md transition-all cursor-pointer group"
-              onClick={() => setSelectedBooking(booking)}
-            >
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-bg-sunken flex items-center justify-center text-ink-muted group-hover:bg-accent/5 group-hover:text-accent transition-colors">
-                    <UserCircle2 size={24} />
-                  </div>
-                  <div className="flex flex-col">
-                    <h3 className="text-lg font-semibold text-ink-primary group-hover:text-accent transition-colors">{booking.guest_name}</h3>
-                    <div className="flex items-center gap-3 text-sm text-ink-muted">
-                      <span className="font-mono">{booking.guest_phone}</span>
-                      <span className="w-1 h-1 rounded-full bg-border-strong" />
-                      <span>{booking.num_guests || 1} Guests</span>
+      {/* List / Timeline Content */}
+      <div className="flex-1 min-h-0">
+        {view === 'list' ? (
+          <div className="grid grid-cols-1 gap-4">
+            {filteredBookings.length > 0 ? (
+              filteredBookings.map((booking) => (
+                <div 
+                  key={booking.id} 
+                  className="bg-white border border-border-subtle rounded-xl p-4 md:p-6 shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                  onClick={() => setSelectedBooking(booking)}
+                >
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-bg-sunken flex items-center justify-center text-ink-muted group-hover:bg-accent/5 group-hover:text-accent transition-colors">
+                        <UserCircle2 size={24} />
+                      </div>
+                      <div className="flex flex-col">
+                        <h3 className="text-lg font-semibold text-ink-primary group-hover:text-accent transition-colors">{booking.guest_name}</h3>
+                        <div className="flex items-center gap-3 text-sm text-ink-muted">
+                          <span className="font-mono">{booking.guest_phone}</span>
+                          <span className="w-1 h-1 rounded-full bg-border-strong" />
+                          <span>{booking.num_guests || 1} Guests</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-4 md:gap-8">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] uppercase font-bold text-ink-muted tracking-widest flex items-center gap-1.5">
+                          <CalendarDays size={12} /> Stay Dates
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-ink-primary">{format(parseISO(booking.check_in_date), 'dd MMM')}</span>
+                          <ArrowRight size={14} className="text-ink-muted" />
+                          <span className="text-sm font-medium text-ink-primary">{format(parseISO(booking.check_out_date), 'dd MMM')}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] uppercase font-bold text-ink-muted tracking-widest flex items-center gap-1.5">
+                          <Clock size={12} /> Status
+                        </span>
+                        <div className="flex items-center gap-2">
+                           {(() => {
+                             const checkoutDate = booking.check_out_date.split('T')[0];
+                             const todayStr = new Date().toISOString().split('T')[0];
+                             const isActuallyDelayed = booking.status === 'checked_in' && checkoutDate < todayStr;
+                             
+                             return (
+                               <Badge 
+                                 type={isActuallyDelayed ? 'delayed' : booking.status} 
+                                 label={isActuallyDelayed ? 'delayed checkout ⚠️' : booking.status.replace('_', ' ')} 
+                               />
+                             );
+                           })()}
+                           {booking.status === 'assigned' && (
+                             <span className="text-xs font-semibold text-accent">Room {getRoomNumber(booking.room_id)}</span>
+                           )}
+                        </div>
+                      </div>
+
+                      {/* Fix #15 — Amount shown, delete icon removed from row (moved to modal only) */}
+                      {!isReception && (
+                        <div className="bg-bg-sunken/50 px-4 py-2 rounded-lg border border-border-subtle flex flex-col items-end">
+                          <span className="text-[10px] uppercase font-bold text-ink-muted tracking-widest">Total Amount</span>
+                          <span className="text-lg font-mono font-semibold text-ink-primary">₹{booking.total_amount.toLocaleString()}</span>
+                        </div>
+                      )}
+
+                      {/* Fix #20 — chevron affordance indicates row is clickable */}
+                      <ChevronRight size={18} className="text-ink-muted group-hover:text-accent transition-colors hidden md:block" />
                     </div>
                   </div>
                 </div>
-
-                <div className="flex flex-wrap items-center gap-4 md:gap-8">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[10px] uppercase font-bold text-ink-muted tracking-widest flex items-center gap-1.5">
-                      <CalendarDays size={12} /> Stay Dates
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-ink-primary">{format(parseISO(booking.check_in_date), 'dd MMM')}</span>
-                      <ArrowRight size={14} className="text-ink-muted" />
-                      <span className="text-sm font-medium text-ink-primary">{format(parseISO(booking.check_out_date), 'dd MMM')}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[10px] uppercase font-bold text-ink-muted tracking-widest flex items-center gap-1.5">
-                      <Clock size={12} /> Status
-                    </span>
-                    <div className="flex items-center gap-2">
-                       <Badge type={booking.status} label={booking.status.replace('_', ' ')} />
-                       {booking.status === 'assigned' && (
-                         <span className="text-xs font-semibold text-accent">Room {getRoomNumber(booking.room_id)}</span>
-                       )}
-                    </div>
-                  </div>
-
-                  {/* Fix #15 — Amount shown, delete icon removed from row (moved to modal only) */}
-                  {!isReception && (
-                    <div className="bg-bg-sunken/50 px-4 py-2 rounded-lg border border-border-subtle flex flex-col items-end">
-                      <span className="text-[10px] uppercase font-bold text-ink-muted tracking-widest">Total Amount</span>
-                      <span className="text-lg font-mono font-semibold text-ink-primary">₹{booking.total_amount.toLocaleString()}</span>
-                    </div>
-                  )}
-
-                  {/* Fix #20 — chevron affordance indicates row is clickable */}
-                  <ChevronRight size={18} className="text-ink-muted group-hover:text-accent transition-colors hidden md:block" />
+              ))
+            ) : (
+              <div className="bg-white border border-border-subtle border-dashed rounded-2xl py-20 flex flex-col items-center justify-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-bg-sunken flex items-center justify-center text-ink-muted opacity-20">
+                  <ClipboardList size={32} />
                 </div>
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold text-ink-primary">No future reservations</h3>
+                  <p className="text-ink-muted text-sm mt-1">
+                    {searchQuery ? `No results for "${searchQuery}".` : 'No upcoming or active bookings found.'}
+                  </p>
+                </div>
+                {/* Fix #3 — clear filters is now a proper button */}
+                {searchQuery && (
+                  <button 
+                    onClick={() => setSearchQuery('')}
+                    className="btn btn-secondary text-sm mt-2"
+                  >
+                    Clear Search
+                  </button>
+                )}
               </div>
-            </div>
-          ))
-        ) : (
-          <div className="bg-white border border-border-subtle border-dashed rounded-2xl py-20 flex flex-col items-center justify-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-bg-sunken flex items-center justify-center text-ink-muted opacity-20">
-              <ClipboardList size={32} />
-            </div>
-            <div className="text-center">
-              <h3 className="text-lg font-semibold text-ink-primary">No future reservations</h3>
-              <p className="text-ink-muted text-sm mt-1">
-                {searchQuery ? `No results for "${searchQuery}".` : 'No upcoming or active bookings found.'}
-              </p>
-            </div>
-            {/* Fix #3 — clear filters is now a proper button */}
-            {searchQuery && (
-              <button 
-                onClick={() => setSearchQuery('')}
-                className="btn btn-secondary text-sm mt-2"
-              >
-                Clear Search
-              </button>
             )}
           </div>
+        ) : (
+          <TimelineView 
+            rooms={rooms}
+            bookings={bookings}
+            onBookingClick={(id) => setSelectedBooking(bookings.find(b => b.id === id) || null)}
+          />
         )}
       </div>
 

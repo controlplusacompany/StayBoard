@@ -4,6 +4,7 @@ import React from 'react';
 import { usePathname } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import Navbar from '@/components/layout/Navbar';
+import BottomNav from '@/components/layout/BottomNav';
 
 export default function MobileLayoutWrapper({
   children,
@@ -25,10 +26,12 @@ export default function MobileLayoutWrapper({
           isMobileOpen={isMobileMenuOpen}
           onCloseMobile={() => setIsMobileMenuOpen(false)}
         />
-        <main className="flex-1 mt-[56px] relative overflow-y-auto w-full h-[calc(100vh-56px)] md:ml-[76px]">
+        <main className="flex-1 mt-[56px] relative overflow-y-auto w-full h-[calc(100vh-56px)] md:ml-[76px] pb-16 md:pb-0">
           {children}
         </main>
       </div>
+
+      <BottomNav />
     </div>
   );
 }

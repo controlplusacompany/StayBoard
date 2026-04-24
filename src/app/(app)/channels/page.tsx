@@ -25,7 +25,7 @@ interface ChannelStatus {
   logoColor: string;
 }
 
-export default function ChannelsPage() {
+export default function ChannelsPage({ isHub = false }: { isHub?: boolean }) {
   const { toast } = useToast();
   
   // Mock state for OTAs
@@ -74,30 +74,56 @@ export default function ChannelsPage() {
   const activeConnections = channels.filter(c => c.status === 'connected' || c.status === 'error').length;
 
   return (
-    <div className="p-6 md:p-10 flex flex-col gap-8 animate-slide-up bg-bg-canvas min-h-full">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">
-        <div className="flex flex-col gap-3">
-          <span className="text-[10px] font-medium text-accent uppercase tracking-[0.3em] font-sans">Distribution Network</span>
-          <h1 className="text-4xl md:text-5xl font-display text-ink-primary tracking-tighter font-medium text-balance">Channel Manager</h1>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="bg-white border border-border-subtle rounded-xl px-4 py-2.5 flex items-center justify-center gap-2 shadow-sm flex-1 sm:flex-none">
-            <Globe className="text-ink-muted" size={18} />
-            <span className="font-mono font-bold text-ink-primary text-base">{activeConnections} / {channels.length}</span>
-            <span className="text-xs text-ink-muted uppercase font-bold tracking-wider">Connected</span>
+    <div className={isHub ? "p-0 flex flex-col gap-8 animate-slide-up" : "p-6 md:p-10 flex flex-col gap-8 animate-slide-up bg-bg-canvas min-h-full"}>
+      {!isHub && (
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+          <div className="flex flex-col gap-3">
+            <span className="text-[10px] font-medium text-accent uppercase tracking-[0.3em] font-sans">Distribution Network</span>
+            <h1 className="text-4xl md:text-5xl font-display text-ink-primary tracking-tighter font-medium text-balance">Channel Manager</h1>
           </div>
           
-          <button 
-            onClick={handleManualSync}
-            disabled={isSyncingAll || activeConnections === 0}
-            className={`btn shadow-sm flex-1 sm:flex-none flex items-center justify-center gap-2 ${isSyncingAll ? 'bg-bg-sunken text-ink-muted' : 'bg-accent text-white hover:bg-accent-dark border-transparent'}`}
-          >
-            <RefreshCw size={18} className={isSyncingAll ? 'animate-spin' : ''} />
-            <span>{isSyncingAll ? 'Syncing...' : 'Sync All Channels'}</span>
-          </button>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="bg-white border border-border-subtle rounded-xl px-4 py-2.5 flex items-center justify-center gap-2 shadow-sm flex-1 sm:flex-none">
+              <Globe className="text-ink-muted" size={18} />
+              <span className="font-mono font-bold text-ink-primary text-base">{activeConnections} / {channels.length}</span>
+              <span className="text-xs text-ink-muted uppercase font-bold tracking-wider">Connected</span>
+            </div>
+            
+            <button 
+              onClick={handleManualSync}
+              disabled={isSyncingAll || activeConnections === 0}
+              className={`btn shadow-sm flex-1 sm:flex-none flex items-center justify-center gap-2 ${isSyncingAll ? 'bg-bg-sunken text-ink-muted' : 'bg-accent text-white hover:bg-accent-dark border-transparent'}`}
+            >
+              <RefreshCw size={18} className={isSyncingAll ? 'animate-spin' : ''} />
+              <span>{isSyncingAll ? 'Syncing...' : 'Sync All Channels'}</span>
+            </button>
+          </div>
+        </header>
+      )}
+
+      {/* Hub Action Header */}
+      {isHub && (
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-6 rounded-2xl border border-border-subtle shadow-sm">
+           <div className="flex items-center gap-4">
+              <div className="p-3 bg-accent/10 rounded-xl text-accent">
+                 <Globe size={24} />
+              </div>
+              <div className="flex flex-col">
+                 <span className="text-[10px] font-bold text-accent uppercase tracking-widest">Network Status</span>
+                 <p className="text-sm font-semibold text-ink-primary">Managing {activeConnections} active OTA connections.</p>
+              </div>
+           </div>
+           
+           <button 
+              onClick={handleManualSync}
+              disabled={isSyncingAll || activeConnections === 0}
+              className={`btn btn--sm shadow-sm flex items-center gap-2 ${isSyncingAll ? 'bg-bg-sunken text-ink-muted' : 'bg-accent text-white'}`}
+            >
+              <RefreshCw size={14} className={isSyncingAll ? 'animate-spin' : ''} />
+              <span>{isSyncingAll ? 'Syncing...' : 'Sync All Channels'}</span>
+            </button>
         </div>
-      </header>
+      )}
 
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

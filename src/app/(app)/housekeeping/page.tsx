@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { 
   Sparkles, 
   Plus, 
@@ -15,7 +16,8 @@ import {
   AlertTriangle,
   Zap,
   CheckCircle,
-  Home
+  Home,
+  Smartphone
 } from 'lucide-react';
 import Select from '@/components/ui/Select';
 import { 
@@ -296,13 +298,22 @@ export default function HousekeepingPage() {
           <h1 className="text-4xl md:text-5xl font-display text-ink-primary tracking-tighter font-medium text-balance">Housekeeping</h1>
         </div>
         {!isOwnerRole && (
-          <button 
-            onClick={() => setShowCreateModal(true)}
-            className="btn btn-accent flex items-center justify-center gap-2 shadow-lg shadow-accent/20"
-          >
-            <Plus size={20} />
-            <span>Create Task</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <Link 
+              href="/housekeeping/staff"
+              className="btn btn-secondary flex items-center justify-center gap-2"
+            >
+              <Smartphone size={20} />
+              <span>Staff Mode</span>
+            </Link>
+            <button 
+              onClick={() => setShowCreateModal(true)}
+              className="btn btn-accent flex items-center justify-center gap-2 shadow-lg shadow-accent/20"
+            >
+              <Plus size={20} />
+              <span>Create Task</span>
+            </button>
+          </div>
         )}
       </header>
 

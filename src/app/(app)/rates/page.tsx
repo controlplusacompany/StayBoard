@@ -12,7 +12,8 @@ import {
   Layers,
   Bed,
   Users,
-  Tent
+  Tent,
+  Tag
 } from 'lucide-react';
 import Select from '@/components/ui/Select';
 import { getStoredRateRules, addRateRule, deleteRateRule, getSelectedProperty } from '@/lib/store';
@@ -22,7 +23,7 @@ import Modal from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { format } from 'date-fns';
 
-export default function RatesPage() {
+export default function RatesPage({ isHub = false }: { isHub?: boolean }) {
   const { toast } = useToast();
   const [rules, setRules] = useState<RateRule[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -105,23 +106,44 @@ export default function RatesPage() {
   };
 
   return (
-    <div className="p-6 md:p-10 flex flex-col gap-8 animate-slide-up bg-bg-canvas min-h-full">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">
-        <div className="flex flex-col gap-3">
-          <span className="text-[10px] font-medium text-accent uppercase tracking-[0.3em] font-sans">Revenue Management</span>
-          <h1 className="text-4xl md:text-5xl font-display text-ink-primary tracking-tighter font-medium text-balance">Rates & Pricing</h1>
+    <div className={isHub ? "p-0 flex flex-col gap-8 animate-slide-up" : "p-6 md:p-10 flex flex-col gap-8 animate-slide-up bg-bg-canvas min-h-full"}>
+      {!isHub && (
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+          <div className="flex flex-col gap-3">
+            <span className="text-[10px] font-medium text-accent uppercase tracking-[0.3em] font-sans">Revenue Management</span>
+            <h1 className="text-4xl md:text-5xl font-display text-ink-primary tracking-tighter font-medium text-balance">Rates & Pricing</h1>
+          </div>
+          
+          {canManageRates && (
+            <button 
+              onClick={() => setShowAddModal(true)}
+              className="btn btn-accent shadow-md flex items-center justify-center gap-2 h-12 px-6 w-full sm:w-auto font-semibold"
+            >
+              <Plus size={18} />
+              <span>Create Pricing Rule</span>
+            </button>
+          )}
+        </header>
+      )}
+
+      {/* Hub Action Header */}
+      {isHub && canManageRates && (
+        <div className="flex items-center justify-between p-4 bg-white border border-border-subtle rounded-xl shadow-sm">
+           <div className="flex items-center gap-3">
+              <div className="p-2 bg-accent/10 rounded-lg text-accent">
+                 <Tag size={20} />
+              </div>
+              <p className="text-sm font-semibold text-ink-primary">Manage your property's dynamic pricing strategies.</p>
+           </div>
+           <button 
+              onClick={() => setShowAddModal(true)}
+              className="btn btn-accent btn--sm shadow-sm"
+            >
+              <Plus size={14} />
+              <span>Create Rule</span>
+            </button>
         </div>
-        
-        {canManageRates && (
-          <button 
-            onClick={() => setShowAddModal(true)}
-            className="btn btn-accent shadow-md flex items-center justify-center gap-2 h-12 px-6 w-full sm:w-auto font-semibold"
-          >
-            <Plus size={18} />
-            <span>Create Pricing Rule</span>
-          </button>
-        )}
-      </header>
+      )}
 
       {/* Base Rates Display */}
       <section className="flex flex-col gap-4">

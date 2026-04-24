@@ -32,7 +32,7 @@ import { useToast } from '@/components/ui/Toast';
 import { format } from 'date-fns';
 import { useRealtime } from '@/hooks/useRealtime';
 
-export default function InvoicesPage() {
+export default function InvoicesPage({ isHub = false }: { isHub?: boolean }) {
   const { toast } = useToast();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [bookings, setBookings] = useState<Record<string, Booking>>({});
@@ -149,7 +149,7 @@ export default function InvoicesPage() {
   const AdjustmentsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-info"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>;
 
   if (!dataLoaded) return (
-    <div className="p-6 md:p-10 flex flex-col gap-6 animate-pulse bg-bg-canvas min-h-full">
+    <div className={isHub ? "p-6 animate-pulse" : "p-6 md:p-10 flex flex-col gap-6 animate-pulse bg-bg-canvas min-h-full"}>
       <div className="flex flex-col gap-3">
         <div className="h-3 w-32 bg-bg-sunken rounded" />
         <div className="h-10 w-64 bg-bg-sunken rounded" />
@@ -160,13 +160,15 @@ export default function InvoicesPage() {
   );
 
   return (
-    <div className="p-6 md:p-10 flex flex-col gap-8 animate-slide-up bg-bg-canvas min-h-full">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">
-        <div className="flex flex-col gap-3">
-          <span className="text-[10px] font-medium text-accent uppercase tracking-[0.3em] font-sans">Billing & Ledger</span>
-          <h1 className="text-4xl md:text-5xl font-display text-ink-primary tracking-tighter font-medium text-balance">Invoices & Payments</h1>
-        </div>
-      </header>
+    <div className={isHub ? "p-0 flex flex-col gap-8 animate-slide-up" : "p-6 md:p-10 flex flex-col gap-8 animate-slide-up bg-bg-canvas min-h-full"}>
+      {!isHub && (
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+          <div className="flex flex-col gap-3">
+            <span className="text-[10px] font-medium text-accent uppercase tracking-[0.3em] font-sans">Billing & Ledger</span>
+            <h1 className="text-4xl md:text-5xl font-display text-ink-primary tracking-tighter font-medium text-balance">Invoices & Payments</h1>
+          </div>
+        </header>
+      )}
 
       {/* Filters & Actions */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-xl border border-border-subtle shadow-sm">

@@ -61,24 +61,43 @@ export default function DashboardPage() {
     
     // SECURE ROLE FETCHING
     const fetchProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserEmail(user.email || null);
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role, full_name, property_id')
-          .eq('id', user.id)
-          .single();
+      try {
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
         
-        if (profile) {
-          setUserRole(profile.role);
-          setUserName(profile.full_name);
+        if (authError) {
+          console.warn('Auth check error:', authError.message);
+          return;
+        }
 
-          // AUTO-REDIRECT STAFF TO THEIR PROPERTY
-          const isStaff = profile.role === 'reception' || profile.role === 'staff';
-          if (isStaff && profile.property_id) {
-            router.replace(`/property/${profile.property_id}`);
+        if (user) {
+          setUserEmail(user.email || null);
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('role, full_name, property_id')
+            .eq('id', user.id)
+            .single();
+          
+          if (profileError) {
+             console.error('Error fetching profile:', profileError);
+             return;
           }
+
+          if (profile) {
+            setUserRole(profile.role);
+            setUserName(profile.full_name);
+
+            const isStaff = profile.role === 'reception' || profile.role === 'staff';
+            if (isStaff && profile.property_id) {
+              router.replace(`/property/${profile.property_id}`);
+            }
+          }
+        }
+      } catch (err: any) {
+        // Handle the "Lock was released" error quietly as it's common in concurrent scenarios
+        if (err.message?.includes('Lock')) {
+          console.warn('Supabase Auth Lock Contention: Another tab is currently syncing the session.');
+        } else {
+          console.error('Dashboard Auth Error:', err);
         }
       }
     };

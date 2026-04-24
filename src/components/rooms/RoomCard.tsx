@@ -45,6 +45,7 @@ export default function RoomCard({
       case 'cleaning': return 'room-card--cleaning';
       case 'maintenance': return 'room-card--maintenance';
       case 'checkout_today': return 'room-card--checkout';
+      case 'delayed': return 'room-card--delayed';
       case 'arriving_today': return 'room-card--arriving';
       default: return '';
     }
@@ -57,6 +58,7 @@ export default function RoomCard({
       case 'cleaning': return 'text-status-cleaning-fg';
       case 'maintenance': return 'text-status-maintenance-fg';
       case 'checkout_today': return 'text-status-checkout-fg';
+      case 'delayed': return 'text-status-checkout-fg';
       case 'arriving_today': return 'text-status-arriving-fg';
       default: return 'text-ink-primary';
     }
@@ -100,6 +102,8 @@ export default function RoomCard({
             <span className="room-card__sub text-[11px] font-sans text-ink-muted">
               {effectiveStatus === 'checkout_today' ? (
                 <span className="text-danger-fg">Checkout today</span>
+              ) : effectiveStatus === 'delayed' ? (
+                <span className="text-danger-fg font-bold">Checkout Delayed ⚠️</span>
               ) : effectiveStatus === 'arriving_today' ? (
                 <span>Arriving today</span>
               ) : (

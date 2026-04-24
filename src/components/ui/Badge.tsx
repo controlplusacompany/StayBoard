@@ -16,6 +16,7 @@ export default function Badge({ type, label, className = '' }: BadgeProps) {
       case 'cleaning': return 'bg-status-cleaning-bg text-status-cleaning-fg';
       case 'maintenance': return 'bg-status-maintenance-bg text-status-maintenance-fg';
       case 'checkout_today': return 'bg-status-checkout-bg text-status-checkout-fg';
+      case 'delayed': return 'bg-status-checkout-bg text-status-checkout-fg';
       case 'arriving_today': return 'bg-status-arriving-bg text-status-arriving-fg';
       case 'confirmed': return 'bg-info-bg text-info';
       case 'checked_in': return 'bg-success-bg text-success';

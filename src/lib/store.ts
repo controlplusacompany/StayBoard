@@ -145,9 +145,7 @@ export const getEnrichedRooms = async (): Promise<Room[]> => {
     // 1. ACTIVE OCCUPANCY: status === 'checked_in'
     const currentGuest = bookings.find(b => 
       b.room_id === room.id && 
-      b.status === 'checked_in' &&
-      b.check_in_date.split('T')[0] <= localToday &&
-      b.check_out_date.split('T')[0] > localToday
+      b.status === 'checked_in'
     );
 
     // 2. Scheduled logic
@@ -157,14 +155,30 @@ export const getEnrichedRooms = async (): Promise<Room[]> => {
       b.check_in_date.split('T')[0] === localToday
     );
 
-    const checkoutToday = bookings.find(b => 
+    const checkOutTodayRaw = bookings.find(b => 
       b.room_id === room.id && 
       b.status === 'checked_in' && 
       b.check_out_date.split('T')[0] === localToday
     );
 
-    // 3. OVERDUE check
-    const isOverdue = !!(currentGuest && currentGuest.check_out_date.split('T')[0] < localToday);
+    const checkoutDateRaw = currentGuest?.check_out_date.split('T')[0] || '';
+    const isOverdue = !!(currentGuest && checkoutDateRaw < localToday);
+    const checkoutToday = !!(currentGuest && checkoutDateRaw === localToday);
+
+    // 3. Status priority logic
+    let calculatedStatus = room.status;
+
+    if (isOverdue) {
+      calculatedStatus = 'delayed';
+    } else if (checkoutToday) {
+      calculatedStatus = 'checkout_today';
+    } else if (currentGuest) {
+      calculatedStatus = 'occupied';
+    } else if (arrivingToday) {
+      calculatedStatus = 'arriving_today';
+    } else if (room.status === 'occupied' || room.status === 'checkout_today' || room.status === 'delayed') {
+      calculatedStatus = 'vacant';
+    }
 
     // 4. NEXT FUTURE BOOKING
     const futureBookings = bookings
@@ -185,25 +199,13 @@ export const getEnrichedRooms = async (): Promise<Room[]> => {
       futureBookingStr = `Next: ${d.getDate()} ${months[d.getMonth()]} (${nextBooking.guest_name})`;
     }
 
-    let calculatedStatus = room.status;
-
-    if (currentGuest) {
-      calculatedStatus = 'occupied';
-    } else if (arrivingToday) {
-      calculatedStatus = 'arriving_today';
-    } else if (checkoutToday) {
-      calculatedStatus = 'checkout_today';
-    } else if (room.status === 'occupied') {
-      calculatedStatus = 'vacant';
-    }
-
     return { 
       ...room, 
       status: calculatedStatus as RoomStatus,
       is_overdue: isOverdue,
       future_booking: futureBookingStr,
-      guest_name: currentGuest?.guest_name || arrivingToday?.guest_name || checkoutToday?.guest_name || '',
-      checkout_date: currentGuest?.check_out_date || arrivingToday?.check_out_date || checkoutToday?.check_out_date || ''
+      guest_name: currentGuest?.guest_name || arrivingToday?.guest_name || checkOutTodayRaw?.guest_name || '',
+      checkout_date: currentGuest?.check_out_date || arrivingToday?.check_out_date || checkOutTodayRaw?.check_out_date || ''
     };
   });
 };
@@ -244,8 +246,17 @@ export const finalCheckout = async (bookingId: string, paymentAmount: number, pa
     }).eq('id', invoice.id);
   }
 
-  // 4. Set Room to CLEANING (not vacant yet!)
+  // 4. Set Room to CLEANING and Auto-Generate Task
   await updateRoomStatus(booking.room_id, 'cleaning');
+  await addTask({
+    property_id: booking.property_id,
+    room_id: booking.room_id,
+    owner_id: booking.owner_id,
+    task_type: 'checkout_clean',
+    status: 'pending',
+    priority: 'high',
+    due_by: new Date().toISOString()
+  });
 
   // 5. Sync Guest history
   await syncGuestFromBooking({ ...booking, status: 'checked_out' });
@@ -290,7 +301,7 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
   // SYNC GUEST: Ensure guest info is always up to date on status change
   await syncGuestFromBooking({ ...booking, status });
 
-  if (status === 'checked_in') {
+  if (status === 'checked_in' && booking.room_id) {
     await updateRoomStatus(booking.room_id, 'occupied');
     
     // Notify Owner with full details
@@ -299,12 +310,24 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
       const { data: room } = await supabase.from('rooms').select('room_number').eq('id', booking.room_id).single();
       await notifyCheckIn({ ...booking, room_number: room?.room_number }, property?.name || 'StayBoard Property');
     } catch (nErr) {
-      console.error("Check-in Notification Failed:", nErr);
+      console.error("Check-In Notification Failed:", nErr);
     }
   }
-  if (status === 'checked_out') await updateRoomStatus(booking.room_id, 'vacant');
-  
+
+  if (status === 'checked_out' && booking.room_id) {
+    await updateRoomStatus(booking.room_id, 'cleaning');
+    await addTask({
+      property_id: booking.property_id,
+      room_id: booking.room_id,
+      owner_id: booking.owner_id,
+      task_type: 'checkout_clean',
+      status: 'pending',
+      priority: 'high',
+      due_by: new Date().toISOString()
+    });
+  }
   window.dispatchEvent(new Event('storage'));
+  window.dispatchEvent(new Event('stayboard_update'));
 };
 
 export const deleteBooking = async (bookingId: string) => {
@@ -515,7 +538,23 @@ export const toggleVipStatus = async (guestId: string) => {
   if (guest) {
     await supabase.from('guests').update({ is_vip: !guest.is_vip }).eq('id', guestId);
     window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('stayboard_update'));
   }
+};
+
+export const toggleDnrStatus = async (guestId: string) => {
+  const { data: guest } = await supabase.from('guests').select('is_dnr').eq('id', guestId).single();
+  if (guest) {
+    await supabase.from('guests').update({ is_dnr: !guest.is_dnr }).eq('id', guestId);
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('stayboard_update'));
+  }
+};
+
+export const updateGuestNotes = async (guestId: string, notes: string) => {
+  await supabase.from('guests').update({ notes }).eq('id', guestId);
+  window.dispatchEvent(new Event('storage'));
+  window.dispatchEvent(new Event('stayboard_update'));
 };
 
 // INVOICES & PAYMENTS
@@ -588,10 +627,25 @@ export const addTask = async (task: any) => {
 
 export const updateTaskStatus = async (taskId: string, status: TaskStatus) => {
   const update: any = { status };
-  if (status === 'in_progress') update.started_at = new Date().toISOString();
-  if (status === 'completed') update.completed_at = new Date().toISOString();
-  await supabase.from('housekeeping_tasks').update(update).eq('id', taskId);
+  const now = new Date().toISOString();
+  if (status === 'in_progress') update.started_at = now;
+  if (status === 'done') update.completed_at = now;
+  
+  const { data: task } = await supabase.from('housekeeping_tasks').update(update).eq('id', taskId).select().single();
+  
+  // Industrial Logic: When status is 'done', set room to 'vacant' if it was 'cleaning'
+  if (task && status === 'done') {
+    const { data: room } = await supabase.from('rooms').select('status').eq('id', task.room_id).single();
+    if (room && room.status === 'cleaning') {
+      await supabase.from('rooms').update({ 
+        status: 'vacant',
+        last_status_change: now 
+      }).eq('id', task.room_id);
+    }
+  }
+
   window.dispatchEvent(new Event('storage'));
+  window.dispatchEvent(new Event('stayboard_update'));
 };
 
 export const reassignTask = async (taskId: string, staffName: string) => {

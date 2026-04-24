@@ -102,12 +102,7 @@ export default function Navbar({ onMenuClick, isSettingsPage }: { onMenuClick?: 
 
       <nav className="navbar fixed top-0 left-0 right-0 z-[100] h-[56px] bg-white/70 backdrop-blur-[12px] border-b border-border-subtle flex items-center justify-between px-4 md:px-6">
         <div className="flex items-center gap-2 md:gap-4">
-          <button
-            className="md:hidden flex items-center justify-center p-1.5 -ml-1.5 text-ink-primary hover:bg-bg-sunken rounded-md transition-colors"
-            onClick={onMenuClick}
-          >
-            <Menu size={20} />
-          </button>
+          {/* Menu hidden on mobile because of BottomNav */}
 
           <Link
             href={isReception ? `/property/${typeof window !== 'undefined' ? localStorage.getItem('stayboard_user_property') || '010' : '010'}` : "/dashboard"}

@@ -16,8 +16,11 @@ import {
   Info,
   ArrowLeft,
   Bell as BellIcon,
-  BellOff
+  BellOff,
+  ShieldAlert
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useToast } from '@/components/ui/Toast';
 import { useNotifications } from '@/hooks/useNotifications';
 import NotificationDebugger from '@/components/settings/NotificationDebugger';
 import { 
@@ -29,6 +32,8 @@ import { getAuditLogsStored, getSelectedProperty } from '@/lib/store';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function SettingsPage() {
+  const router = useRouter();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = React.useState('reports');
   const [userRole, setUserRole] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -36,7 +41,14 @@ export default function SettingsPage() {
 
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
-      setUserRole(localStorage.getItem('stayboard_user_role') || 'owner');
+      const role = localStorage.getItem('stayboard_user_role') || 'owner';
+      setUserRole(role);
+      
+      // ROLE GUARD
+      if (role === 'reception' || role === 'staff') {
+        router.push('/dashboard');
+        return;
+      }
     }
 
     // Listen for property changes

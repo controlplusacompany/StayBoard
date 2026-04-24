@@ -19,7 +19,7 @@ import {
   X,
   FileSpreadsheet
 } from 'lucide-react';
-import { format, differenceInCalendarDays } from 'date-fns';
+import { format, differenceInCalendarDays, parseISO } from 'date-fns';
 import { useToast } from '@/components/ui/Toast';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
@@ -27,6 +27,8 @@ import { Booking, Guest } from '@/types';
 import { 
   getBookingsList,
   toggleVipStatus,
+  toggleDnrStatus,
+  updateGuestNotes,
   getStoredGuests,
   getSelectedProperty
 } from '@/lib/store';
@@ -40,6 +42,8 @@ export default function GuestsPage() {
   const [sortConfig, setSortConfig] = useState<{ key: keyof Guest | 'last_stay_date'; direction: 'asc' | 'desc' } | null>({ key: 'last_stay_date', direction: 'desc' });
   const [columnFilters, setColumnFilters] = useState<Partial<Record<keyof Guest, string>>>({});
   const [showColumnFilters, setShowColumnFilters] = useState(false);
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [tempNotes, setTempNotes] = useState('');
 
   const [propertyFilter, setPropertyFilter] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -107,13 +111,56 @@ export default function GuestsPage() {
 
   const handleToggleVip = async (guestId: string) => {
     try {
+      if (selectedGuest?.id === guestId) {
+        setSelectedGuest({ ...selectedGuest, is_vip: !selectedGuest.is_vip });
+      }
       await toggleVipStatus(guestId);
-      const updatedGuests = await getStoredGuests();
-      setGuests(updatedGuests);
       toast("VIP status updated", "success");
     } catch (error) {
       toast("Failed to update VIP status", "error");
     }
+  };
+
+  const handleToggleDnr = async (guestId: string) => {
+    try {
+      if (selectedGuest?.id === guestId) {
+        setSelectedGuest({ ...selectedGuest, is_dnr: !selectedGuest.is_dnr });
+      }
+      await toggleDnrStatus(guestId);
+      toast("DNR status updated", "success");
+    } catch (error) {
+      toast("Failed to update DNR status", "error");
+    }
+  };
+
+  const handleSaveNotes = async () => {
+    if (!selectedGuest) return;
+    try {
+      await updateGuestNotes(selectedGuest.id, tempNotes);
+      setSelectedGuest({ ...selectedGuest, notes: tempNotes });
+      setEditingNotes(false);
+      toast("Notes saved", "success");
+    } catch (error) {
+      toast("Failed to save notes", "error");
+    }
+  };
+
+  const sendWhatsApp = (phone: string, template: 'welcome' | 'checkout' | 'general') => {
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
+    const mobile = cleanPhone.startsWith('91') ? cleanPhone : '91' + cleanPhone;
+    
+    let message = '';
+    const guestName = selectedGuest?.name || 'Guest';
+
+    if (template === 'welcome') {
+      message = `Hello ${guestName}, welcome to StayBoard! We are thrilled to have you stay with us. Your room is ready and the team is here to assist you. Have a great stay!`;
+    } else if (template === 'checkout') {
+      message = `Hello ${guestName}, thank you for choosing StayBoard! We hope you had a pleasant stay. We've emailed your invoice and would love to host you again soon. Best regards!`;
+    } else {
+      message = `Hello ${guestName}, this is StayBoard support. How can we assist you today?`;
+    }
+
+    window.open(`https://wa.me/${mobile}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   const handleSort = (key: keyof Guest | 'last_stay_date') => {
@@ -426,8 +473,12 @@ export default function GuestsPage() {
               {sortedGuests.map((guest) => (
                 <tr 
                   key={guest.id} 
-                  className="border-b border-border-subtle/50 hover:bg-bg-sunken/30 transition-colors group cursor-pointer"
-                  onClick={() => setSelectedGuest(guest)}
+                  className={`border-b border-border-subtle/50 hover:bg-bg-sunken/30 transition-colors group cursor-pointer ${guest.is_dnr ? 'bg-danger/5 border-l-4 border-l-danger' : ''}`}
+                  onClick={() => {
+                    setSelectedGuest(guest);
+                    setTempNotes(guest.notes || '');
+                    setEditingNotes(false);
+                  }}
                 >
                   <td className="py-4 px-6">
                     <div className="flex items-center gap-3">
@@ -438,9 +489,10 @@ export default function GuestsPage() {
                         <span className="font-semibold text-ink-primary flex items-center gap-1.5 antialiased">
                           {guest.name}
                           {guest.is_vip && <Star size={11} className="fill-accent text-accent" />}
+                          {guest.is_dnr && <Badge type="cancelled" label="DNR" />}
                         </span>
                         <span className="text-[10px] uppercase font-medium text-ink-muted tracking-wider">
-                          {guest.is_vip ? 'VIP Guest' : 'Standard'}
+                          {guest.is_dnr ? 'Blacklisted' : (guest.is_vip ? 'VIP Guest' : 'Standard')}
                         </span>
                       </div>
                     </div>
@@ -572,25 +624,122 @@ export default function GuestsPage() {
               </div>
             </div>
 
-            {/* VIP Toggler */}
-            <div className="bg-white border border-border-subtle p-4 rounded-xl flex items-center justify-between">
-              <div className="flex flex-col gap-0.5">
-                <span className="font-medium text-ink-primary text-sm line-clamp-1">VIP Status</span>
-                <span className="text-xs text-ink-muted">Highlight this guest for special treatment.</span>
-              </div>
-              <div 
-                className={`w-12 h-6 rounded-full p-1 transition-colors cursor-pointer flex items-center ${selectedGuest.is_vip ? 'bg-accent justify-end' : 'bg-border-strong justify-start'}`}
-                onClick={() => handleToggleVip(selectedGuest.id)}
-              >
-                <div className="w-4 h-4 rounded-full bg-white shadow-sm"></div>
+            {/* Industrial Component: WhatsApp Experience Portal */}
+            <div className="flex flex-col gap-3">
+               <label className="text-[10px] uppercase font-bold text-ink-muted tracking-[0.2em]">WhatsApp Experience Portal</label>
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <button 
+                    onClick={() => sendWhatsApp(selectedGuest.phone, 'welcome')}
+                    className="flex items-center justify-between p-4 bg-white border border-border-subtle rounded-xl hover:border-success hover:bg-success/5 transition-all text-left shadow-sm group"
+                  >
+                     <div className="flex flex-col gap-0.5">
+                        <span className="text-sm font-semibold text-ink-primary">Send Welcome</span>
+                        <span className="text-[10px] text-ink-muted">Arrival Instructions</span>
+                     </div>
+                     <ChevronRight size={16} className="text-ink-muted group-hover:text-success" />
+                  </button>
+                  <button 
+                    onClick={() => sendWhatsApp(selectedGuest.phone, 'checkout')}
+                    className="flex items-center justify-between p-4 bg-white border border-border-subtle rounded-xl hover:border-accent hover:bg-accent/5 transition-all text-left shadow-sm group"
+                  >
+                     <div className="flex flex-col gap-0.5">
+                        <span className="text-sm font-semibold text-ink-primary">Invoice & Thank You</span>
+                        <span className="text-[10px] text-ink-muted">Checkout Message</span>
+                     </div>
+                     <ChevronRight size={16} className="text-ink-muted group-hover:text-accent" />
+                  </button>
+               </div>
+            </div>
+
+            {/* Loyalty & Risk Management */}
+            <div className="flex flex-col gap-3">
+              <label className="text-[10px] uppercase font-bold text-ink-muted tracking-[0.2em]">Management & Logic</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* VIP Toggler */}
+                <div className="bg-white border border-border-subtle p-4 rounded-xl flex items-center justify-between shadow-sm">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="font-semibold text-ink-primary text-sm">VIP Identification</span>
+                    <span className="text-[10px] text-ink-muted">Highlights guest in all views</span>
+                  </div>
+                  <div 
+                    className={`w-10 h-5 rounded-full p-0.5 transition-colors cursor-pointer flex items-center ${selectedGuest.is_vip ? 'bg-accent justify-end' : 'bg-border-strong justify-start'}`}
+                    onClick={() => handleToggleVip(selectedGuest.id)}
+                  >
+                    <div className="w-4 h-4 rounded-full bg-white shadow-sm"></div>
+                  </div>
+                </div>
+
+                {/* DNR Toggler (Risk) */}
+                <div className={`border p-4 rounded-xl flex items-center justify-between shadow-sm transition-colors ${selectedGuest.is_dnr ? 'bg-danger/5 border-danger/20' : 'bg-white border-border-subtle'}`}>
+                  <div className="flex flex-col gap-0.5">
+                    <span className={`font-semibold text-sm ${selectedGuest.is_dnr ? 'text-danger' : 'text-ink-primary'}`}>DNR (Blacklist)</span>
+                    <span className="text-[10px] text-ink-muted">Prevent future check-ins</span>
+                  </div>
+                  <div 
+                    className={`w-10 h-5 rounded-full p-0.5 transition-colors cursor-pointer flex items-center ${selectedGuest.is_dnr ? 'bg-danger justify-end' : 'bg-border-strong justify-start'}`}
+                    onClick={() => handleToggleDnr(selectedGuest.id)}
+                  >
+                    <div className="w-4 h-4 rounded-full bg-white shadow-sm"></div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Fix #11 — Notes displayed as read-only styled element, not a confusingly editable textarea */}
+            {/* Notes Section with Inline Edit */}
             <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-ink-muted uppercase tracking-wider">Internal Notes</label>
-              <div className="bg-bg-sunken/50 border border-border-subtle rounded-xl px-4 py-3 min-h-[80px] text-sm text-ink-secondary leading-relaxed">
-                {selectedGuest?.notes || <span className="text-ink-muted italic text-xs">No notes recorded for this guest.</span>}
+              <div className="flex justify-between items-center">
+                <label className="text-[10px] uppercase font-bold text-ink-muted tracking-[0.2em]">Internal Intelligence</label>
+                {!editingNotes ? (
+                  <button onClick={() => setEditingNotes(true)} className="text-[10px] font-bold text-accent uppercase tracking-widest hover:underline">Edit Notes</button>
+                ) : (
+                  <button onClick={handleSaveNotes} className="text-[10px] font-bold text-success uppercase tracking-widest hover:underline">Save Changes</button>
+                )}
+              </div>
+              
+              {editingNotes ? (
+                <textarea 
+                  className="input min-h-[100px] text-sm py-3 leading-relaxed" 
+                  value={tempNotes}
+                  onChange={e => setTempNotes(e.target.value)}
+                  placeholder="Add preferences, issues or internal comments..."
+                  autoFocus
+                />
+              ) : (
+                <div className="bg-bg-sunken/50 border border-border-subtle rounded-xl px-4 py-3 min-h-[80px] text-sm text-ink-secondary leading-relaxed">
+                  {selectedGuest?.notes || <span className="text-ink-muted italic text-xs">No intelligence recorded for this guest.</span>}
+                </div>
+              )}
+            </div>
+
+            {/* Guest Stay History (The 360 View) */}
+            <div className="flex flex-col gap-3 pt-2">
+              <label className="text-[10px] uppercase font-bold text-ink-muted tracking-[0.2em]">Transaction History</label>
+              <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto no-scrollbar pr-1 pb-4">
+                {bookings.filter(b => b.guest_phone === selectedGuest.phone).length > 0 ? (
+                  bookings.filter(b => b.guest_phone === selectedGuest.phone).map(b => (
+                    <div key={b.id} className="p-3 bg-bg-sunken/40 border border-border-subtle rounded-xl flex items-center justify-between group/stay">
+                       <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-white border border-border-subtle flex items-center justify-center text-ink-muted">
+                             <Calendar size={14} />
+                          </div>
+                          <div className="flex flex-col">
+                             <span className="text-sm font-semibold text-ink-primary">
+                                {format(parseISO(b.check_in_date), 'dd MMM')} - {format(parseISO(b.check_out_date), 'dd MMM')}
+                             </span>
+                             <span className="text-[10px] text-ink-muted capitalize">{b.status.replace('_', ' ')}</span>
+                          </div>
+                       </div>
+                       <div className="flex flex-col items-end">
+                          <span className="text-xs font-mono font-bold text-ink-primary">₹{b.total_amount.toLocaleString()}</span>
+                          <span className="text-[10px] text-ink-muted">Ref: {b.id.slice(0, 8)}</span>
+                       </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-8 text-center text-ink-muted text-xs italic border border-dashed border-border-subtle rounded-xl">
+                    No matching booking history found.
+                  </div>
+                )}
               </div>
             </div>
           </div>

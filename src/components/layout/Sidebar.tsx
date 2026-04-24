@@ -15,23 +15,22 @@ import {
   CalendarDays,
   ClipboardList,
   LogOut,
-  User
+  User,
+  ShieldCheck
 } from 'lucide-react';
 import { logout } from '@/lib/store';
 
 const NAV_ITEMS = [
-  { label: 'Dashboard',    href: '/dashboard',     icon: Layout },
-  { label: 'Availability', href: '/calendar',       icon: CalendarDays },
+  { label: 'Dashboard',    href: '/dashboard',      icon: Layout },
+  { label: 'Calendar',     href: '/calendar',       icon: CalendarDays },
   { label: 'Reservations', href: '/reservations',   icon: ClipboardList },
   { label: 'Housekeeping', href: '/housekeeping',   icon: Sparkles },
-  { label: 'Invoices',     href: '/invoices',       icon: ReceiptText },
-  { label: 'Rates',        href: '/rates',          icon: Tag },
   { label: 'Guests',       href: '/guests',         icon: Users },
-  { label: 'Reports',      href: '/reports',        icon: BarChart3 },
-  { label: 'Channels',     href: '/channels',      icon: Wifi },
+  { label: 'Finance',      href: '/finance',        icon: BarChart3 },
+  { label: 'Distribution', href: '/distribution',   icon: Wifi },
 ];
 
-const RECEPTION_NAV_ITEMS = ['Dashboard', 'Availability', 'Reservations', 'Housekeeping', 'Guests'];
+const RECEPTION_NAV_ITEMS = ['Dashboard', 'Calendar', 'Reservations', 'Housekeeping', 'Guests'];
 
 export default function Sidebar({ isMobileOpen, onCloseMobile }: { isMobileOpen?: boolean; onCloseMobile?: () => void }) {
   const pathname = usePathname();
@@ -51,8 +50,26 @@ export default function Sidebar({ isMobileOpen, onCloseMobile }: { isMobileOpen?
   const isOwner = userRole === 'owner';
 
   const filteredNavItems = NAV_ITEMS.filter(item => {
-    if (item.label === 'Channels' || item.label === 'Rates') return userRole === 'admin' || userRole === 'md' || userRole === 'superadmin';
-    if (isReception) return RECEPTION_NAV_ITEMS.includes(item.label);
+    // 1. RBAC Check for Hubs
+    if (item.label === 'Finance' || item.label === 'Distribution') {
+      const hasAccess = userRole === 'owner' || userRole === 'admin' || userRole === 'md' || userRole === 'superadmin';
+      if (!hasAccess) return false;
+    }
+    
+    // 2. Reception Restriction
+    if (isReception) {
+      if (!RECEPTION_NAV_ITEMS.includes(item.label)) return false;
+    }
+
+    // 3. Mobile Redundancy Filter (Hide items already in BottomNav)
+    const BOTTOM_NAV_LABELS = ['Dashboard', 'Calendar', 'Reservations', 'Housekeeping'];
+    const isInBottomNav = BOTTOM_NAV_LABELS.includes(item.label);
+    
+    // On mobile, if item is in bottom nav, hide it from the "More" drawer
+    if (isMobileOpen && isInBottomNav && typeof window !== 'undefined' && window.innerWidth < 768) {
+      return false;
+    }
+
     return true;
   });
 
@@ -68,16 +85,16 @@ export default function Sidebar({ isMobileOpen, onCloseMobile }: { isMobileOpen?
 
       <aside
         className={`
-          fixed left-0 top-[56px] bottom-0 z-[80]
-          w-[76px] bg-white border-r border-border-subtle
-          flex flex-col py-3 overflow-hidden
+          fixed left-0 top-0 bottom-0 z-[80]
+          w-[280px] md:w-[76px] md:top-[56px] bg-white border-r border-border-subtle
+          flex flex-col py-6 md:py-2 overflow-y-auto overflow-x-hidden no-scrollbar
           transition-transform duration-300 ease-out
           md:translate-x-0
           ${isMobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}
         `}
       >
         {/* Nav Items */}
-        <nav className="flex-1 flex flex-col items-center gap-1.5 px-2">
+        <nav className="flex-1 flex flex-col items-center gap-1 px-2 pb-10">
           {filteredNavItems.map((item, index) => {
             const isActive =
               pathname === item.href ||
@@ -110,8 +127,8 @@ export default function Sidebar({ isMobileOpen, onCloseMobile }: { isMobileOpen?
                   transform: isMounted ? 'translateX(0)' : 'translateX(-10px)'
                 }}
                 className={`
-                  relative w-full flex flex-col items-center justify-center gap-1
-                  py-2 px-1 rounded-2xl transition-all duration-500 ease-spring
+                  relative w-full flex md:flex-col items-center md:justify-center gap-4 md:gap-1
+                  py-3 md:py-2 px-6 md:px-1 rounded-2xl transition-all duration-500 ease-spring
                   no-underline group active:scale-95
                   ${isActive
                     ? 'text-accent'
@@ -143,8 +160,7 @@ export default function Sidebar({ isMobileOpen, onCloseMobile }: { isMobileOpen?
                 <span className={`text-[10.5px] font-display font-medium tracking-tight leading-none text-center transition-all duration-200
                   ${isActive ? 'text-accent' : 'text-ink-muted/80 group-hover:text-ink-primary'}
                 `}>
-                  {item.label === 'Availability' ? 'Calendar' :
-                   item.label === 'Reservations' ? 'Reserve' :
+                  {item.label === 'Reservations' ? 'Reserve' :
                    item.label === 'Housekeeping' ? 'Cleaning' :
                    item.label}
                 </span>

@@ -12,30 +12,42 @@ import {
 } from 'lucide-react';
 import { getBookingsList, getStoredInvoices, getStoredRooms, getSelectedProperty } from '@/lib/store';
 import { Booking, Invoice, Room } from '@/types';
-import { format, subDays, isWithinInterval, isSameDay, parseISO } from 'date-fns';
+import { format, subDays, isWithinInterval, isSameDay, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { useSearchParams } from 'next/navigation';
+import { calculateIndustrialMetrics, getRevenueForecast, RevenueMetrics } from '@/lib/analytics';
 import Badge from '@/components/ui/Badge';
 import Select from '@/components/ui/Select';
 import Modal from '@/components/ui/Modal';
-import { UserCircle2, ArrowRight, CreditCard, Clock } from 'lucide-react';
+import { UserCircle2, ArrowRight, CreditCard, Clock, ShieldAlert } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
-export default function ReportsPage() {
+export default function ReportsPage({ isHub = false }: { isHub?: boolean }) {
+  const router = useRouter();
   const [dateRange, setDateRange] = useState('30days');
+  const [adr, setAdr] = useState(0); 
+  const [customStart, setCustomStart] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
+  const [customEnd, setCustomEnd] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [metrics, setMetrics] = useState<RevenueMetrics | null>(null);
+  const [forecast, setForecast] = useState<any[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
   
-  // Derived state
-  const [revenue, setRevenue] = useState(0);
-  const [bookingsCount, setBookingsCount] = useState(0);
-  const [occupancy, setOccupancy] = useState(0);
-  const [adr, setAdr] = useState(0); // Average Daily Rate
-
   const searchParams = useSearchParams();
   const filter = searchParams.get('filter');
   const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
   useEffect(() => {
+    // 1. ROLE GUARD: Staff cannot see reports
+    if (typeof window !== 'undefined') {
+      const role = localStorage.getItem('stayboard_user_role');
+      if (role === 'reception' || role === 'staff') {
+        router.push('/dashboard');
+        return;
+      }
+    }
+
     const fetchData = async () => {
-      // Fetch live cloud data
       const currentProperty = getSelectedProperty();
       const [bookingsRaw, invoicesRaw, roomsRaw] = await Promise.all([
         getBookingsList(),
@@ -43,58 +55,54 @@ export default function ReportsPage() {
         getStoredRooms()
       ]);
 
-      let allBookings = bookingsRaw || [];
-      let allInvoices = invoicesRaw || [];
-      let allRooms = roomsRaw || [];
+      let allBookings = (bookingsRaw || []) as Booking[];
+      let allInvoices = (invoicesRaw || []) as Invoice[];
+      let allRooms = (roomsRaw || []) as Room[];
 
-      // Global property filter logic
       if (currentProperty && currentProperty !== 'all') {
         allBookings = allBookings.filter(b => b.property_id === currentProperty);
         allInvoices = allInvoices.filter(i => {
-          // Find booking to get its property_id if invoice doesn't have it
-          const booking = allBookings.find(b => b.id === i.booking_id);
-          return booking?.property_id === currentProperty;
+           const booking = allBookings.find(b => b.id === i.booking_id);
+           return booking?.property_id === currentProperty;
         });
         allRooms = allRooms.filter(r => r.property_id === currentProperty);
       }
       
-      // Compute Metrics from Filtered Data
-      const totalRev = allInvoices.reduce((sum, inv) => sum + (Number(inv.amount_paid) || 0), 0);
-      const activeBookings = allBookings.filter(b => b.status !== 'cancelled' && b.status !== 'no_show');
+      setRooms(allRooms);
       
-      // Filter list for display based on local tab filter
-      let list = [...allBookings];
       const now = new Date();
-      
-      if (filter === 'arrivals') {
-        list = allBookings.filter(b => isSameDay(parseISO(b.check_in_date), now));
-      } else if (filter === 'check_out') {
-        list = allBookings.filter(b => isSameDay(parseISO(b.check_out_date), now));
-      } else if (filter === 'occupied') {
-        list = allBookings.filter(b => b.status === 'checked_in');
+      let start = subDays(now, 30);
+      let end = now;
+
+      if (dateRange === '7days') start = subDays(now, 7);
+      else if (dateRange === 'this_month') start = new Date(now.getFullYear(), now.getMonth(), 1);
+      else if (dateRange === 'ytd') start = new Date(now.getFullYear(), 0, 1);
+      else if (dateRange === 'custom') {
+        start = startOfDay(parseISO(customStart));
+        end = endOfDay(parseISO(customEnd));
       }
 
+      const indMetrics = calculateIndustrialMetrics(allBookings, allRooms, allInvoices, start, end);
+      setMetrics(indMetrics);
+      setForecast(getRevenueForecast(allBookings, allRooms.length || 10));
+
+      // Filter list for display
+      let list = [...allBookings];
+      if (filter === 'arrivals') list = allBookings.filter(b => isSameDay(parseISO(b.check_in_date), now));
+      else if (filter === 'check_out') list = allBookings.filter(b => isSameDay(parseISO(b.check_out_date), now));
+      else if (filter === 'occupied') list = allBookings.filter(b => b.status === 'checked_in');
+
       setFilteredBookings(list);
-
-      // Real Occupancy Calculation
-      const roomNights = activeBookings.length; 
-      const totalCapacity = (allRooms.length > 0 ? allRooms.length : 10) * 30; 
-      const realOccupancy = Math.min((roomNights / totalCapacity) * 100, 100);
-      
-      const calculatedAdr = activeBookings.length > 0 
-        ? totalRev / activeBookings.length 
-        : 0;
-
-      setRevenue(totalRev > 0 ? totalRev : 0);
-      setBookingsCount(activeBookings.length);
-      setOccupancy(realOccupancy > 0 ? realOccupancy : 0);
-      setAdr(calculatedAdr);
     };
 
     fetchData();
     window.addEventListener('storage', fetchData);
-    return () => window.removeEventListener('storage', fetchData);
-  }, [dateRange, filter]);
+    window.addEventListener('stayboard_update', fetchData);
+    return () => {
+      window.removeEventListener('storage', fetchData);
+      window.removeEventListener('stayboard_update', fetchData);
+    };
+  }, [dateRange, filter, customStart, customEnd]);
 
   const handleExportCSV = () => {
     if (filteredBookings.length === 0) {
@@ -125,13 +133,18 @@ export default function ReportsPage() {
   };
 
   return (
-    <div className="p-6 md:p-10 flex flex-col gap-8 animate-slide-up bg-bg-canvas min-h-full">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">
-        <div className="flex flex-col gap-3">
-          <span className="text-[10px] font-medium text-accent uppercase tracking-[0.3em] font-sans">Business Intelligence</span>
-          <h1 className="text-4xl md:text-5xl font-display text-ink-primary tracking-tighter font-medium text-balance">Performance Reports</h1>
-        </div>
-        
+    <div className={isHub ? "p-0 flex flex-col gap-8 animate-slide-up" : "p-6 md:p-10 flex flex-col gap-8 animate-slide-up bg-bg-canvas min-h-full"}>
+      {!isHub && (
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+          <div className="flex flex-col gap-3">
+            <span className="text-[10px] font-medium text-accent uppercase tracking-[0.3em] font-sans">Business Intelligence</span>
+            <h1 className="text-4xl md:text-5xl font-display text-ink-primary tracking-tighter font-medium text-balance">Performance Reports</h1>
+          </div>
+        </header>
+      )}
+
+      {/* Action Bar: Filters & Export */}
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-xl border border-border-subtle shadow-sm">
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <Select 
             options={[
@@ -139,10 +152,14 @@ export default function ReportsPage() {
               { id: '30days', label: 'Last 30 Days', icon: Calendar, description: 'Past month' },
               { id: 'this_month', label: 'This Month', icon: Calendar, description: 'Current month' },
               { id: 'last_month', label: 'Last Month', icon: Calendar, description: 'Previous month' },
-              { id: 'ytd', label: 'Year to Date', icon: Calendar, description: 'Full year' }
+              { id: 'ytd', label: 'Year to Date', icon: Calendar, description: 'Full year' },
+              { id: 'custom', label: 'Custom Range', icon: Clock, description: 'Select exact dates' }
             ]}
             value={dateRange}
-            onChange={setDateRange}
+            onChange={(val) => {
+              setDateRange(val);
+              if (val === 'custom') setShowCustomModal(true);
+            }}
             className="sm:w-56"
           />
           <button 
@@ -153,7 +170,7 @@ export default function ReportsPage() {
             <span className="hidden sm:inline">Export</span>
           </button>
         </div>
-      </header>
+      </div>
 
       {/* Primary KPI Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
@@ -164,13 +181,14 @@ export default function ReportsPage() {
              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-accent/10 flex items-center justify-center">
                <IndianRupee size={18} className="text-accent" />
              </div>
-             <span className="flex items-center gap-1 text-[11px] sm:text-xs font-medium text-success">
-               <TrendingUp size={12} /> +12.5%
+             <span className={`flex items-center gap-1 text-[11px] sm:text-xs font-medium ${(metrics?.comparison.revenueGrowth || 0) >= 0 ? 'text-success' : 'text-danger'}`}>
+               <TrendingUp size={12} className={(metrics?.comparison.revenueGrowth || 0) < 0 ? 'rotate-180' : ''} /> 
+               {Math.abs(Math.round(metrics?.comparison.revenueGrowth || 0))}%
              </span>
           </div>
           <div className="flex flex-col gap-0.5">
              <h3 className="text-[10px] uppercase font-semibold tracking-wider text-ink-muted">Total Revenue</h3>
-             <span className="text-xl sm:text-2xl md:text-3xl font-mono font-semibold text-ink-primary">₹{revenue.toLocaleString()}</span>
+             <span className="text-xl sm:text-2xl md:text-3xl font-mono font-semibold text-ink-primary">₹{(metrics?.totalRevenue || 0).toLocaleString()}</span>
           </div>
         </div>
 
@@ -180,26 +198,14 @@ export default function ReportsPage() {
              <div className="w-10 h-10 rounded-full bg-bg-sunken flex items-center justify-center">
                <Building size={20} className="text-ink-secondary" />
              </div>
-             <span className="flex items-center gap-1 text-sm font-medium text-success">
-               <TrendingUp size={14} /> +4.2%
+             <span className={`flex items-center gap-1 text-sm font-medium ${(metrics?.comparison.occupancyGrowth || 0) >= 0 ? 'text-success' : 'text-danger'}`}>
+               <TrendingUp size={14} className={(metrics?.comparison.occupancyGrowth || 0) < 0 ? 'rotate-180' : ''} /> 
+               {Math.abs(Math.round(metrics?.comparison.occupancyGrowth || 0))}%
              </span>
           </div>
           <div className="flex flex-col gap-1">
              <h3 className="text-xs uppercase font-semibold tracking-wider text-ink-muted">Occupancy Rate</h3>
-             <span className="text-3xl font-mono font-semibold text-ink-primary">{occupancy.toFixed(1)}%</span>
-          </div>
-        </div>
-
-        {/* Total Bookings */}
-        <div className="bg-white border border-border-subtle rounded-xl p-5 shadow-sm flex flex-col gap-4">
-          <div className="flex justify-between items-start">
-             <div className="w-10 h-10 rounded-full bg-bg-sunken flex items-center justify-center">
-               <Calendar size={20} className="text-ink-secondary" />
-             </div>
-          </div>
-          <div className="flex flex-col gap-1">
-             <h3 className="text-xs uppercase font-semibold tracking-wider text-ink-muted">Total Bookings</h3>
-             <span className="text-3xl font-mono font-semibold text-ink-primary">{bookingsCount}</span>
+             <span className="text-3xl font-mono font-semibold text-ink-primary">{(metrics?.occupancy || 0).toFixed(1)}%</span>
           </div>
         </div>
 
@@ -207,63 +213,59 @@ export default function ReportsPage() {
         <div className="bg-white border border-border-subtle rounded-xl p-5 shadow-sm flex flex-col gap-4">
           <div className="flex justify-between items-start">
              <div className="w-10 h-10 rounded-full bg-bg-sunken flex items-center justify-center">
+               <Clock size={20} className="text-ink-secondary" />
+             </div>
+          </div>
+          <div className="flex flex-col gap-1">
+             <h3 className="text-xs uppercase font-semibold tracking-wider text-ink-muted">Avg Daily Rate (ADR)</h3>
+             <span className="text-3xl font-mono font-semibold text-ink-primary">₹{Math.round(metrics?.adr || 0).toLocaleString()}</span>
+          </div>
+        </div>
+
+        {/* RevPAR */}
+        <div className="bg-white border border-border-subtle rounded-xl p-5 shadow-sm flex flex-col gap-4">
+          <div className="flex justify-between items-start">
+             <div className="w-10 h-10 rounded-full bg-bg-sunken flex items-center justify-center">
                <BarChart3 size={20} className="text-ink-secondary" />
              </div>
           </div>
           <div className="flex flex-col gap-1">
-             <h3 className="text-xs uppercase font-medium tracking-wider text-ink-muted">Average Daily Rate (ADR)</h3>
-             <span className="text-3xl font-mono font-medium text-ink-primary">₹{Math.round(adr).toLocaleString()}</span>
+             <h3 className="text-xs uppercase font-medium tracking-wider text-ink-muted">RevPAR</h3>
+             <span className="text-3xl font-mono font-medium text-ink-primary">₹{Math.round(metrics?.revpar || 0).toLocaleString()}</span>
           </div>
         </div>
       </div>
 
       {/* Mock Visual Charts area using flex grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-         {/* Revenue Bar Chart (CSS Mock) */}
+         {/* Revenue Bar Chart (Forecasting) */}
          <div className="lg:col-span-2 bg-white border border-border-subtle rounded-xl p-6 shadow-sm flex flex-col gap-6">
-            <h3 className="font-semibold text-ink-primary text-lg">Revenue vs Last Period</h3>
-            <div className="h-64 flex items-end justify-between gap-1 mt-auto border-b border-border-strong pb-4 relative overflow-x-auto no-scrollbar">
+            <div className="flex items-center justify-between">
+               <h3 className="font-semibold text-ink-primary text-lg">7-Day Revenue Forecast</h3>
+               <Badge label="Predictive" type="checked_in" />
+            </div>
+            <div className="h-64 flex items-end justify-between gap-1 mt-auto border-b border-border-strong pb-4 relative overflow-x-auto no-scrollbar pt-8">
                {/* Y-axis labels mock */}
-               <div className="absolute left-0 top-0 bottom-4 w-12 flex flex-col justify-between text-xs text-ink-muted font-mono border-r border-border-subtle">
-                  <span>₹200k</span>
-                  <span>₹100k</span>
+               <div className="absolute left-0 top-0 bottom-4 w-12 flex flex-col justify-between text-[10px] text-ink-muted font-mono border-r border-border-subtle">
+                  <span>₹25k</span>
+                  <span>₹12k</span>
                   <span>₹0</span>
                </div>
                
-               {/* Mock Bars */}
-               <div className="w-12 ml-14 flex items-end gap-1 h-full pt-4">
-                  <div className="w-1/2 bg-bg-sunken h-[40%] rounded-t-sm"></div>
-                  <div className="w-1/2 bg-accent h-[45%] rounded-t-sm"></div>
-               </div>
-               <div className="w-12 flex items-end gap-1 h-full pt-4">
-                  <div className="w-1/2 bg-bg-sunken h-[55%] rounded-t-sm"></div>
-                  <div className="w-1/2 bg-accent h-[60%] rounded-t-sm"></div>
-               </div>
-               <div className="w-12 flex items-end gap-1 h-full pt-4">
-                  <div className="w-1/2 bg-bg-sunken h-[50%] rounded-t-sm"></div>
-                  <div className="w-1/2 bg-accent h-[65%] rounded-t-sm"></div>
-               </div>
-               <div className="w-12 flex items-end gap-1 h-full pt-4">
-                  <div className="w-1/2 bg-bg-sunken h-[70%] rounded-t-sm"></div>
-                  <div className="w-1/2 bg-accent h-[80%] rounded-t-sm"></div>
-               </div>
-               <div className="w-12 flex items-end gap-1 h-full pt-4">
-                  <div className="w-1/2 bg-bg-sunken h-[40%] rounded-t-sm"></div>
-                  <div className="w-1/2 bg-accent h-[50%] rounded-t-sm"></div>
-               </div>
-               <div className="w-12 flex items-end gap-1 h-full pt-4">
-                  <div className="w-1/2 bg-bg-sunken h-[85%] rounded-t-sm"></div>
-                  <div className="w-1/2 bg-accent h-[95%] rounded-t-sm"></div>
-               </div>
-            </div>
-            {/* X-axis labels */}
-            <div className="flex justify-between pl-14 text-xs font-medium text-ink-muted">
-               <span>Mon</span>
-               <span>Tue</span>
-               <span>Wed</span>
-               <span>Thu</span>
-               <span>Fri</span>
-               <span>Sat</span>
+               {/* Bar for each day in forecast */}
+               {forecast.map((day, i) => (
+                 <div key={i} className="flex-1 flex flex-col items-center justify-end h-full group relative">
+                    <div 
+                      className="w-8 bg-accent/20 rounded-t-sm group-hover:bg-accent transition-all duration-300 relative" 
+                      style={{ height: `${Math.min((day.revenue / 25000) * 100, 100)}%` }}
+                    >
+                       <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-ink-primary text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg">
+                          ₹{Math.round(day.revenue).toLocaleString()}
+                       </div>
+                    </div>
+                    <span className="text-[10px] font-medium text-ink-muted mt-4">{day.date}</span>
+                 </div>
+               ))}
             </div>
          </div>
 
@@ -333,7 +335,7 @@ export default function ReportsPage() {
                     <div className="flex flex-col text-sm">
                       <span className="text-ink-secondary">{format(parseISO(b.check_in_date), 'dd MMM')} - {format(parseISO(b.check_out_date), 'dd MMM')}</span>
                       <span className="text-[10px] font-medium text-accent uppercase tracking-tighter">
-                        {b.room_id ? `Room ${b.room_id.split('-').pop()}` : 'Unassigned'}
+                         {b.room_id ? `Room ${rooms.find(r => r.id === b.room_id)?.room_number || '??'}` : 'Unassigned'}
                       </span>
                     </div>
                   </td>
@@ -358,6 +360,43 @@ export default function ReportsPage() {
           </table>
         </div>
       </section>
+
+      {/* Modal: Custom Date Picker */}
+      <Modal
+        isOpen={showCustomModal}
+        onClose={() => setShowCustomModal(false)}
+        title="Custom Report Period"
+        footer={
+          <div className="flex gap-3 w-full">
+            <button className="btn btn-secondary flex-1" onClick={() => setShowCustomModal(false)}>Cancel</button>
+            <button className="btn btn-accent flex-1" onClick={() => setShowCustomModal(false)}>Apply Range</button>
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-6">
+           <p className="text-xs text-ink-muted">Select the start and end dates for your performance report. Revenue and ADR will be recalculated instantly.</p>
+           <div className="grid grid-cols-2 gap-4">
+              <div className="field">
+                 <label className="label">Start Date</label>
+                 <input 
+                    type="date" 
+                    className="input" 
+                    value={customStart} 
+                    onChange={e => setCustomStart(e.target.value)} 
+                 />
+              </div>
+              <div className="field">
+                 <label className="label">End Date</label>
+                 <input 
+                    type="date" 
+                    className="input" 
+                    value={customEnd} 
+                    onChange={e => setCustomEnd(e.target.value)} 
+                 />
+              </div>
+           </div>
+        </div>
+      </Modal>
 
       {/* Booking Details Modal */}
       <Modal

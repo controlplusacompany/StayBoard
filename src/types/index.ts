@@ -3,6 +3,7 @@ export type RoomStatus =
   | 'arriving_today'
   | 'occupied'
   | 'checkout_today'
+  | 'delayed'
   | 'cleaning'
   | 'maintenance'
 
@@ -140,6 +141,7 @@ export interface Guest {
   last_stay_date?: string;
   notes?: string;
   is_vip?: boolean;
+  is_dnr?: boolean;
   check_in_date?: string;
   check_out_date?: string;
   stay_duration?: number;
@@ -171,5 +173,18 @@ export interface ChannelConnection {
   is_active: boolean;
   created_at: string;
 }
-
-
+export interface NightAuditEntry {
+  id: string;
+  property_id: string;
+  owner_id: string;
+  business_date: string;
+  performed_at: string;
+  performed_by: string;
+  total_revenue: number;
+  occupancy_percentage: number;
+  no_shows_count: number;
+  delayed_checkouts_count: number;
+  status: 'completed' | 'in_progress';
+  summary_json?: string;
+  created_at: string;
+}
